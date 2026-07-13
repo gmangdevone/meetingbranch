@@ -4,8 +4,10 @@ import {
   db,
   reunionsTable,
   reunionBranchesTable,
+  reunionFeesTable,
   reunionOrganizersTable,
   registrationsTable,
+  registrationFeesTable,
   attendeesTable,
   usersTable,
   announcementsTable,
@@ -34,6 +36,8 @@ import {
   ListReunionOrganizersResponse,
   AddReunionOrganizerBody,
   TransferReunionOwnershipBody,
+  CreateFeeBody,
+  UpdateFeeBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
@@ -59,7 +63,41 @@ async function getReunionWithBranches(reunionId: number) {
     .from(reunionBranchesTable)
     .where(eq(reunionBranchesTable.reunionId, reunionId))
     .orderBy(asc(reunionBranchesTable.sortOrder), asc(reunionBranchesTable.id));
-  return { ...reunion, branches };
+  const fees = await db
+    .select()
+    .from(reunionFeesTable)
+    .where(eq(reunionFeesTable.reunionId, reunionId))
+    .orderBy(asc(reunionFeesTable.sortOrder), asc(reunionFeesTable.id));
+  return { ...reunion, branches, fees };
+}
+
+/**
+ * Normalize fee input: age tiering only applies to per-person fees, and requires
+ * BOTH an age threshold and an under-threshold amount to be meaningful. Anything
+ * else clears the tier so we never store a half-configured tier.
+ */
+function normalizeFeeInput(data: {
+  label: string;
+  chargeType: "per_person" | "flat";
+  isOptional: boolean;
+  amount: number;
+  ageThreshold?: number | null;
+  amountUnderThreshold?: number | null;
+  sortOrder: number;
+}) {
+  const tierValid =
+    data.chargeType === "per_person" &&
+    data.ageThreshold != null &&
+    data.amountUnderThreshold != null;
+  return {
+    label: data.label.trim(),
+    chargeType: data.chargeType,
+    isOptional: data.isOptional,
+    amount: data.amount,
+    ageThreshold: tierValid ? data.ageThreshold! : null,
+    amountUnderThreshold: tierValid ? data.amountUnderThreshold! : null,
+    sortOrder: data.sortOrder,
+  };
 }
 
 async function getReunionSummaryPayload(reunionId: number) {
@@ -109,12 +147,22 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
       name,
       startDate,
       endDate,
-      feePerPerson,
       paymentHandle,
       paymentUrl: paymentUrl ?? null,
       organizerId: userId,
     })
     .returning();
+
+  // Seed the initial per-person "Registration Fee" from the provided amount.
+  // Organizers can relabel it and add more fees & dues from settings afterwards.
+  await db.insert(reunionFeesTable).values({
+    reunionId: reunion.id,
+    label: "Registration Fee",
+    chargeType: "per_person",
+    isOptional: false,
+    amount: feePerPerson,
+    sortOrder: 0,
+  });
 
   // De-dupe branch names, preserve order
   const seen = new Set<string>();
@@ -259,14 +307,13 @@ router.put("/reunions/:reunionId", ...manage, async (req, res): Promise<void> =>
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, feePerPerson, paymentHandle, paymentUrl } = body.data;
+  const { name, startDate, endDate, paymentHandle, paymentUrl } = body.data;
   await db
     .update(reunionsTable)
     .set({
       name,
       startDate,
       endDate,
-      feePerPerson,
       paymentHandle,
       paymentUrl: paymentUrl ?? null,
     })
@@ -334,6 +381,69 @@ router.delete("/reunions/:reunionId/branches/:branchId", ...manage, async (req, 
     .returning();
   if (!deleted) {
     res.status(404).json({ error: "Branch not found" });
+    return;
+  }
+  res.status(204).send();
+});
+
+// ── Fees & dues (manage) ──────────────────────────────────────────────────────
+router.post("/reunions/:reunionId/fees", ...manage, async (req, res): Promise<void> => {
+  const body = CreateFeeBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const [created] = await db
+    .insert(reunionFeesTable)
+    .values({
+      reunionId: req.managedReunion!.id,
+      ...normalizeFeeInput(body.data),
+    })
+    .returning();
+  res.status(201).json(created);
+});
+
+router.put("/reunions/:reunionId/fees/:feeId", ...manage, async (req, res): Promise<void> => {
+  const body = UpdateFeeBody.safeParse(req.body);
+  const feeId = Number(req.params.feeId);
+  if (!body.success || !Number.isInteger(feeId)) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+  const [updated] = await db
+    .update(reunionFeesTable)
+    .set(normalizeFeeInput(body.data))
+    .where(
+      and(
+        eq(reunionFeesTable.id, feeId),
+        eq(reunionFeesTable.reunionId, req.managedReunion!.id),
+      ),
+    )
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Fee not found" });
+    return;
+  }
+  res.json(updated);
+});
+
+router.delete("/reunions/:reunionId/fees/:feeId", ...manage, async (req, res): Promise<void> => {
+  const feeId = Number(req.params.feeId);
+  if (!Number.isInteger(feeId)) {
+    res.status(400).json({ error: "Invalid fee id" });
+    return;
+  }
+  const [deleted] = await db
+    .delete(reunionFeesTable)
+    .where(
+      and(
+        eq(reunionFeesTable.id, feeId),
+        eq(reunionFeesTable.reunionId, req.managedReunion!.id),
+      ),
+    )
+    .returning();
+  if (!deleted) {
+    res.status(404).json({ error: "Fee not found" });
     return;
   }
   res.status(204).send();
@@ -507,11 +617,19 @@ router.get("/reunions/:reunionId/registrations", ...manage, async (req, res): Pr
 
   const withAttendees = await Promise.all(
     rows.map(async (r) => {
-      const attendees = await db
-        .select()
-        .from(attendeesTable)
-        .where(eq(attendeesTable.registrationId, r.id));
-      return { ...r, attendees, userEmail: r.userEmail ?? "" };
+      const [attendees, selectedFees] = await Promise.all([
+        db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, r.id)),
+        db
+          .select({ feeId: registrationFeesTable.feeId })
+          .from(registrationFeesTable)
+          .where(eq(registrationFeesTable.registrationId, r.id)),
+      ]);
+      return {
+        ...r,
+        attendees,
+        selectedFeeIds: selectedFees.map((f) => f.feeId),
+        userEmail: r.userEmail ?? "",
+      };
     }),
   );
 
@@ -609,21 +727,25 @@ router.patch(
       res.status(404).json({ error: "Registration not found" });
       return;
     }
-    const attendees = await db
-      .select()
-      .from(attendeesTable)
-      .where(eq(attendeesTable.registrationId, updated.id));
-    const [user] = await db
-      .select({
-        email: usersTable.email,
-        firstName: usersTable.firstName,
-        lastName: usersTable.lastName,
-      })
-      .from(usersTable)
-      .where(eq(usersTable.id, updated.userId));
+    const [attendees, selectedFees, [user]] = await Promise.all([
+      db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, updated.id)),
+      db
+        .select({ feeId: registrationFeesTable.feeId })
+        .from(registrationFeesTable)
+        .where(eq(registrationFeesTable.registrationId, updated.id)),
+      db
+        .select({
+          email: usersTable.email,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, updated.userId)),
+    ]);
     res.json({
       ...updated,
       attendees,
+      selectedFeeIds: selectedFees.map((f) => f.feeId),
       userEmail: user?.email ?? "",
       userName: user?.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : null,
     });

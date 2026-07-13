@@ -11,7 +11,9 @@ import { Input } from "../components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Skeleton } from "../components/ui/skeleton";
+import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
+import { computeTotal, computeFeeAmount, feeApplies, describeFee } from "../lib/fees";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
@@ -21,6 +23,7 @@ const formSchema = z.object({
     name: z.string().min(1, "Name is required"),
     shirtSize: z.enum(SHIRT_SIZES, { required_error: "Shirt size is required" }),
     dietaryRestrictions: z.string().optional(),
+    age: z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age"),
   })).min(1, "Add at least one attendee"),
 });
 
@@ -36,11 +39,13 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
 
   const registerMutation = useCreateRegistration();
 
+  const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       branchName: "",
-      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "" }],
+      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number }],
     },
   });
 
@@ -50,10 +55,36 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
   });
 
   const watchAttendees = form.watch("attendees");
-  const totalCost = useMemo(() => {
-    if (!reunion) return 0;
-    return watchAttendees.length * reunion.feePerPerson;
-  }, [watchAttendees.length, reunion]);
+
+  // Live totals: parse ages defensively since inputs emit strings before submit.
+  const feeAttendees = useMemo(
+    () =>
+      watchAttendees.map((a) => {
+        const n = Number(a?.age);
+        return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n };
+      }),
+    [watchAttendees],
+  );
+
+  const fees = reunion?.fees ?? [];
+  const optionalFees = useMemo(() => fees.filter((f) => f.isOptional), [fees]);
+  const feeLines = useMemo(
+    () =>
+      fees
+        .filter((f) => feeApplies(f, selectedFeeIds))
+        .map((f) => ({ id: f.id, label: f.label, amount: computeFeeAmount(f, feeAttendees) }))
+        .filter((line) => line.amount > 0),
+    [fees, selectedFeeIds, feeAttendees],
+  );
+  const totalCost = useMemo(
+    () => (reunion ? computeTotal(fees, feeAttendees, selectedFeeIds) : 0),
+    [reunion, fees, feeAttendees, selectedFeeIds],
+  );
+
+  const toggleFee = (feeId: number, checked: boolean) =>
+    setSelectedFeeIds((prev) =>
+      checked ? [...new Set([...prev, feeId])] : prev.filter((id) => id !== feeId),
+    );
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!reunion) return;
@@ -62,6 +93,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
       data: {
         reunionId: reunion.id,
         branchName: values.branchName,
+        selectedFeeIds,
         attendees: values.attendees.map(a => ({
           ...a,
           dietaryRestrictions: a.dietaryRestrictions || undefined
@@ -206,9 +238,31 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                       
                       <FormField
                         control={form.control}
-                        name={`attendees.${index}.dietaryRestrictions`}
+                        name={`attendees.${index}.age`}
                         render={({ field: inputField }) => (
                           <FormItem>
+                            <FormLabel>Age</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={120}
+                                placeholder="e.g. 34"
+                                className="rounded-xl bg-muted/50 border-transparent focus:border-primary"
+                                {...inputField}
+                                value={inputField.value ?? ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.dietaryRestrictions`}
+                        render={({ field: inputField }) => (
+                          <FormItem className="md:col-span-2">
                             <FormLabel>Dietary Info (Optional)</FormLabel>
                             <FormControl>
                               <Input placeholder="e.g. Vegetarian, Peanut allergy" className="rounded-xl bg-muted/50 border-transparent focus:border-primary" {...inputField} />
@@ -224,12 +278,42 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "" })}
+                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number })}
                   className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
                 >
                   <Plus className="mr-2 w-5 h-5" /> Add Another Person
                 </Button>
               </div>
+
+              {optionalFees.length > 0 && (
+                <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
+                    <p className="text-muted-foreground text-sm">Choose any extras for your household.</p>
+                  </div>
+                  <div className="space-y-3">
+                    {optionalFees.map((fee) => (
+                      <label
+                        key={fee.id}
+                        htmlFor={`fee-${fee.id}`}
+                        className="flex items-start gap-3 p-4 rounded-2xl bg-muted/40 border border-transparent hover:border-primary/40 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          id={`fee-${fee.id}`}
+                          checked={selectedFeeIds.includes(fee.id)}
+                          onCheckedChange={(v) => toggleFee(fee.id, v === true)}
+                          className="mt-0.5"
+                        />
+                        <span className="flex-1">
+                          <span className="font-bold block">{fee.label}</span>
+                          <span className="text-sm text-muted-foreground">{describeFee(fee)}</span>
+                        </span>
+                        <span className="font-bold">${computeFeeAmount(fee, feeAttendees)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="lg:hidden">
                 {/* Mobile summary duplicate */}
@@ -239,11 +323,15 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                     <span>Attendees</span>
                     <span>{watchAttendees.length}</span>
                   </div>
-                  {reunion.feePerPerson > 0 && (
+                  {feeLines.length > 0 && (
                     <>
-                      <div className="flex justify-between items-center mb-4 pb-4 border-b border-primary-foreground/20">
-                        <span>Fee per person</span>
-                        <span>${reunion.feePerPerson}</span>
+                      <div className="mb-4 pb-4 border-b border-primary-foreground/20 space-y-1">
+                        {feeLines.map((line) => (
+                          <div key={line.id} className="flex justify-between items-center text-sm">
+                            <span className="opacity-90">{line.label}</span>
+                            <span>${line.amount}</span>
+                          </div>
+                        ))}
                       </div>
                       <div className="flex justify-between items-center font-bold text-2xl">
                         <span>Total</span>
@@ -271,11 +359,15 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                 <span className="font-bold text-xl">{watchAttendees.length}</span>
               </div>
               
-              {reunion.feePerPerson > 0 && (
+              {feeLines.length > 0 && (
                 <>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Fee per person</span>
-                    <span className="font-medium">${reunion.feePerPerson}</span>
+                  <div className="space-y-2 pt-2">
+                    {feeLines.map((line) => (
+                      <div key={line.id} className="flex justify-between items-center">
+                        <span className="text-muted-foreground">{line.label}</span>
+                        <span className="font-medium">${line.amount}</span>
+                      </div>
+                    ))}
                   </div>
                   
                   <div className="pt-4 border-t border-dashed mt-4">

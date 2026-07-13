@@ -13,8 +13,6 @@ export interface ReunionUpdateInput {
   startDate: string;
   /** @minLength 1 */
   endDate: string;
-  /** @minimum 0 */
-  feePerPerson: number;
   /** @minLength 1 */
   paymentHandle: string;
   paymentUrl?: string;

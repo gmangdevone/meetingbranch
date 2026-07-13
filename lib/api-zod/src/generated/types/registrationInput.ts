@@ -13,4 +13,6 @@ export interface RegistrationInput {
   branchName: string;
   /** @minItems 1 */
   attendees: AttendeeInput[];
+  /** IDs of OPTIONAL fees this household opted into. Mandatory fees always apply. */
+  selectedFeeIds?: number[];
 }

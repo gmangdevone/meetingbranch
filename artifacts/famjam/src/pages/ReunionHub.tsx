@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
+import { describeFee } from "../lib/fees";
 
 export function ReunionHub({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
@@ -62,10 +63,14 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                 {format(new Date(reunion.startDate), 'MMM d')} – {format(new Date(reunion.endDate), 'MMM d, yyyy')}
               </span>
             </div>
-            {reunion.feePerPerson > 0 && (
+            {reunion.fees.length > 0 && (
               <div className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5" />
-                <span>${reunion.feePerPerson} per person</span>
+                <span>
+                  {reunion.fees.length === 1
+                    ? describeFee(reunion.fees[0])
+                    : `${reunion.fees.length} fees & dues`}
+                </span>
               </div>
             )}
           </div>
@@ -116,13 +121,24 @@ export function ReunionHub({ params }: { params: { code: string } }) {
         <div className="lg:col-span-1">
           <div className="bg-muted/50 border rounded-3xl p-6 sticky top-24">
             <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-6">Payment Info</h3>
-            {reunion.feePerPerson === 0 ? (
+            {reunion.fees.length === 0 ? (
               <p className="text-foreground font-medium">This reunion is free to attend!</p>
             ) : (
               <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-center pb-4 border-b">
-                  <span className="text-muted-foreground">Fee per person</span>
-                  <span className="font-bold text-lg">${reunion.feePerPerson}</span>
+                <div className="flex flex-col gap-3 pb-4 border-b">
+                  {reunion.fees.map((fee) => (
+                    <div key={fee.id} className="flex justify-between items-start gap-3">
+                      <span className="text-muted-foreground">
+                        {fee.label}
+                        {fee.isOptional && (
+                          <span className="ml-1 text-xs text-muted-foreground/70">(optional)</span>
+                        )}
+                        <span className="block text-xs text-muted-foreground/70">
+                          {describeFee(fee)}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
                 </div>
                 <div>
                   <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>

@@ -12,4 +12,9 @@ export interface AttendeeInput {
   name: string;
   shirtSize: ShirtSize;
   dietaryRestrictions?: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  age?: number | null;
 }

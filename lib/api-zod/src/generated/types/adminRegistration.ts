@@ -20,4 +20,5 @@ export interface AdminRegistration {
   paymentStatus: PaymentStatus;
   createdAt: Date;
   attendees: Attendee[];
+  selectedFeeIds?: number[];
 }

@@ -358,6 +358,75 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/fees:
+    post:
+      operationId: createFee
+      tags: [manage]
+      summary: Add a fee or dues item to a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeeInput"
+      responses:
+        "201":
+          description: Created fee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionFee"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/fees/{feeId}:
+    put:
+      operationId: updateFee
+      tags: [manage]
+      summary: Update a fee or dues item
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/FeeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeeInput"
+      responses:
+        "200":
+          description: Updated fee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionFee"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteFee
+      tags: [manage]
+      summary: Delete a fee or dues item
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/FeeId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   /reunions/{reunionId}/branches:
     post:
       operationId: createBranch
@@ -869,6 +938,12 @@ components:
       required: true
       schema:
         type: integer
+    FeeId:
+      name: feeId
+      in: path
+      required: true
+      schema:
+        type: integer
     AnnouncementId:
       name: announcementId
       in: path
@@ -934,7 +1009,7 @@ components:
     Reunion:
       type: object
       required:
-        [id, code, name, startDate, endDate, feePerPerson, paymentHandle, createdAt, branches]
+        [id, code, name, startDate, endDate, paymentHandle, createdAt, branches, fees]
       properties:
         id:
           type: integer
@@ -948,8 +1023,6 @@ components:
         endDate:
           type: string
           description: "ISO date (YYYY-MM-DD)"
-        feePerPerson:
-          type: integer
         paymentHandle:
           type: string
         paymentUrl:
@@ -963,6 +1036,65 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReunionBranch"
+        fees:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionFee"
+
+    FeeChargeType:
+      type: string
+      enum: [per_person, flat]
+      description: "per_person = charged once per attendee; flat = one flat amount per registration/household"
+
+    ReunionFee:
+      type: object
+      required: [id, reunionId, label, chargeType, isOptional, amount, sortOrder]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        label:
+          type: string
+        chargeType:
+          $ref: "#/components/schemas/FeeChargeType"
+        isOptional:
+          type: boolean
+        amount:
+          type: integer
+          description: "Amount for at-or-over the age threshold, or the flat/single amount when no age tier is set"
+        ageThreshold:
+          type: ["integer", "null"]
+          description: "When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees."
+        amountUnderThreshold:
+          type: ["integer", "null"]
+        sortOrder:
+          type: integer
+
+    FeeInput:
+      type: object
+      required: [label, chargeType, amount]
+      properties:
+        label:
+          type: string
+          minLength: 1
+        chargeType:
+          $ref: "#/components/schemas/FeeChargeType"
+        isOptional:
+          type: boolean
+          default: false
+        amount:
+          type: integer
+          minimum: 0
+        ageThreshold:
+          type: ["integer", "null"]
+          minimum: 1
+        amountUnderThreshold:
+          type: ["integer", "null"]
+          minimum: 0
+        sortOrder:
+          type: integer
+          default: 0
 
     ReunionOrganizer:
       type: object
@@ -1024,6 +1156,7 @@ components:
         feePerPerson:
           type: integer
           minimum: 0
+          description: "Seed amount for the initial per-person 'Registration Fee'. More fees & dues can be added afterwards from settings."
         paymentHandle:
           type: string
           minLength: 1
@@ -1038,7 +1171,7 @@ components:
 
     ReunionUpdateInput:
       type: object
-      required: [name, startDate, endDate, feePerPerson, paymentHandle]
+      required: [name, startDate, endDate, paymentHandle]
       properties:
         name:
           type: string
@@ -1049,9 +1182,6 @@ components:
         endDate:
           type: string
           minLength: 1
-        feePerPerson:
-          type: integer
-          minimum: 0
         paymentHandle:
           type: string
           minLength: 1
@@ -1080,6 +1210,9 @@ components:
           $ref: "#/components/schemas/ShirtSize"
         dietaryRestrictions:
           type: string
+        age:
+          type: ["integer", "null"]
+          minimum: 0
 
     Attendee:
       type: object
@@ -1095,6 +1228,8 @@ components:
           $ref: "#/components/schemas/ShirtSize"
         dietaryRestrictions:
           type: ["string", "null"]
+        age:
+          type: ["integer", "null"]
 
     RegistrationInput:
       type: object
@@ -1110,6 +1245,11 @@ components:
           items:
             $ref: "#/components/schemas/AttendeeInput"
           minItems: 1
+        selectedFeeIds:
+          type: array
+          items:
+            type: integer
+          description: "IDs of OPTIONAL fees this household opted into. Mandatory fees always apply."
 
     Registration:
       type: object
@@ -1139,6 +1279,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Attendee"
+        selectedFeeIds:
+          type: array
+          items:
+            type: integer
 
     AdminRegistration:
       type: object
@@ -1168,6 +1312,10 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Attendee"
+        selectedFeeIds:
+          type: array
+          items:
+            type: integer
 
     UpdatePaymentStatusInput:
       type: object

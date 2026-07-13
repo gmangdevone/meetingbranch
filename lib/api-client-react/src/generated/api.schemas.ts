@@ -46,6 +46,35 @@ export interface ReunionBranch {
   sortOrder: number;
 }
 
+/**
+ * per_person = charged once per attendee; flat = one flat amount per registration/household
+ */
+export type FeeChargeType = typeof FeeChargeType[keyof typeof FeeChargeType];
+
+
+export const FeeChargeType = {
+  per_person: 'per_person',
+  flat: 'flat',
+} as const;
+
+export interface ReunionFee {
+  id: number;
+  reunionId: number;
+  label: string;
+  chargeType: FeeChargeType;
+  isOptional: boolean;
+  /** Amount for at-or-over the age threshold, or the flat/single amount when no age tier is set */
+  amount: number;
+  /**
+     * When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.
+     * @nullable
+     */
+  ageThreshold?: number | null;
+  /** @nullable */
+  amountUnderThreshold?: number | null;
+  sortOrder: number;
+}
+
 export interface Reunion {
   id: number;
   code: string;
@@ -54,13 +83,33 @@ export interface Reunion {
   startDate: string;
   /** ISO date (YYYY-MM-DD) */
   endDate: string;
-  feePerPerson: number;
   paymentHandle: string;
   /** @nullable */
   paymentUrl?: string | null;
   organizerId?: string;
   createdAt: string;
   branches: ReunionBranch[];
+  fees: ReunionFee[];
+}
+
+export interface FeeInput {
+  /** @minLength 1 */
+  label: string;
+  chargeType: FeeChargeType;
+  isOptional?: boolean;
+  /** @minimum 0 */
+  amount: number;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  ageThreshold?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  amountUnderThreshold?: number | null;
+  sortOrder?: number;
 }
 
 export interface ReunionOrganizer {
@@ -100,7 +149,10 @@ export interface ReunionInput {
   startDate: string;
   /** @minLength 1 */
   endDate: string;
-  /** @minimum 0 */
+  /**
+     * Seed amount for the initial per-person 'Registration Fee'. More fees & dues can be added afterwards from settings.
+     * @minimum 0
+     */
   feePerPerson: number;
   /** @minLength 1 */
   paymentHandle: string;
@@ -119,8 +171,6 @@ export interface ReunionUpdateInput {
   startDate: string;
   /** @minLength 1 */
   endDate: string;
-  /** @minimum 0 */
-  feePerPerson: number;
   /** @minLength 1 */
   paymentHandle: string;
   paymentUrl?: string;
@@ -137,6 +187,11 @@ export interface AttendeeInput {
   name: string;
   shirtSize: ShirtSize;
   dietaryRestrictions?: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  age?: number | null;
 }
 
 export interface Attendee {
@@ -146,6 +201,8 @@ export interface Attendee {
   shirtSize: ShirtSize;
   /** @nullable */
   dietaryRestrictions?: string | null;
+  /** @nullable */
+  age?: number | null;
 }
 
 export interface RegistrationInput {
@@ -154,6 +211,8 @@ export interface RegistrationInput {
   branchName: string;
   /** @minItems 1 */
   attendees: AttendeeInput[];
+  /** IDs of OPTIONAL fees this household opted into. Mandatory fees always apply. */
+  selectedFeeIds?: number[];
 }
 
 export interface Registration {
@@ -169,6 +228,7 @@ export interface Registration {
   paymentStatus: PaymentStatus;
   createdAt: string;
   attendees: Attendee[];
+  selectedFeeIds?: number[];
 }
 
 export interface AdminRegistration {
@@ -183,6 +243,7 @@ export interface AdminRegistration {
   paymentStatus: PaymentStatus;
   createdAt: string;
   attendees: Attendee[];
+  selectedFeeIds?: number[];
 }
 
 export interface UpdatePaymentStatusInput {

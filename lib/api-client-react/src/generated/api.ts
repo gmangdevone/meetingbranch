@@ -30,6 +30,7 @@ import type {
   AnnouncementInput,
   BranchInput,
   ErrorResponse,
+  FeeInput,
   HealthStatus,
   PlatformSettings,
   Registration,
@@ -37,6 +38,7 @@ import type {
   RegistrationSummary,
   Reunion,
   ReunionBranch,
+  ReunionFee,
   ReunionInput,
   ReunionOrganizer,
   ReunionSummary,
@@ -1270,6 +1272,225 @@ export const useDeleteScheduleItem = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteScheduleItemMutationOptions(options));
+    }
+
+export const getCreateFeeUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/fees`
+}
+
+/**
+ * @summary Add a fee or dues item to a reunion
+ */
+export const createFee = async (reunionId: number,
+    feeInput: FeeInput, options?: RequestInit): Promise<ReunionFee> => {
+
+  return customFetch<ReunionFee>(getCreateFeeUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(feeInput)
+  }
+);}
+
+
+
+
+
+export const getCreateFeeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFee>>, TError,{reunionId: number;data: BodyType<FeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFee>>, TError,{reunionId: number;data: BodyType<FeeInput>}, TContext> => {
+
+const mutationKey = ['createFee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFee>>, {reunionId: number;data: BodyType<FeeInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createFee(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFeeMutationResult = NonNullable<Awaited<ReturnType<typeof createFee>>>
+    export type CreateFeeMutationBody = BodyType<FeeInput>
+    export type CreateFeeMutationError = ErrorType<void>
+
+    /**
+ * @summary Add a fee or dues item to a reunion
+ */
+export const useCreateFee = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFee>>, TError,{reunionId: number;data: BodyType<FeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFee>>,
+        TError,
+        {reunionId: number;data: BodyType<FeeInput>},
+        TContext
+      > => {
+      return useMutation(getCreateFeeMutationOptions(options));
+    }
+
+export const getUpdateFeeUrl = (reunionId: number,
+    feeId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/fees/${feeId}`
+}
+
+/**
+ * @summary Update a fee or dues item
+ */
+export const updateFee = async (reunionId: number,
+    feeId: number,
+    feeInput: FeeInput, options?: RequestInit): Promise<ReunionFee> => {
+
+  return customFetch<ReunionFee>(getUpdateFeeUrl(reunionId,feeId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(feeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateFeeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFee>>, TError,{reunionId: number;feeId: number;data: BodyType<FeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFee>>, TError,{reunionId: number;feeId: number;data: BodyType<FeeInput>}, TContext> => {
+
+const mutationKey = ['updateFee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFee>>, {reunionId: number;feeId: number;data: BodyType<FeeInput>}> = (props) => {
+          const {reunionId,feeId,data} = props ?? {};
+
+          return  updateFee(reunionId,feeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFeeMutationResult = NonNullable<Awaited<ReturnType<typeof updateFee>>>
+    export type UpdateFeeMutationBody = BodyType<FeeInput>
+    export type UpdateFeeMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a fee or dues item
+ */
+export const useUpdateFee = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFee>>, TError,{reunionId: number;feeId: number;data: BodyType<FeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFee>>,
+        TError,
+        {reunionId: number;feeId: number;data: BodyType<FeeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateFeeMutationOptions(options));
+    }
+
+export const getDeleteFeeUrl = (reunionId: number,
+    feeId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/fees/${feeId}`
+}
+
+/**
+ * @summary Delete a fee or dues item
+ */
+export const deleteFee = async (reunionId: number,
+    feeId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteFeeUrl(reunionId,feeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteFeeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFee>>, TError,{reunionId: number;feeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFee>>, TError,{reunionId: number;feeId: number}, TContext> => {
+
+const mutationKey = ['deleteFee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFee>>, {reunionId: number;feeId: number}> = (props) => {
+          const {reunionId,feeId} = props ?? {};
+
+          return  deleteFee(reunionId,feeId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFeeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFee>>>
+
+    export type DeleteFeeMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a fee or dues item
+ */
+export const useDeleteFee = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFee>>, TError,{reunionId: number;feeId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFee>>,
+        TError,
+        {reunionId: number;feeId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteFeeMutationOptions(options));
     }
 
 export const getCreateBranchUrl = (reunionId: number,) => {

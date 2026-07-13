@@ -2,3 +2,4 @@
 - [Orval path+query param collision](orval-param-collision.md) — an operation with BOTH path and query params makes orval emit two same-named exports; avoid mixing them.
 - [API codegen workflow](api-codegen-workflow.md) — API contract lives in one OpenAPI spec; edit it + run codegen to regenerate the React-Query client and zod schemas, then add the Express route.
 - [FamJam frontend gotchas](famjam-frontend-gotchas.md) — Toaster is not mounted, so useToast is a no-op; admin access is gated by calling an admin-only endpoint and checking for 403.
+- [FamJam fees & dues model](famjam-fees-model.md) — reunion pricing is a reunion_fees list (not feePerPerson); compute logic mirrored server+client and must stay in parity; migrations/ is a hand-written data-preserving record.

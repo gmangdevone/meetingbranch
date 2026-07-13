@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ReunionBranch } from './reunionBranch';
+import type { ReunionFee } from './reunionFee';
 
 export interface Reunion {
   id: number;
@@ -15,11 +16,11 @@ export interface Reunion {
   startDate: string;
   /** ISO date (YYYY-MM-DD) */
   endDate: string;
-  feePerPerson: number;
   paymentHandle: string;
   /** @nullable */
   paymentUrl?: string | null;
   organizerId?: string;
   createdAt: Date;
   branches: ReunionBranch[];
+  fees: ReunionFee[];
 }

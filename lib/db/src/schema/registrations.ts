@@ -1,7 +1,7 @@
 import { pgTable, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { reunionsTable } from "./reunions";
+import { reunionsTable, reunionFeesTable } from "./reunions";
 
 export const shirtSizeEnum = pgEnum("shirt_size", [
   "XS",
@@ -38,6 +38,22 @@ export const attendeesTable = pgTable("attendees", {
   name: text("name").notNull(),
   shirtSize: shirtSizeEnum("shirt_size").notNull(),
   dietaryRestrictions: text("dietary_restrictions"),
+  // Age at registration; nullable (legacy rows + optional). Used for age-tiered fees.
+  age: integer("age"),
+});
+
+/**
+ * Records which OPTIONAL fees a registration opted into.
+ * Mandatory fees always apply and are not stored here.
+ */
+export const registrationFeesTable = pgTable("registration_fees", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  registrationId: integer("registration_id")
+    .notNull()
+    .references(() => registrationsTable.id, { onDelete: "cascade" }),
+  feeId: integer("fee_id")
+    .notNull()
+    .references(() => reunionFeesTable.id, { onDelete: "cascade" }),
 });
 
 // generatedAlwaysAsIdentity columns are excluded from insert schema automatically
@@ -50,3 +66,4 @@ export type InsertRegistration = z.infer<typeof insertRegistrationSchema>;
 export type InsertAttendee = z.infer<typeof insertAttendeeSchema>;
 export type Registration = typeof registrationsTable.$inferSelect;
 export type Attendee = typeof attendeesTable.$inferSelect;
+export type RegistrationFee = typeof registrationFeesTable.$inferSelect;

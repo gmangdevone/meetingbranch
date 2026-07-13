@@ -13,7 +13,10 @@ export interface ReunionInput {
   startDate: string;
   /** @minLength 1 */
   endDate: string;
-  /** @minimum 0 */
+  /**
+     * Seed amount for the initial per-person 'Registration Fee'. More fees & dues can be added afterwards from settings.
+     * @minimum 0
+     */
   feePerPerson: number;
   /** @minLength 1 */
   paymentHandle: string;

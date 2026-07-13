@@ -3,11 +3,14 @@ import { eq, desc } from "drizzle-orm";
 import {
   db,
   registrationsTable,
+  registrationFeesTable,
   attendeesTable,
   usersTable,
   reunionsTable,
   reunionBranchesTable,
+  reunionFeesTable,
 } from "@workspace/db";
+import { inArray } from "drizzle-orm";
 import {
   CreateRegistrationBody,
   GetRegistrationParams,
@@ -41,12 +44,15 @@ async function getFullRegistration(id: number) {
 
   if (!row) return null;
 
-  const attendees = await db
-    .select()
-    .from(attendeesTable)
-    .where(eq(attendeesTable.registrationId, id));
+  const [attendees, selectedFees] = await Promise.all([
+    db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, id)),
+    db
+      .select({ feeId: registrationFeesTable.feeId })
+      .from(registrationFeesTable)
+      .where(eq(registrationFeesTable.registrationId, id)),
+  ]);
 
-  return { ...row, attendees };
+  return { ...row, attendees, selectedFeeIds: selectedFees.map((f) => f.feeId) };
 }
 
 // POST /registrations
@@ -58,7 +64,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
   }
 
   const userId = (req as any).userId as string;
-  const { reunionId, branchName, attendees } = parsed.data;
+  const { reunionId, branchName, attendees, selectedFeeIds } = parsed.data;
 
   // Reunion must exist
   const [reunion] = await db
@@ -67,6 +73,18 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     .where(eq(reunionsTable.id, reunionId));
   if (!reunion) {
     res.status(400).json({ error: "That reunion no longer exists." });
+    return;
+  }
+
+  // Load this reunion's fees; only its OWN optional fees may be selected.
+  const fees = await db
+    .select()
+    .from(reunionFeesTable)
+    .where(eq(reunionFeesTable.reunionId, reunionId));
+  const optionalFeeIds = new Set(fees.filter((f) => f.isOptional).map((f) => f.id));
+  const chosenFeeIds = [...new Set(selectedFeeIds ?? [])];
+  if (!chosenFeeIds.every((id) => optionalFeeIds.has(id))) {
+    res.status(400).json({ error: "One or more selected fees are not available for this reunion." });
     return;
   }
 
@@ -95,8 +113,15 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
       name: a.name,
       shirtSize: a.shirtSize,
       dietaryRestrictions: a.dietaryRestrictions ?? null,
+      age: a.age ?? null,
     })),
   );
+
+  if (chosenFeeIds.length > 0) {
+    await db.insert(registrationFeesTable).values(
+      chosenFeeIds.map((feeId) => ({ registrationId: registration.id, feeId })),
+    );
+  }
 
   const full = await getFullRegistration(registration.id);
 
@@ -107,13 +132,14 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
       toName: clerkFirstName || "Family Member",
       branchName,
       attendees: full.attendees,
+      selectedFeeIds: chosenFeeIds,
       registrationId: registration.id,
       registeredAt: registration.createdAt,
       reunion: {
         name: reunion.name,
         startDate: reunion.startDate,
         endDate: reunion.endDate,
-        feePerPerson: reunion.feePerPerson,
+        fees,
         paymentHandle: reunion.paymentHandle,
         paymentUrl: reunion.paymentUrl,
       },

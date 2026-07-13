@@ -41,7 +41,7 @@ export const CreateReunionBody = zod.object({
   "name": zod.string().min(1),
   "startDate": zod.string().min(1),
   "endDate": zod.string().min(1),
-  "feePerPerson": zod.number().min(createReunionBodyFeePerPersonMin),
+  "feePerPerson": zod.number().min(createReunionBodyFeePerPersonMin).describe('Seed amount for the initial per-person \'Registration Fee\'. More fees & dues can be added afterwards from settings.'),
   "paymentHandle": zod.string().min(1),
   "paymentUrl": zod.string().optional(),
   "branches": zod.array(zod.string().min(1)).min(1)
@@ -53,7 +53,6 @@ export const CreateReunionResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "feePerPerson": zod.number(),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "organizerId": zod.string().optional(),
@@ -62,6 +61,17 @@ export const CreateReunionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
+  "sortOrder": zod.number()
+})),
+  "fees": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
   "sortOrder": zod.number()
 }))
 })
@@ -77,7 +87,6 @@ export const ListMyReunionsResponseItem = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "feePerPerson": zod.number(),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "organizerId": zod.string().optional(),
@@ -86,6 +95,17 @@ export const ListMyReunionsResponseItem = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
+  "sortOrder": zod.number()
+})),
+  "fees": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
   "sortOrder": zod.number()
 }))
 }),
@@ -108,7 +128,6 @@ export const GetReunionByCodeResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "feePerPerson": zod.number(),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "organizerId": zod.string().optional(),
@@ -117,6 +136,17 @@ export const GetReunionByCodeResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
+  "sortOrder": zod.number()
+})),
+  "fees": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
   "sortOrder": zod.number()
 }))
 })
@@ -136,7 +166,6 @@ export const GetReunionResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "feePerPerson": zod.number(),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "organizerId": zod.string().optional(),
@@ -145,6 +174,17 @@ export const GetReunionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
+  "sortOrder": zod.number()
+})),
+  "fees": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
   "sortOrder": zod.number()
 }))
 }),
@@ -163,8 +203,6 @@ export const UpdateReunionParams = zod.object({
 
 
 
-export const updateReunionBodyFeePerPersonMin = 0;
-
 
 
 
@@ -172,7 +210,6 @@ export const UpdateReunionBody = zod.object({
   "name": zod.string().min(1),
   "startDate": zod.string().min(1),
   "endDate": zod.string().min(1),
-  "feePerPerson": zod.number().min(updateReunionBodyFeePerPersonMin),
   "paymentHandle": zod.string().min(1),
   "paymentUrl": zod.string().optional()
 })
@@ -183,7 +220,6 @@ export const UpdateReunionResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "feePerPerson": zod.number(),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "organizerId": zod.string().optional(),
@@ -192,6 +228,17 @@ export const UpdateReunionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
+  "sortOrder": zod.number()
+})),
+  "fees": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
   "sortOrder": zod.number()
 }))
 })
@@ -403,6 +450,96 @@ export const DeleteScheduleItemResponse = zod.void()
 
 
 /**
+ * @summary Add a fee or dues item to a reunion
+ */
+export const CreateFeeParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+export const createFeeBodyIsOptionalDefault = false;
+export const createFeeBodyAmountMin = 0;
+
+
+export const createFeeBodyAmountUnderThresholdMin = 0;
+
+export const createFeeBodySortOrderDefault = 0;
+
+export const CreateFeeBody = zod.object({
+  "label": zod.string().min(1),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean().default(createFeeBodyIsOptionalDefault),
+  "amount": zod.number().min(createFeeBodyAmountMin),
+  "ageThreshold": zod.number().min(1).nullish(),
+  "amountUnderThreshold": zod.number().min(createFeeBodyAmountUnderThresholdMin).nullish(),
+  "sortOrder": zod.number().default(createFeeBodySortOrderDefault)
+})
+
+export const CreateFeeResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
+  "sortOrder": zod.number()
+})
+
+
+/**
+ * @summary Update a fee or dues item
+ */
+export const UpdateFeeParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "feeId": zod.coerce.number()
+})
+
+
+export const updateFeeBodyIsOptionalDefault = false;
+export const updateFeeBodyAmountMin = 0;
+
+
+export const updateFeeBodyAmountUnderThresholdMin = 0;
+
+export const updateFeeBodySortOrderDefault = 0;
+
+export const UpdateFeeBody = zod.object({
+  "label": zod.string().min(1),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean().default(updateFeeBodyIsOptionalDefault),
+  "amount": zod.number().min(updateFeeBodyAmountMin),
+  "ageThreshold": zod.number().min(1).nullish(),
+  "amountUnderThreshold": zod.number().min(updateFeeBodyAmountUnderThresholdMin).nullish(),
+  "sortOrder": zod.number().default(updateFeeBodySortOrderDefault)
+})
+
+export const UpdateFeeResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
+  "sortOrder": zod.number()
+})
+
+
+/**
+ * @summary Delete a fee or dues item
+ */
+export const DeleteFeeParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "feeId": zod.coerce.number()
+})
+
+export const DeleteFeeResponse = zod.void()
+
+
+/**
  * @summary Add a branch/group to a reunion
  */
 export const CreateBranchParams = zod.object({
@@ -482,8 +619,10 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "registrationId": zod.number(),
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
-  "dietaryRestrictions": zod.string().nullish()
-}))
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
 })
 export const ListReunionRegistrationsResponse = zod.array(ListReunionRegistrationsResponseItem)
 
@@ -525,8 +664,10 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "registrationId": zod.number(),
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
-  "dietaryRestrictions": zod.string().nullish()
-}))
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
 })
 
 
@@ -640,6 +781,8 @@ export const GetReunionReportsResponse = zod.object({
  */
 
 
+export const createRegistrationBodyAttendeesItemAgeMin = 0;
+
 
 
 
@@ -649,8 +792,10 @@ export const CreateRegistrationBody = zod.object({
   "attendees": zod.array(zod.object({
   "name": zod.string().min(1),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
-  "dietaryRestrictions": zod.string().optional()
-})).min(1)
+  "dietaryRestrictions": zod.string().optional(),
+  "age": zod.number().min(createRegistrationBodyAttendeesItemAgeMin).nullish()
+})).min(1),
+  "selectedFeeIds": zod.array(zod.number()).optional().describe('IDs of OPTIONAL fees this household opted into. Mandatory fees always apply.')
 })
 
 export const CreateRegistrationResponse = zod.object({
@@ -668,8 +813,10 @@ export const CreateRegistrationResponse = zod.object({
   "registrationId": zod.number(),
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
-  "dietaryRestrictions": zod.string().nullish()
-}))
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
 })
 
 
@@ -691,8 +838,10 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "registrationId": zod.number(),
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
-  "dietaryRestrictions": zod.string().nullish()
-}))
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
 })
 export const ListMyRegistrationsResponse = zod.array(ListMyRegistrationsResponseItem)
 
@@ -719,8 +868,10 @@ export const GetRegistrationResponse = zod.object({
   "registrationId": zod.number(),
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
-  "dietaryRestrictions": zod.string().nullish()
-}))
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
 })
 
 
@@ -764,7 +915,6 @@ export const AdminListReunionsResponseItem = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "feePerPerson": zod.number(),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "organizerId": zod.string().optional(),
@@ -773,6 +923,17 @@ export const AdminListReunionsResponseItem = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
+  "sortOrder": zod.number()
+})),
+  "fees": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "label": zod.string(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
+  "isOptional": zod.boolean(),
+  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
+  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
+  "amountUnderThreshold": zod.number().nullish(),
   "sortOrder": zod.number()
 }))
 }),

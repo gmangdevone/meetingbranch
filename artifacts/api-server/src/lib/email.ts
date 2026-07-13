@@ -1,4 +1,6 @@
+import type { ReunionFee } from "@workspace/db";
 import { logger } from "./logger";
+import { feeApplies, computeFeeAmount } from "./fees";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? null;
 
@@ -6,13 +8,14 @@ interface AttendeeInfo {
   name: string;
   shirtSize: string;
   dietaryRestrictions?: string | null;
+  age?: number | null;
 }
 
 interface ReunionInfo {
   name: string;
   startDate: string; // ISO YYYY-MM-DD
   endDate: string; // ISO YYYY-MM-DD
-  feePerPerson: number;
+  fees: ReunionFee[];
   paymentHandle: string;
   paymentUrl?: string | null;
 }
@@ -22,6 +25,7 @@ interface SendConfirmationEmailParams {
   toName: string;
   branchName: string;
   attendees: AttendeeInfo[];
+  selectedFeeIds: number[];
   registrationId: number;
   registeredAt: Date;
   reunion: ReunionInfo;
@@ -52,9 +56,13 @@ function formatDateRange(startDate: string, endDate: string): string {
 }
 
 function buildEmailHtml(params: SendConfirmationEmailParams): string {
-  const { toName, branchName, attendees, registrationId, registeredAt, reunion } = params;
-  const feePerPerson = reunion.feePerPerson;
-  const totalFee = attendees.length * feePerPerson;
+  const { toName, branchName, attendees, selectedFeeIds, registrationId, registeredAt, reunion } =
+    params;
+  const feeLines = reunion.fees
+    .filter((fee) => feeApplies(fee, selectedFeeIds))
+    .map((fee) => ({ label: fee.label, amount: computeFeeAmount(fee, attendees) }))
+    .filter((line) => line.amount > 0);
+  const totalFee = feeLines.reduce((sum, line) => sum + line.amount, 0);
   const dateRange = formatDateRange(reunion.startDate, reunion.endDate);
   const formattedDate = registeredAt.toLocaleString("en-US", {
     timeZone: "America/Chicago",
@@ -130,13 +138,18 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
               </table>
 
               ${
-                feePerPerson > 0
+                totalFee > 0
                   ? `<table width="100%" cellpadding="0" cellspacing="0" style="background:#fef9ee;border:1px solid #fde68a;border-radius:8px;padding:0;margin-bottom:32px;">
                 <tr>
                   <td style="padding:20px 24px;">
                     <p style="margin:0 0 4px;color:#92400e;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Total Due</p>
-                    <p style="margin:0 0 8px;color:#1f2937;font-size:28px;font-weight:bold;">$${totalFee.toFixed(2)}</p>
-                    <p style="margin:0;color:#6b7280;font-size:13px;">${attendees.length} person${attendees.length !== 1 ? "s" : ""} × $${feePerPerson}.00 per person</p>
+                    <p style="margin:0 0 8px;color:#1f2937;font-size:28px;font-weight:bold;">${totalFee.toFixed(2)}</p>
+                    ${feeLines
+                      .map(
+                        (line) =>
+                          `<p style="margin:0;color:#6b7280;font-size:13px;">${line.label}: ${line.amount.toFixed(2)}</p>`,
+                      )
+                      .join("")}
                   </td>
                 </tr>
               </table>

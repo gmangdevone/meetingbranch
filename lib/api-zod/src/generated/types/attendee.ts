@@ -14,4 +14,6 @@ export interface Attendee {
   shirtSize: ShirtSize;
   /** @nullable */
   dietaryRestrictions?: string | null;
+  /** @nullable */
+  age?: number | null;
 }

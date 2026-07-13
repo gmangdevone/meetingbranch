@@ -208,11 +208,11 @@ export function CreateReunion() {
                 name="feePerPerson"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-bold">Fee Per Person ($)</FormLabel>
+                    <FormLabel className="text-base font-bold">Registration Fee Per Person ($)</FormLabel>
                     <FormControl>
                       <Input type="number" min="0" step="1" className="rounded-xl px-4 py-6 text-base bg-muted/50 border-transparent focus:border-primary" {...field} />
                     </FormControl>
-                    <FormDescription>Set to 0 if it's free.</FormDescription>
+                    <FormDescription>Set to 0 if it's free. You can add more fees & dues (T-shirts, age-based pricing, and more) from settings later.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
