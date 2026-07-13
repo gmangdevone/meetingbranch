@@ -24,10 +24,68 @@ import {
   AdminToggleAdminFlagBody,
 } from "@workspace/api-zod";
 import { attachAuth, requireAdmin } from "../middlewares/requireAdmin";
+import { requireAuth } from "../middlewares/requireAuth";
+import { getAuth } from "@clerk/express";
 
 const router: IRouter = Router();
 
-// All admin routes require auth + admin role
+// ──────────────────────────────────────────────────────────────
+// First-run admin setup (public to any signed-in user, self-closing)
+// ──────────────────────────────────────────────────────────────
+// One-time bootstrap: promotes the first signed-in user to admin IF no admin
+// exists yet. Once any admin exists, this route refuses (409) so it can't be
+// used to escalate privileges afterwards. This must be registered BEFORE the
+// requireAdmin gate below so the very first operator can reach it.
+router.get("/admin/setup", requireAuth, async (req, res): Promise<void> => {
+  const userId = (req as any).userId as string;
+
+  // If any admin already exists, setup is closed.
+  const [existingAdmin] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.isAdmin, true))
+    .limit(1);
+
+  if (existingAdmin) {
+    res.status(409).json({
+      error:
+        "Admin setup is already complete. An administrator already exists; ask them to grant you access from the admin dashboard.",
+    });
+    return;
+  }
+
+  // Promote this user, JIT-provisioning their row from Clerk session claims.
+  const auth = getAuth(req);
+  const clerkEmail = (auth?.sessionClaims?.email as string | undefined) ?? "";
+  const clerkFirstName =
+    (auth?.sessionClaims?.firstName as string | undefined) ??
+    (auth?.sessionClaims?.given_name as string | undefined) ??
+    null;
+  const clerkLastName =
+    (auth?.sessionClaims?.lastName as string | undefined) ??
+    (auth?.sessionClaims?.family_name as string | undefined) ??
+    null;
+
+  await db
+    .insert(usersTable)
+    .values({
+      id: userId,
+      email: clerkEmail,
+      firstName: clerkFirstName,
+      lastName: clerkLastName,
+      isAdmin: true,
+    })
+    .onConflictDoUpdate({ target: usersTable.id, set: { isAdmin: true } });
+
+  res.json({
+    success: true,
+    message:
+      "You are now the administrator. The admin dashboard is unlocked. This setup step is now closed.",
+    userId,
+  });
+});
+
+// All admin routes below require auth + admin role
 router.use(attachAuth, requireAdmin);
 
 // ──────────────────────────────────────────────────────────────

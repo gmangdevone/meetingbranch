@@ -2,6 +2,20 @@
 
 A mobile-first family reunion web app for the Lacey Family Reunion (July 16–19, 2027). Participants register, view the schedule, read announcements, and receive email confirmations with a Cash App payment link.
 
+## Getting Started
+
+### Set up the first admin
+
+The admin dashboard is locked until at least one administrator exists. To claim it (no environment variables or SQL required):
+
+1. Open the app and **sign in / create your account** as normal.
+2. While signed in, visit **`/api/admin/setup`** in the same browser (e.g. `https://<your-app-domain>/api/admin/setup`).
+3. You'll see a success message and the admin dashboard is now unlocked for your account.
+
+This route is a one-time bootstrap: it promotes the first signed-in user to admin **only if no admin exists yet**. Once any admin exists, the route refuses (HTTP 409) and can no longer be used to gain access — add further admins from the admin dashboard's Users page instead.
+
+> Advanced (optional): setting the `ADMIN_USER_ID` environment variable to a Clerk user ID still auto-promotes that user on their next request. The setup route above is the recommended, no-config path.
+
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
