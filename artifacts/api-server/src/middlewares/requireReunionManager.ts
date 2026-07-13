@@ -65,3 +65,25 @@ export async function requireReunionManager(
   req.managedReunion = reunion;
   next();
 }
+
+/**
+ * Restricts an action to the reunion's owner (or a platform admin).
+ * Co-organizers are explicitly not allowed. Must run AFTER
+ * requireReunionManager, which populates req.managedReunion.
+ */
+export async function requireReunionOwner(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const reunion = req.managedReunion;
+  if (!reunion) {
+    res.status(500).json({ error: "requireReunionOwner must run after requireReunionManager" });
+    return;
+  }
+  if (reunion.organizerId !== req.userId && req.isAdmin !== true) {
+    res.status(403).json({ error: "Only the reunion owner can perform this action." });
+    return;
+  }
+  next();
+}

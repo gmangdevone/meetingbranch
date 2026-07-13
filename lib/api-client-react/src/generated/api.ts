@@ -44,6 +44,7 @@ import type {
   ScheduleItem,
   ScheduleItemInput,
   ToggleAdminInput,
+  TransferOwnershipInput,
   UpdatePaymentStatusInput
 } from './api.schemas';
 
@@ -1938,6 +1939,78 @@ export const useRemoveReunionOrganizer = <TError = ErrorType<ErrorResponse | voi
         TContext
       > => {
       return useMutation(getRemoveReunionOrganizerMutationOptions(options));
+    }
+
+export const getTransferReunionOwnershipUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/transfer-ownership`
+}
+
+/**
+ * @summary Transfer reunion ownership to an existing co-organizer (owner only)
+ */
+export const transferReunionOwnership = async (reunionId: number,
+    transferOwnershipInput: TransferOwnershipInput, options?: RequestInit): Promise<ReunionOrganizer[]> => {
+
+  return customFetch<ReunionOrganizer[]>(getTransferReunionOwnershipUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(transferOwnershipInput)
+  }
+);}
+
+
+
+
+
+export const getTransferReunionOwnershipMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferReunionOwnership>>, TError,{reunionId: number;data: BodyType<TransferOwnershipInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transferReunionOwnership>>, TError,{reunionId: number;data: BodyType<TransferOwnershipInput>}, TContext> => {
+
+const mutationKey = ['transferReunionOwnership'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferReunionOwnership>>, {reunionId: number;data: BodyType<TransferOwnershipInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  transferReunionOwnership(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransferReunionOwnershipMutationResult = NonNullable<Awaited<ReturnType<typeof transferReunionOwnership>>>
+    export type TransferReunionOwnershipMutationBody = BodyType<TransferOwnershipInput>
+    export type TransferReunionOwnershipMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Transfer reunion ownership to an existing co-organizer (owner only)
+ */
+export const useTransferReunionOwnership = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferReunionOwnership>>, TError,{reunionId: number;data: BodyType<TransferOwnershipInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transferReunionOwnership>>,
+        TError,
+        {reunionId: number;data: BodyType<TransferOwnershipInput>},
+        TContext
+      > => {
+      return useMutation(getTransferReunionOwnershipMutationOptions(options));
     }
 
 export const getGetReunionReportsUrl = (reunionId: number,) => {

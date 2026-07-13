@@ -587,6 +587,49 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/transfer-ownership:
+    post:
+      operationId: transferReunionOwnership
+      tags: [manage]
+      summary: Transfer reunion ownership to an existing co-organizer (owner only)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferOwnershipInput"
+      responses:
+        "200":
+          description: Updated list of organizers after the transfer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReunionOrganizer"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Only the current owner can transfer ownership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Reunion not found, or target is not a co-organizer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /reunions/{reunionId}/reports:
     get:
       operationId: getReunionReports
@@ -944,6 +987,15 @@ components:
         email:
           type: string
           minLength: 1
+
+    TransferOwnershipInput:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          description: The user id of an existing co-organizer to promote to owner
 
     ReunionSummary:
       type: object

@@ -33,10 +33,14 @@ import {
   GetReunionReportsResponse,
   ListReunionOrganizersResponse,
   AddReunionOrganizerBody,
+  TransferReunionOwnershipBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
-import { requireReunionManager } from "../middlewares/requireReunionManager";
+import {
+  requireReunionManager,
+  requireReunionOwner,
+} from "../middlewares/requireReunionManager";
 import { generateUniqueReunionCode } from "../lib/reunionCode";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
@@ -821,6 +825,114 @@ router.delete(
       return;
     }
     res.status(204).send();
+  },
+);
+
+// Transfer ownership to an existing co-organizer. Owner-only (guarded beyond the
+// shared manager check). The previous owner is demoted to a co-organizer and the
+// promoted user is removed from the co-organizers list (they are now the owner).
+router.post(
+  "/reunions/:reunionId/transfer-ownership",
+  ...manage,
+  requireReunionOwner,
+  async (req, res): Promise<void> => {
+    const body = TransferReunionOwnershipBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const reunion = req.managedReunion!;
+    const newOwnerId = body.data.userId;
+
+    if (newOwnerId === reunion.organizerId) {
+      res.status(400).json({ error: "That person is already the reunion owner." });
+      return;
+    }
+
+    // The target must currently be a co-organizer of this reunion.
+    const [coOrganizer] = await db
+      .select({ id: reunionOrganizersTable.id })
+      .from(reunionOrganizersTable)
+      .where(
+        and(
+          eq(reunionOrganizersTable.reunionId, reunion.id),
+          eq(reunionOrganizersTable.userId, newOwnerId),
+        ),
+      );
+    if (!coOrganizer) {
+      res.status(404).json({
+        error: "You can only transfer ownership to an existing co-organizer.",
+      });
+      return;
+    }
+
+    const previousOwnerId = reunion.organizerId;
+
+    await db.transaction(async (tx) => {
+      // Promote: new owner becomes reunions.organizerId
+      await tx
+        .update(reunionsTable)
+        .set({ organizerId: newOwnerId })
+        .where(eq(reunionsTable.id, reunion.id));
+
+      // Remove the new owner from the co-organizers list (they are now the owner)
+      await tx
+        .delete(reunionOrganizersTable)
+        .where(
+          and(
+            eq(reunionOrganizersTable.reunionId, reunion.id),
+            eq(reunionOrganizersTable.userId, newOwnerId),
+          ),
+        );
+
+      // Demote: previous owner becomes a co-organizer (skip if somehow present)
+      const [alreadyCo] = await tx
+        .select({ id: reunionOrganizersTable.id })
+        .from(reunionOrganizersTable)
+        .where(
+          and(
+            eq(reunionOrganizersTable.reunionId, reunion.id),
+            eq(reunionOrganizersTable.userId, previousOwnerId),
+          ),
+        );
+      if (!alreadyCo) {
+        await tx
+          .insert(reunionOrganizersTable)
+          .values({ reunionId: reunion.id, userId: previousOwnerId });
+      }
+    });
+
+    // Return the refreshed organizer list (owner first, then co-organizers).
+    const [owner] = await db
+      .select({
+        userId: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, newOwnerId));
+
+    const co = await db
+      .select({
+        userId: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+      })
+      .from(reunionOrganizersTable)
+      .innerJoin(usersTable, eq(reunionOrganizersTable.userId, usersTable.id))
+      .where(eq(reunionOrganizersTable.reunionId, reunion.id))
+      .orderBy(asc(reunionOrganizersTable.createdAt));
+
+    const payload = [
+      ...(owner
+        ? [{ ...owner, isOwner: true }]
+        : [{ userId: newOwnerId, email: "", firstName: null, lastName: null, isOwner: true }]),
+      ...co.map((c) => ({ ...c, isOwner: false })),
+    ];
+
+    res.json(ListReunionOrganizersResponse.parse(payload));
   },
 );
 

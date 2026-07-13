@@ -6,9 +6,11 @@ import {
   useListReunionOrganizers,
   useAddReunionOrganizer,
   useRemoveReunionOrganizer,
+  useTransferReunionOwnership,
   getListReunionOrganizersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@clerk/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -199,6 +201,7 @@ function fullName(o: { firstName?: string | null; lastName?: string | null; emai
 
 function CoOrganizers({ reunionId }: { reunionId: number }) {
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -208,6 +211,12 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
 
   const addMutation = useAddReunionOrganizer();
   const removeMutation = useRemoveReunionOrganizer();
+  const transferMutation = useTransferReunionOwnership();
+
+  // Only the current owner may transfer ownership or remove co-organizers.
+  const isCurrentUserOwner = (organizers ?? []).some(
+    (o) => o.isOwner && o.userId === userId,
+  );
 
   const refetch = () =>
     queryClient.invalidateQueries({ queryKey: getListReunionOrganizersQueryKey(reunionId) });
@@ -232,13 +241,35 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
     );
   };
 
-  const onRemove = (userId: string) => {
+  const onRemove = (memberId: string) => {
     setError(null);
     removeMutation.mutate(
-      { reunionId, userId },
+      { reunionId, userId: memberId },
       {
         onSuccess: refetch,
         onError: () => setError("Could not remove that co-organizer. Please try again."),
+      },
+    );
+  };
+
+  const onTransfer = (member: { userId: string; email: string; firstName?: string | null; lastName?: string | null }) => {
+    setError(null);
+    const label = fullName(member);
+    if (
+      !window.confirm(
+        `Make ${label} the new owner of this reunion? You'll stay on as a co-organizer, but only the new owner will be able to transfer ownership or manage organizers.`,
+      )
+    ) {
+      return;
+    }
+    transferMutation.mutate(
+      { reunionId, data: { userId: member.userId } },
+      {
+        onSuccess: refetch,
+        onError: (err: unknown) => {
+          const anyErr = err as { data?: { error?: string } };
+          setError(anyErr?.data?.error ?? "Could not transfer ownership. Please try again.");
+        },
       },
     );
   };
@@ -249,7 +280,8 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
         <h2 className="font-serif text-2xl font-bold">Organizers</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Co-organizers can manage registrations, the schedule, announcements, and payments — the
-          same as you. Only the owner can be changed by transferring the reunion.
+          same as you. As the owner, you can hand off ownership to any co-organizer with "Make
+          owner"; you'll stay on as a co-organizer afterward.
         </p>
       </div>
 
@@ -271,17 +303,33 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
                 <div className="text-xs text-muted-foreground truncate">{o.email}</div>
               </div>
               {!o.isOwner && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full shrink-0"
-                  disabled={removeMutation.isPending}
-                  onClick={() => onRemove(o.userId)}
-                  aria-label={`Remove ${fullName(o)}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {isCurrentUserOwner && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary hover:text-primary hover:bg-primary/10 rounded-full gap-1.5"
+                      disabled={transferMutation.isPending || removeMutation.isPending}
+                      onClick={() => onTransfer(o)}
+                      aria-label={`Make ${fullName(o)} the owner`}
+                    >
+                      <Crown className="w-4 h-4" />
+                      Make owner
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+                    disabled={removeMutation.isPending || transferMutation.isPending}
+                    onClick={() => onRemove(o.userId)}
+                    aria-label={`Remove ${fullName(o)}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </li>
           ))}

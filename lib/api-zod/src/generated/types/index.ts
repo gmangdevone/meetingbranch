@@ -37,4 +37,5 @@ export * from './scheduleItemInput';
 export * from './shirtSize';
 export * from './shirtSizeCount';
 export * from './toggleAdminInput';
+export * from './transferOwnershipInput';
 export * from './updatePaymentStatusInput';

@@ -79,6 +79,14 @@ export interface AddOrganizerInput {
   email: string;
 }
 
+export interface TransferOwnershipInput {
+  /**
+     * The user id of an existing co-organizer to promote to owner
+     * @minLength 1
+     */
+  userId: string;
+}
+
 export interface ReunionSummary {
   reunion: Reunion;
   registrationCount: number;

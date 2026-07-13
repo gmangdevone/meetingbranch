@@ -582,6 +582,30 @@ export const RemoveReunionOrganizerResponse = zod.void()
 
 
 /**
+ * @summary Transfer reunion ownership to an existing co-organizer (owner only)
+ */
+export const TransferReunionOwnershipParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+export const TransferReunionOwnershipBody = zod.object({
+  "userId": zod.string().min(1).describe('The user id of an existing co-organizer to promote to owner')
+})
+
+export const TransferReunionOwnershipResponseItem = zod.object({
+  "userId": zod.string(),
+  "email": zod.string(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers')
+})
+export const TransferReunionOwnershipResponse = zod.array(TransferReunionOwnershipResponseItem)
+
+
+/**
  * @summary Extended analytics report for a reunion
  */
 export const GetReunionReportsParams = zod.object({
