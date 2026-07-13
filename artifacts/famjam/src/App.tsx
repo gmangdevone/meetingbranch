@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, RedirectToSignIn } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
@@ -151,13 +151,17 @@ function HomeRedirect() {
 }
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType<any> }) {
+  const [location] = useLocation();
+  // Preserve the page the user was trying to reach so they land back on it
+  // (e.g. the registration form) after signing in, instead of being bounced home.
+  const returnUrl = `${basePath}${location}`;
   return (
     <>
       <Show when="signed-in">
         <Layout><Component /></Layout>
       </Show>
       <Show when="signed-out">
-        <Redirect to="/" />
+        <RedirectToSignIn signInForceRedirectUrl={returnUrl} signUpForceRedirectUrl={returnUrl} />
       </Show>
     </>
   );
