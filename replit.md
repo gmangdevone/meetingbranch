@@ -31,7 +31,7 @@ This route is a one-time bootstrap: it promotes the first signed-in user to admi
 - API: Express 5 + Clerk auth middleware
 - Auth: Clerk (Replit-managed, auto-provisioned keys)
 - DB: PostgreSQL + Drizzle ORM
-- Email: Resend (requires RESEND_API_KEY secret)
+- Email: Brevo (requires BREVO_API_KEY secret and BREVO_FROM_EMAIL env var)
 - Validation: Zod (zod/v4), drizzle-zod
 - API codegen: Orval (from OpenAPI spec)
 - Frontend: React + Vite, TanStack Query, Wouter, shadcn/ui, Tailwind v4
@@ -41,7 +41,7 @@ This route is a one-time bootstrap: it promotes the first signed-in user to admi
 - `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for all API contracts)
 - `lib/db/src/schema/` — Drizzle schema files (users, registrations, attendees, announcements, schedule_items)
 - `artifacts/api-server/src/routes/` — Express route handlers
-- `artifacts/api-server/src/lib/email.ts` — Resend email confirmation builder
+- `artifacts/api-server/src/lib/email.ts` — Brevo email confirmation builder
 - `artifacts/api-server/src/middlewares/requireAuth.ts` — Clerk auth middleware
 - `artifacts/famjam/src/pages/` — All frontend pages
 - `lib/api-client-react/src/generated/` — Generated React Query hooks (do not edit)
@@ -77,4 +77,6 @@ This route is a one-time bootstrap: it promotes the first signed-in user to admi
 - After changing `lib/db/src/schema/`, run `pnpm run typecheck:libs` before typechecking artifact packages — stale lib declarations cause false TS2305 errors
 - After changing `lib/api-spec/openapi.yaml`, always re-run codegen before touching generated files
 - Clerk dev-key warning in console is normal in development — expected behavior, not a bug
-- `RESEND_API_KEY` must be set as a secret for email confirmations to send; if missing, emails are skipped with a warning log but registrations still save
+- `BREVO_API_KEY` must be set as a secret and `BREVO_FROM_EMAIL` as an env var for confirmation emails to send; if missing, emails are skipped with a warning log but registrations still save
+- The verified sender (`BREVO_FROM_EMAIL`) must be added in Brevo → Senders & IPs before emails will deliver
+- First-run admin setup: visit `/api/admin/setup` while signed in — promotes the first user to admin, then permanently closes
