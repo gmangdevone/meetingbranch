@@ -1,9 +1,6 @@
-import { Resend } from "resend";
 import { logger } from "./logger";
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const BREVO_API_KEY = process.env.BREVO_API_KEY ?? null;
 
 interface AttendeeInfo {
   name: string;
@@ -23,6 +20,10 @@ interface SendConfirmationEmailParams {
 const FEE_PER_PERSON = 50;
 const CASHAPP_HANDLE = "$goudycgp";
 const CASHAPP_URL = "https://cash.app/$goudycgp";
+
+// Verified sender configured in Brevo — override with BREVO_FROM_EMAIL env var if needed
+const FROM_EMAIL = process.env.BREVO_FROM_EMAIL ?? "noreply@famjam.app";
+const FROM_NAME = "FamJam Reunion";
 
 function buildEmailHtml(params: SendConfirmationEmailParams): string {
   const { toName, siblingName, attendees, registrationId, registeredAt } = params;
@@ -144,8 +145,8 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
 export async function sendRegistrationConfirmation(
   params: SendConfirmationEmailParams,
 ): Promise<void> {
-  if (!resend) {
-    logger.warn("RESEND_API_KEY not set — skipping confirmation email");
+  if (!BREVO_API_KEY) {
+    logger.warn("BREVO_API_KEY not set — skipping confirmation email");
     logger.info(
       { to: params.toEmail, registrationId: params.registrationId },
       "Would have sent registration confirmation",
@@ -153,16 +154,38 @@ export async function sendRegistrationConfirmation(
     return;
   }
 
-  const { data, error } = await resend.emails.send({
-    from: "FamJam <noreply@famjam.app>",
-    to: params.toEmail,
+  const payload = {
+    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    to: [{ email: params.toEmail, name: params.toName }],
     subject: `You're registered for the Lacey Family Reunion 2027! 🎉`,
-    html: buildEmailHtml(params),
-  });
+    htmlContent: buildEmailHtml(params),
+  };
 
-  if (error) {
-    logger.error({ error, to: params.toEmail }, "Failed to send confirmation email");
-  } else {
-    logger.info({ emailId: data?.id, to: params.toEmail }, "Confirmation email sent");
+  try {
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      logger.error(
+        { status: res.status, body, to: params.toEmail },
+        "Brevo API error sending confirmation email",
+      );
+    } else {
+      const data = await res.json() as { messageId?: string };
+      logger.info(
+        { messageId: data.messageId, to: params.toEmail },
+        "Confirmation email sent via Brevo",
+      );
+    }
+  } catch (err) {
+    logger.error({ err, to: params.toEmail }, "Failed to send confirmation email via Brevo");
   }
 }
