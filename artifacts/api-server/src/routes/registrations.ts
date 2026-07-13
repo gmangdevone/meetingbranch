@@ -82,7 +82,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
 
   // JIT-provision user row with authoritative Clerk profile data
   const { email: clerkEmail, firstName: clerkFirstName } =
-    await upsertUserFromClerk(userId);
+    await upsertUserFromClerk(userId, req.log);
 
   const [registration] = await db
     .insert(registrationsTable)

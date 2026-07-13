@@ -89,7 +89,7 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
   const userId = (req as any).userId as string;
 
   // JIT-provision the organizer's user row with authoritative Clerk profile data
-  await upsertUserFromClerk(userId);
+  await upsertUserFromClerk(userId, req.log);
 
   const code = await generateUniqueReunionCode();
   const { name, startDate, endDate, feePerPerson, paymentHandle, paymentUrl, branches } =
