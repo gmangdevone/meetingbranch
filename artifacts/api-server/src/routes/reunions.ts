@@ -36,7 +36,7 @@ import { attachAuth } from "../middlewares/requireAdmin";
 import { requireReunionManager } from "../middlewares/requireReunionManager";
 import { generateUniqueReunionCode } from "../lib/reunionCode";
 import { getOrCreateSettings } from "../lib/settings";
-import { getAuth } from "@clerk/express";
+import { upsertUserFromClerk } from "../lib/users";
 
 const router: IRouter = Router();
 
@@ -88,21 +88,8 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
 
   const userId = (req as any).userId as string;
 
-  // JIT-provision the organizer's user row from Clerk claims
-  const auth = getAuth(req);
-  const clerkEmail = (auth?.sessionClaims?.email as string | undefined) ?? "";
-  const clerkFirstName =
-    (auth?.sessionClaims?.firstName as string | undefined) ??
-    (auth?.sessionClaims?.given_name as string | undefined) ??
-    null;
-  const clerkLastName =
-    (auth?.sessionClaims?.lastName as string | undefined) ??
-    (auth?.sessionClaims?.family_name as string | undefined) ??
-    null;
-  await db
-    .insert(usersTable)
-    .values({ id: userId, email: clerkEmail, firstName: clerkFirstName, lastName: clerkLastName })
-    .onConflictDoNothing();
+  // JIT-provision the organizer's user row with authoritative Clerk profile data
+  await upsertUserFromClerk(userId);
 
   const code = await generateUniqueReunionCode();
   const { name, startDate, endDate, feePerPerson, paymentHandle, paymentUrl, branches } =

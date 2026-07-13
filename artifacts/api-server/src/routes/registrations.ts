@@ -17,7 +17,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { sendRegistrationConfirmation } from "../lib/email";
-import { getAuth } from "@clerk/express";
+import { upsertUserFromClerk } from "../lib/users";
 
 const router: IRouter = Router();
 
@@ -80,17 +80,9 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  // JIT-provision user row from Clerk claims
-  const auth = getAuth(req);
-  const clerkEmail = (auth?.sessionClaims?.email as string | undefined) ?? "";
-  const clerkFirstName =
-    (auth?.sessionClaims?.firstName as string | undefined) ??
-    (auth?.sessionClaims?.given_name as string | undefined) ??
-    "";
-  await db
-    .insert(usersTable)
-    .values({ id: userId, email: clerkEmail, firstName: clerkFirstName })
-    .onConflictDoNothing();
+  // JIT-provision user row with authoritative Clerk profile data
+  const { email: clerkEmail, firstName: clerkFirstName } =
+    await upsertUserFromClerk(userId);
 
   const [registration] = await db
     .insert(registrationsTable)
