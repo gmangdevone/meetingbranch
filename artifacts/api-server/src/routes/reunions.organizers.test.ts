@@ -508,3 +508,101 @@ describe("POST /api/reunions/:reunionId/organizers", () => {
     expect(state.rows.reunion_organizers).toHaveLength(1);
   });
 });
+
+// ── GET /reunions/:reunionId/organizers (list) ──────────────────────────────────
+describe("GET /api/reunions/:reunionId/organizers", () => {
+  beforeEach(() => {
+    state.auth = null;
+    seedBase();
+  });
+
+  const listOrganizers = () =>
+    request(buildApp()).get(`/api/reunions/${REUNION_ID}/organizers`);
+
+  it("returns the owner first with isOwner=true, then co-organizers with isOwner=false", async () => {
+    authAs(OWNER);
+
+    const res = await listOrganizers();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        userId: OWNER,
+        email: "owner@example.com",
+        firstName: "Olivia",
+        lastName: "Owner",
+        isOwner: true,
+      },
+      {
+        userId: CO,
+        email: "co@example.com",
+        firstName: "Cody",
+        lastName: "Coorg",
+        isOwner: false,
+      },
+    ]);
+  });
+
+  it("lists co-organizers in createdAt order regardless of insertion order", async () => {
+    authAs(OWNER);
+    // Add a second co-organizer whose row is inserted AFTER Cody but whose
+    // createdAt is EARLIER — the handler must sort by createdAt, not row order.
+    state.rows.reunion_organizers.push({
+      id: 2,
+      reunionId: REUNION_ID,
+      userId: NEWBIE,
+      createdAt: new Date("2026-01-01").toISOString(),
+    });
+
+    const res = await listOrganizers();
+
+    expect(res.status).toBe(200);
+    // Owner is always first; the two co-organizers follow in createdAt order
+    // (Nina @ 2026-01-01 before Cody @ 2026-01-02).
+    expect(res.body.map((o: { userId: string }) => o.userId)).toEqual([
+      OWNER,
+      NEWBIE,
+      CO,
+    ]);
+    expect(res.body.slice(1).every((o: { isOwner: boolean }) => o.isOwner === false)).toBe(true);
+  });
+
+  it("returns just the owner when there are no co-organizers", async () => {
+    authAs(OWNER);
+    state.rows.reunion_organizers = [];
+
+    const res = await listOrganizers();
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({ userId: OWNER, isOwner: true });
+  });
+
+  it("falls back gracefully when the owner's user row is missing", async () => {
+    authAs(OWNER);
+    // The reunion still points at OWNER, but the user profile row is gone.
+    state.rows.users = state.rows.users.filter((u) => u.id !== OWNER);
+
+    const res = await listOrganizers();
+
+    expect(res.status).toBe(200);
+    // Owner slot is still present (blank profile), marked as the owner.
+    expect(res.body[0]).toEqual({
+      userId: OWNER,
+      email: "",
+      firstName: null,
+      lastName: null,
+      isOwner: true,
+    });
+    // Co-organizer still resolves normally.
+    expect(res.body[1]).toMatchObject({ userId: CO, isOwner: false });
+  });
+
+  it("rejects a non-manager with 403", async () => {
+    authAs(OUTSIDER);
+
+    const res = await listOrganizers();
+
+    expect(res.status).toBe(403);
+  });
+});
