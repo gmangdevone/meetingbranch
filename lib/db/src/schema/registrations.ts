@@ -1,19 +1,7 @@
 import { pgTable, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-
-export const siblingNameEnum = pgEnum("sibling_name", [
-  "John",
-  "Louise",
-  "Willie Mae",
-  "June",
-  "Frances",
-  "Edna",
-  "Loretta",
-  "Betty",
-  "Dorothy",
-  "Richard",
-]);
+import { reunionsTable } from "./reunions";
 
 export const shirtSizeEnum = pgEnum("shirt_size", [
   "XS",
@@ -33,8 +21,12 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 
 export const registrationsTable = pgTable("registrations", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  reunionId: integer("reunion_id")
+    .notNull()
+    .references(() => reunionsTable.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull(),
-  siblingName: siblingNameEnum("sibling_name").notNull(),
+  // Free-form branch name, validated against the reunion's own branch list
+  branchName: text("branch_name").notNull(),
   attendeeCount: integer("attendee_count").notNull(),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

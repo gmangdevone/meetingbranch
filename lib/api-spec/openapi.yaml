@@ -3,21 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: FamJam – Lacey Family Reunion API
+  description: FamJam – multi-reunion family gathering platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: settings
+    description: Platform-wide settings
+  - name: reunions
+    description: Reunion lifecycle and public reunion reads
   - name: registrations
     description: Reunion registrations
-  - name: announcements
-    description: Family announcements
-  - name: schedule
-    description: Reunion schedule items
+  - name: manage
+    description: Reunion organizer management (organizer or platform admin)
   - name: admin
-    description: Admin-only operations
+    description: Platform-admin-only operations
 
 paths:
   /healthz:
@@ -33,6 +35,486 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  # ── Platform settings ───────────────────────────────────────────────────────
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Public platform settings (e.g. whether reunion creation is enabled)
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformSettings"
+
+  # ── Reunion lifecycle & public reads ────────────────────────────────────────
+  /reunions:
+    post:
+      operationId: createReunion
+      tags: [reunions]
+      summary: Create a new reunion (requires creation to be enabled)
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReunionInput"
+      responses:
+        "201":
+          description: Reunion created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reunion"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Reunion creation is disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reunions/mine:
+    get:
+      operationId: listMyReunions
+      tags: [reunions]
+      summary: List reunions the current user organizes
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: List of reunions with stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReunionSummary"
+        "401":
+          description: Unauthorized
+
+  /reunions/by-code/{code}:
+    get:
+      operationId: getReunionByCode
+      tags: [reunions]
+      summary: Public lookup of a reunion by its 7-character code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reunion detail with branches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reunion"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reunions/{reunionId}:
+    get:
+      operationId: getReunion
+      tags: [manage]
+      summary: Get a reunion for management (organizer or platform admin)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Reunion detail with branches and stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionSummary"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    put:
+      operationId: updateReunion
+      tags: [manage]
+      summary: Update reunion settings (organizer or platform admin)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReunionUpdateInput"
+      responses:
+        "200":
+          description: Updated reunion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reunion"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/summary:
+    get:
+      operationId: getReunionSummary
+      tags: [reunions]
+      summary: Public summary stats for a reunion – headcount, counts by branch
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationSummary"
+
+  /reunions/{reunionId}/announcements:
+    get:
+      operationId: listReunionAnnouncements
+      tags: [reunions]
+      summary: List a reunion's announcements (public)
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+    post:
+      operationId: createAnnouncement
+      tags: [manage]
+      summary: Create an announcement for a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/announcements/{announcementId}:
+    put:
+      operationId: updateAnnouncement
+      tags: [manage]
+      summary: Update an announcement
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/AnnouncementId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "200":
+          description: Updated announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteAnnouncement
+      tags: [manage]
+      summary: Delete an announcement
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/AnnouncementId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/schedule:
+    get:
+      operationId: listReunionSchedule
+      tags: [reunions]
+      summary: List a reunion's schedule items (public)
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: List of schedule items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduleItem"
+    post:
+      operationId: createScheduleItem
+      tags: [manage]
+      summary: Create a schedule item for a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleItemInput"
+      responses:
+        "201":
+          description: Created schedule item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleItem"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/schedule/{scheduleId}:
+    put:
+      operationId: updateScheduleItem
+      tags: [manage]
+      summary: Update a schedule item
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ScheduleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleItemInput"
+      responses:
+        "200":
+          description: Updated schedule item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleItem"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteScheduleItem
+      tags: [manage]
+      summary: Delete a schedule item
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ScheduleId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/branches:
+    post:
+      operationId: createBranch
+      tags: [manage]
+      summary: Add a branch/group to a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "201":
+          description: Created branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionBranch"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/branches/{branchId}:
+    put:
+      operationId: updateBranch
+      tags: [manage]
+      summary: Update a branch/group
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/BranchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "200":
+          description: Updated branch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionBranch"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteBranch
+      tags: [manage]
+      summary: Delete a branch/group
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/BranchId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/registrations:
+    get:
+      operationId: listReunionRegistrations
+      tags: [manage]
+      summary: List all registrations for a reunion (organizer or platform admin)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: List of registrations with user info
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminRegistration"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/registrations/export:
+    get:
+      operationId: exportReunionRegistrations
+      tags: [manage]
+      summary: Export a reunion's registrations as CSV
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/registrations/{registrationId}/payment:
+    patch:
+      operationId: updateRegistrationPayment
+      tags: [manage]
+      summary: Update payment status for a registration
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/RegistrationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePaymentStatusInput"
+      responses:
+        "200":
+          description: Updated registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRegistration"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/reports:
+    get:
+      operationId: getReunionReports
+      tags: [manage]
+      summary: Extended analytics report for a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Full report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReport"
+        "403":
+          description: Forbidden
+
+  # ── Registrations ────────────────────────────────────────────────────────────
   /registrations:
     post:
       operationId: createRegistration
@@ -81,19 +563,6 @@ paths:
         "401":
           description: Unauthorized
 
-  /registrations/summary:
-    get:
-      operationId: getRegistrationSummary
-      tags: [registrations]
-      summary: Summary stats – total headcount, count by sibling group
-      responses:
-        "200":
-          description: Summary statistics
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RegistrationSummary"
-
   /registrations/{id}:
     get:
       operationId: getRegistration
@@ -117,288 +586,48 @@ paths:
         "404":
           description: Not found
 
-  /announcements:
-    get:
-      operationId: listAnnouncements
-      tags: [announcements]
-      summary: List all family announcements
-      responses:
-        "200":
-          description: List of announcements
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Announcement"
-
-  /schedule:
-    get:
-      operationId: listScheduleItems
-      tags: [schedule]
-      summary: List all reunion schedule items
-      responses:
-        "200":
-          description: List of schedule items
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ScheduleItem"
-
-  # ── Admin endpoints ────────────────────────────────────────────────────────
-
-  /admin/registrations:
-    get:
-      operationId: adminListRegistrations
-      tags: [admin]
-      summary: List all registrations (admin)
-      security:
-        - clerkAuth: []
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 20
-        - name: search
-          in: query
-          schema:
-            type: string
-        - name: siblingName
-          in: query
-          schema:
-            $ref: "#/components/schemas/SiblingName"
-        - name: paymentStatus
-          in: query
-          schema:
-            $ref: "#/components/schemas/PaymentStatus"
-      responses:
-        "200":
-          description: Paginated list of registrations with user info
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminRegistrationListResponse"
-        "403":
-          description: Forbidden
-
-  /admin/registrations/export:
-    get:
-      operationId: adminExportRegistrations
-      tags: [admin]
-      summary: Export all registrations as CSV
-      security:
-        - clerkAuth: []
-      responses:
-        "200":
-          description: CSV file
-          content:
-            text/csv:
-              schema:
-                type: string
-        "403":
-          description: Forbidden
-
-  /admin/registrations/{id}/payment:
+  # ── Platform admin ────────────────────────────────────────────────────────────
+  /admin/settings:
     patch:
-      operationId: adminUpdatePaymentStatus
+      operationId: adminUpdateSettings
       tags: [admin]
-      summary: Update payment status for a registration
+      summary: Enable or disable reunion creation platform-wide
       security:
         - clerkAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdatePaymentStatusInput"
+              $ref: "#/components/schemas/PlatformSettings"
       responses:
         "200":
-          description: Updated registration
+          description: Updated settings
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminRegistration"
+                $ref: "#/components/schemas/PlatformSettings"
         "403":
           description: Forbidden
-        "404":
-          description: Not found
 
-  /admin/reports:
+  /admin/reunions:
     get:
-      operationId: adminGetReports
+      operationId: adminListReunions
       tags: [admin]
-      summary: Extended analytics report (shirt sizes, dietary counts, registrations over time)
+      summary: List all reunions across the platform
       security:
         - clerkAuth: []
       responses:
         "200":
-          description: Full report data
+          description: List of reunions with stats
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminReport"
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReunionSummary"
         "403":
           description: Forbidden
-
-  /admin/announcements:
-    post:
-      operationId: adminCreateAnnouncement
-      tags: [admin]
-      summary: Create a new announcement
-      security:
-        - clerkAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AnnouncementInput"
-      responses:
-        "201":
-          description: Created announcement
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Announcement"
-        "403":
-          description: Forbidden
-
-  /admin/announcements/{id}:
-    put:
-      operationId: adminUpdateAnnouncement
-      tags: [admin]
-      summary: Update an announcement
-      security:
-        - clerkAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AnnouncementInput"
-      responses:
-        "200":
-          description: Updated announcement
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Announcement"
-        "403":
-          description: Forbidden
-        "404":
-          description: Not found
-    delete:
-      operationId: adminDeleteAnnouncement
-      tags: [admin]
-      summary: Delete an announcement
-      security:
-        - clerkAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Deleted
-        "403":
-          description: Forbidden
-        "404":
-          description: Not found
-
-  /admin/schedule:
-    post:
-      operationId: adminCreateScheduleItem
-      tags: [admin]
-      summary: Create a schedule item
-      security:
-        - clerkAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ScheduleItemInput"
-      responses:
-        "201":
-          description: Created schedule item
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScheduleItem"
-        "403":
-          description: Forbidden
-
-  /admin/schedule/{id}:
-    put:
-      operationId: adminUpdateScheduleItem
-      tags: [admin]
-      summary: Update a schedule item
-      security:
-        - clerkAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ScheduleItemInput"
-      responses:
-        "200":
-          description: Updated schedule item
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ScheduleItem"
-        "403":
-          description: Forbidden
-        "404":
-          description: Not found
-    delete:
-      operationId: adminDeleteScheduleItem
-      tags: [admin]
-      summary: Delete a schedule item
-      security:
-        - clerkAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Deleted
-        "403":
-          description: Forbidden
-        "404":
-          description: Not found
 
   /admin/users:
     get:
@@ -423,7 +652,7 @@ paths:
     patch:
       operationId: adminToggleAdminFlag
       tags: [admin]
-      summary: Grant or revoke admin access for a user
+      summary: Grant or revoke platform-admin access for a user
       security:
         - clerkAuth: []
       parameters:
@@ -456,6 +685,38 @@ components:
       type: http
       scheme: bearer
 
+  parameters:
+    ReunionId:
+      name: reunionId
+      in: path
+      required: true
+      schema:
+        type: integer
+    BranchId:
+      name: branchId
+      in: path
+      required: true
+      schema:
+        type: integer
+    AnnouncementId:
+      name: announcementId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ScheduleId:
+      name: scheduleId
+      in: path
+      required: true
+      schema:
+        type: integer
+    RegistrationId:
+      name: registrationId
+      in: path
+      required: true
+      schema:
+        type: integer
+
   schemas:
     HealthStatus:
       type: object
@@ -471,19 +732,12 @@ components:
         error:
           type: string
 
-    SiblingName:
-      type: string
-      enum:
-        - John
-        - Louise
-        - Willie Mae
-        - June
-        - Frances
-        - Edna
-        - Loretta
-        - Betty
-        - Dorothy
-        - Richard
+    PlatformSettings:
+      type: object
+      required: [reunionCreationEnabled]
+      properties:
+        reunionCreationEnabled:
+          type: boolean
 
     ShirtSize:
       type: string
@@ -492,6 +746,124 @@ components:
     PaymentStatus:
       type: string
       enum: [pending, paid, waived]
+
+    ReunionBranch:
+      type: object
+      required: [id, reunionId, name, sortOrder]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        name:
+          type: string
+        sortOrder:
+          type: integer
+
+    Reunion:
+      type: object
+      required:
+        [id, code, name, startDate, endDate, feePerPerson, paymentHandle, createdAt, branches]
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+          description: "ISO date (YYYY-MM-DD)"
+        endDate:
+          type: string
+          description: "ISO date (YYYY-MM-DD)"
+        feePerPerson:
+          type: integer
+        paymentHandle:
+          type: string
+        paymentUrl:
+          type: ["string", "null"]
+        organizerId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        branches:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionBranch"
+
+    ReunionSummary:
+      type: object
+      required: [reunion, registrationCount, attendeeCount]
+      properties:
+        reunion:
+          $ref: "#/components/schemas/Reunion"
+        registrationCount:
+          type: integer
+        attendeeCount:
+          type: integer
+
+    ReunionInput:
+      type: object
+      required: [name, startDate, endDate, feePerPerson, paymentHandle, branches]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        startDate:
+          type: string
+          minLength: 1
+        endDate:
+          type: string
+          minLength: 1
+        feePerPerson:
+          type: integer
+          minimum: 0
+        paymentHandle:
+          type: string
+          minLength: 1
+        paymentUrl:
+          type: string
+        branches:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+
+    ReunionUpdateInput:
+      type: object
+      required: [name, startDate, endDate, feePerPerson, paymentHandle]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        startDate:
+          type: string
+          minLength: 1
+        endDate:
+          type: string
+          minLength: 1
+        feePerPerson:
+          type: integer
+          minimum: 0
+        paymentHandle:
+          type: string
+          minLength: 1
+        paymentUrl:
+          type: string
+
+    BranchInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        sortOrder:
+          type: integer
+          default: 0
 
     AttendeeInput:
       type: object
@@ -522,10 +894,13 @@ components:
 
     RegistrationInput:
       type: object
-      required: [siblingName, attendees]
+      required: [reunionId, branchName, attendees]
       properties:
-        siblingName:
-          $ref: "#/components/schemas/SiblingName"
+        reunionId:
+          type: integer
+        branchName:
+          type: string
+          minLength: 1
         attendees:
           type: array
           items:
@@ -534,14 +909,21 @@ components:
 
     Registration:
       type: object
-      required: [id, userId, siblingName, attendeeCount, createdAt, attendees, paymentStatus]
+      required:
+        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus]
       properties:
         id:
           type: integer
+        reunionId:
+          type: integer
+        reunionName:
+          type: ["string", "null"]
+        reunionCode:
+          type: ["string", "null"]
         userId:
           type: string
-        siblingName:
-          $ref: "#/components/schemas/SiblingName"
+        branchName:
+          type: string
         attendeeCount:
           type: integer
         paymentStatus:
@@ -556,9 +938,12 @@ components:
 
     AdminRegistration:
       type: object
-      required: [id, userId, siblingName, attendeeCount, createdAt, attendees, paymentStatus, userEmail]
+      required:
+        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, userEmail]
       properties:
         id:
+          type: integer
+        reunionId:
           type: integer
         userId:
           type: string
@@ -566,8 +951,8 @@ components:
           type: string
         userName:
           type: ["string", "null"]
-        siblingName:
-          $ref: "#/components/schemas/SiblingName"
+        branchName:
+          type: string
         attendeeCount:
           type: integer
         paymentStatus:
@@ -579,21 +964,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Attendee"
-
-    AdminRegistrationListResponse:
-      type: object
-      required: [registrations, total, page, limit]
-      properties:
-        registrations:
-          type: array
-          items:
-            $ref: "#/components/schemas/AdminRegistration"
-        total:
-          type: integer
-        page:
-          type: integer
-        limit:
-          type: integer
 
     UpdatePaymentStatusInput:
       type: object
@@ -617,10 +987,10 @@ components:
 
     GroupCount:
       type: object
-      required: [siblingName, registrationCount, attendeeCount]
+      required: [branchName, registrationCount, attendeeCount]
       properties:
-        siblingName:
-          $ref: "#/components/schemas/SiblingName"
+        branchName:
+          type: string
         registrationCount:
           type: integer
         attendeeCount:
@@ -647,7 +1017,8 @@ components:
 
     AdminReport:
       type: object
-      required: [totalRegistrations, totalAttendees, paidCount, pendingCount, waivedCount, dietaryCount, byGroup, byShirtSize, registrationsOverTime]
+      required:
+        [totalRegistrations, totalAttendees, paidCount, pendingCount, waivedCount, dietaryCount, byGroup, byShirtSize, registrationsOverTime]
       properties:
         totalRegistrations:
           type: integer
@@ -676,9 +1047,11 @@ components:
 
     Announcement:
       type: object
-      required: [id, title, body, createdAt]
+      required: [id, reunionId, title, body, createdAt]
       properties:
         id:
+          type: integer
+        reunionId:
           type: integer
         title:
           type: string
@@ -706,9 +1079,11 @@ components:
 
     ScheduleItem:
       type: object
-      required: [id, title, startTime, day]
+      required: [id, reunionId, title, startTime, day]
       properties:
         id:
+          type: integer
+        reunionId:
           type: integer
         day:
           type: string

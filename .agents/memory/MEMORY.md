@@ -1,0 +1,2 @@
+- [Backfill-then-tighten DB migrations](db-backfill-migrations.md) — when adding NOT NULL FKs to tables with existing rows, hand-write a psql transaction instead of drizzle-kit push.
+- [Orval path+query param collision](orval-param-collision.md) — an operation with BOTH path and query params makes orval emit two same-named exports; avoid mixing them.

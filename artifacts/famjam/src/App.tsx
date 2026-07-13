@@ -2,27 +2,31 @@ import { useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
-import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
-import { Register } from "./pages/Register";
+import { CreateReunion } from "./pages/CreateReunion";
+import { JoinReunion } from "./pages/JoinReunion";
+import { ReunionHub } from "./pages/ReunionHub";
+import { ReunionRegister } from "./pages/ReunionRegister";
+import { ReunionSchedule } from "./pages/ReunionSchedule";
+import { ReunionAnnouncements } from "./pages/ReunionAnnouncements";
 import { RegistrationDetail } from "./pages/RegistrationDetail";
-import { Schedule } from "./pages/Schedule";
-import { Announcements } from "./pages/Announcements";
 import { FAQ } from "./pages/FAQ";
 
-import { AdminGuard } from "./components/AdminGuard";
-import { AdminOverview } from "./pages/admin/AdminOverview";
-import { AdminRegistrations } from "./pages/admin/AdminRegistrations";
-import { AdminRegistrationDetail } from "./pages/admin/AdminRegistrationDetail";
-import { AdminReports } from "./pages/admin/AdminReports";
-import { AdminAnnouncements } from "./pages/admin/AdminAnnouncements";
-import { AdminSchedule } from "./pages/admin/AdminSchedule";
-import { AdminUsers } from "./pages/admin/AdminUsers";
+import { OrganizerOverview } from "./pages/organize/OrganizerOverview";
+import { OrganizerRegistrations } from "./pages/organize/OrganizerRegistrations";
+import { OrganizerReports } from "./pages/organize/OrganizerReports";
+import { OrganizerAnnouncements } from "./pages/organize/OrganizerAnnouncements";
+import { OrganizerSchedule } from "./pages/organize/OrganizerSchedule";
+import { OrganizerBranches } from "./pages/organize/OrganizerBranches";
+import { OrganizerSettings } from "./pages/organize/OrganizerSettings";
+
+import { AdminArea } from "./pages/admin/AdminArea";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -165,7 +169,7 @@ function NotFound() {
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <h1 className="font-serif text-6xl font-bold text-secondary mb-4">404</h1>
         <p className="text-xl text-muted-foreground mb-8">This page got lost in the family tree.</p>
-        <Redirect to="/" />
+        <Link href="/" className="text-primary font-bold hover:underline">Go Home</Link>
       </div>
     </Layout>
   );
@@ -204,20 +208,55 @@ function ClerkProviderWithRoutes() {
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
-          <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
-          <Route path="/register" component={() => <ProtectedRoute component={Register} />} />
-          <Route path="/registrations/:id" component={() => <ProtectedRoute component={RegistrationDetail} />} />
-          <Route path="/schedule" component={() => <Layout><Schedule /></Layout>} />
-          <Route path="/announcements" component={() => <Layout><Announcements /></Layout>} />
-          <Route path="/faq" component={() => <Layout><FAQ /></Layout>} />
           
-          <Route path="/admin" component={() => <AdminGuard><AdminOverview /></AdminGuard>} />
-          <Route path="/admin/registrations" component={() => <AdminGuard><AdminRegistrations /></AdminGuard>} />
-          <Route path="/admin/registrations/:id" component={() => <AdminGuard><AdminRegistrationDetail /></AdminGuard>} />
-          <Route path="/admin/reports" component={() => <AdminGuard><AdminReports /></AdminGuard>} />
-          <Route path="/admin/announcements" component={() => <AdminGuard><AdminAnnouncements /></AdminGuard>} />
-          <Route path="/admin/schedule" component={() => <AdminGuard><AdminSchedule /></AdminGuard>} />
-          <Route path="/admin/users" component={() => <AdminGuard><AdminUsers /></AdminGuard>} />
+          <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
+          <Route path="/create" component={() => <ProtectedRoute component={CreateReunion} />} />
+          
+          <Route path="/join" component={() => <Layout><JoinReunion /></Layout>} />
+          
+          <Route path="/r/:code">
+            {(params) => <Layout><ReunionHub params={params} /></Layout>}
+          </Route>
+          <Route path="/r/:code/register">
+            {(params) => <ProtectedRoute component={() => <ReunionRegister params={params} />} />}
+          </Route>
+          <Route path="/r/:code/schedule">
+            {(params) => <Layout><ReunionSchedule params={params} /></Layout>}
+          </Route>
+          <Route path="/r/:code/announcements">
+            {(params) => <Layout><ReunionAnnouncements params={params} /></Layout>}
+          </Route>
+
+          <Route path="/registrations/:id">
+            {(params) => <ProtectedRoute component={() => <RegistrationDetail params={params} />} />}
+          </Route>
+
+          {/* Organizer routes */}
+          <Route path="/organize/:reunionId">
+            {(params) => <ProtectedRoute component={() => <OrganizerOverview params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/registrations">
+            {(params) => <ProtectedRoute component={() => <OrganizerRegistrations params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/reports">
+            {(params) => <ProtectedRoute component={() => <OrganizerReports params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/announcements">
+            {(params) => <ProtectedRoute component={() => <OrganizerAnnouncements params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/schedule">
+            {(params) => <ProtectedRoute component={() => <OrganizerSchedule params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/branches">
+            {(params) => <ProtectedRoute component={() => <OrganizerBranches params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/settings">
+            {(params) => <ProtectedRoute component={() => <OrganizerSettings params={params} />} />}
+          </Route>
+
+          <Route path="/admin" component={() => <ProtectedRoute component={AdminArea} />} />
+          
+          <Route path="/faq" component={() => <Layout><FAQ /></Layout>} />
 
           <Route component={NotFound} />
         </Switch>

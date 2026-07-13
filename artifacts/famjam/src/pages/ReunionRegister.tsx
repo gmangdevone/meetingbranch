@@ -1,0 +1,300 @@
+import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, getListMyRegistrationsQueryKey, getGetReunionSummaryQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { ArrowLeft, Plus, Trash2, Users } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Skeleton } from "../components/ui/skeleton";
+import { useToast } from "../hooks/use-toast";
+
+const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
+
+const formSchema = z.object({
+  branchName: z.string().min(1, "Please select your family branch"),
+  attendees: z.array(z.object({
+    name: z.string().min(1, "Name is required"),
+    shirtSize: z.enum(SHIRT_SIZES, { required_error: "Shirt size is required" }),
+    dietaryRestrictions: z.string().optional(),
+  })).min(1, "Add at least one attendee"),
+});
+
+export function ReunionRegister({ params }: { params: { code: string } }) {
+  const code = params.code?.toUpperCase();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: reunion, isLoading } = useGetReunionByCode(code, {
+    query: {  enabled: !!code, retry: false , queryKey: getGetReunionByCodeQueryKey(code) }
+  });
+
+  const registerMutation = useCreateRegistration();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      branchName: "",
+      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "" }],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "attendees",
+  });
+
+  const watchAttendees = form.watch("attendees");
+  const totalCost = useMemo(() => {
+    if (!reunion) return 0;
+    return watchAttendees.length * reunion.feePerPerson;
+  }, [watchAttendees.length, reunion]);
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (!reunion) return;
+    
+    registerMutation.mutate({
+      data: {
+        reunionId: reunion.id,
+        branchName: values.branchName,
+        attendees: values.attendees.map(a => ({
+          ...a,
+          dietaryRestrictions: a.dietaryRestrictions || undefined
+        }))
+      }
+    }, {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunion.id) });
+        toast({ title: "Registration Successful!", description: "We can't wait to see you." });
+        setLocation(`/registrations/${data.id}`);
+      },
+      onError: (err) => {
+        toast({ title: "Registration failed", description: (err as any)?.error || "An error occurred", variant: "destructive" });
+      }
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto py-12">
+        <Skeleton className="h-12 w-48 mb-8" />
+        <Skeleton className="h-[600px] rounded-3xl" />
+      </div>
+    );
+  }
+
+  if (!reunion) {
+    return (
+      <div className="max-w-xl mx-auto py-20 text-center">
+        <h1 className="font-serif text-4xl font-bold mb-4">Reunion Not Found</h1>
+        <Button onClick={() => setLocation("/dashboard")} variant="outline" className="rounded-full">Back to Dashboard</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto py-8">
+      <Button 
+        variant="ghost" 
+        onClick={() => setLocation(`/r/${reunion.code}`)} 
+        className="mb-6 -ml-4 text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub
+      </Button>
+
+      <div className="mb-8">
+        <div className="inline-block bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3">
+          {reunion.name}
+        </div>
+        <h1 className="font-serif text-4xl md:text-5xl font-bold mb-3">Register Your Household</h1>
+        <p className="text-lg text-muted-foreground">Add everyone in your immediate household who is attending.</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl">
+                <FormField
+                  control={form.control}
+                  name="branchName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-bold">Which family branch are you in?</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="rounded-xl h-14 bg-muted/50 border-transparent focus:border-primary">
+                            <SelectValue placeholder="Select a branch..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {reunion.branches.sort((a, b) => a.sortOrder - b.sortOrder).map(branch => (
+                            <SelectItem key={branch.id} value={branch.name}>{branch.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-serif text-2xl font-bold">Attendees</h2>
+                </div>
+
+                {fields.map((field, index) => (
+                  <div key={field.id} className="bg-card border shadow-sm p-6 rounded-3xl relative animate-in slide-in-from-bottom-4">
+                    {fields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </Button>
+                    )}
+                    
+                    <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-4">Person {index + 1}</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.name`}
+                        render={({ field: inputField }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Full Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Jane Doe" className="rounded-xl bg-muted/50 border-transparent focus:border-primary" {...inputField} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.shirtSize`}
+                        render={({ field: inputField }) => (
+                          <FormItem>
+                            <FormLabel>T-Shirt Size</FormLabel>
+                            <Select onValueChange={inputField.onChange} defaultValue={inputField.value}>
+                              <FormControl>
+                                <SelectTrigger className="rounded-xl bg-muted/50 border-transparent focus:border-primary">
+                                  <SelectValue placeholder="Size" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {SHIRT_SIZES.map(size => (
+                                  <SelectItem key={size} value={size}>{size}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.dietaryRestrictions`}
+                        render={({ field: inputField }) => (
+                          <FormItem>
+                            <FormLabel>Dietary Info (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Vegetarian, Peanut allergy" className="rounded-xl bg-muted/50 border-transparent focus:border-primary" {...inputField} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "" })}
+                  className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
+                >
+                  <Plus className="mr-2 w-5 h-5" /> Add Another Person
+                </Button>
+              </div>
+
+              <div className="lg:hidden">
+                {/* Mobile summary duplicate */}
+                <div className="bg-primary text-primary-foreground rounded-3xl p-6 shadow-xl mb-6">
+                  <h3 className="font-bold mb-4 pb-4 border-b border-primary-foreground/20">Summary</h3>
+                  <div className="flex justify-between items-center mb-2">
+                    <span>Attendees</span>
+                    <span>{watchAttendees.length}</span>
+                  </div>
+                  {reunion.feePerPerson > 0 && (
+                    <>
+                      <div className="flex justify-between items-center mb-4 pb-4 border-b border-primary-foreground/20">
+                        <span>Fee per person</span>
+                        <span>${reunion.feePerPerson}</span>
+                      </div>
+                      <div className="flex justify-between items-center font-bold text-2xl">
+                        <span>Total</span>
+                        <span>${totalCost}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <Button type="submit" disabled={registerMutation.isPending} className="w-full rounded-full py-7 text-lg font-bold shadow-lg hover:-translate-y-1 transition-all">
+                {registerMutation.isPending ? "Submitting..." : "Complete Registration"}
+              </Button>
+            </form>
+          </Form>
+        </div>
+
+        <div className="hidden lg:block">
+          <div className="bg-card border shadow-sm rounded-3xl p-6 sticky top-24">
+            <h3 className="font-serif text-xl font-bold mb-6 flex items-center"><Users className="w-5 h-5 mr-2" /> Registration Summary</h3>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total Attendees</span>
+                <span className="font-bold text-xl">{watchAttendees.length}</span>
+              </div>
+              
+              {reunion.feePerPerson > 0 && (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Fee per person</span>
+                    <span className="font-medium">${reunion.feePerPerson}</span>
+                  </div>
+                  
+                  <div className="pt-4 border-t border-dashed mt-4">
+                    <div className="flex justify-between items-end">
+                      <span className="text-muted-foreground font-medium">Total Cost</span>
+                      <span className="font-serif text-4xl font-bold text-primary">${totalCost}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-muted p-4 rounded-xl mt-6 text-sm">
+                    <span className="font-bold block mb-1">How to pay:</span>
+                    Pay via <span className="font-mono bg-background px-1 rounded">{reunion.paymentHandle}</span> after submitting.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

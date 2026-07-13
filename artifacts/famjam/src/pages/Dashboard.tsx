@@ -1,136 +1,143 @@
-import { useGetRegistrationSummary, useListMyRegistrations } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Users, Ticket, ArrowRight, Activity } from "lucide-react";
+import { useListMyReunions, useListMyRegistrations } from "@workspace/api-client-react";
+import { CalendarDays, Settings, Users, ArrowRight, Plus, Key } from "lucide-react";
 import { format } from "date-fns";
+import { Skeleton } from "../components/ui/skeleton";
 
 export function Dashboard() {
-  const { data: summary, isLoading: isLoadingSummary } = useGetRegistrationSummary();
-  const { data: myRegistrations, isLoading: isLoadingRegistrations } = useListMyRegistrations();
-
-  const isLoading = isLoadingSummary || isLoadingRegistrations;
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-6 animate-pulse">
-        <div className="h-12 w-64 bg-muted rounded-xl" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <div key={i} className="h-32 bg-muted rounded-3xl" />)}
-        </div>
-        <div className="h-[400px] bg-muted rounded-3xl" />
-      </div>
-    );
-  }
+  const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
+  const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
 
   return (
-    <div className="flex flex-col gap-8 pb-12">
-      <div className="flex items-center justify-between">
-        <h1 className="font-serif text-4xl md:text-5xl font-bold text-secondary">Dashboard</h1>
-        <Link 
-          href="/register" 
-          className="bg-primary text-primary-foreground px-5 py-2.5 rounded-full font-bold text-sm md:text-base shadow-sm hover:bg-primary/90 flex items-center gap-2 transition-transform active:scale-95"
-        >
-          <Ticket className="w-4 h-4" />
-          <span className="hidden md:inline">New Registration</span>
-          <span className="md:hidden">Register</span>
+    <div className="flex flex-col gap-12 pb-12">
+      <div className="flex flex-col gap-2">
+        <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground">Welcome Back</h1>
+        <p className="text-lg text-muted-foreground">Manage your upcoming family gatherings.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Link href="/create" className="bg-primary/10 border border-primary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-primary/15 transition-all group">
+          <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Plus className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-foreground">Create a Reunion</h3>
+            <p className="text-muted-foreground text-sm">Start organizing a new family event.</p>
+          </div>
+        </Link>
+        <Link href="/join" className="bg-secondary/10 border border-secondary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-secondary/15 transition-all group">
+          <div className="bg-secondary text-secondary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Key className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-foreground">Join a Reunion</h3>
+            <p className="text-muted-foreground text-sm">Enter a code to RSVP for an event.</p>
+          </div>
         </Link>
       </div>
 
-      {/* Summary Widgets */}
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-card border shadow-sm rounded-3xl p-6 flex flex-col justify-between">
-          <div className="flex items-center gap-4 text-primary">
-            <div className="p-3 bg-primary/10 rounded-2xl">
-              <Users className="w-6 h-6" />
-            </div>
-            <h3 className="font-semibold text-lg">Total Family Coming</h3>
-          </div>
-          <p className="text-5xl font-serif font-bold mt-6">{summary?.totalAttendees || 0}</p>
-        </div>
-
-        <div className="bg-card border shadow-sm rounded-3xl p-6 flex flex-col justify-between">
-          <div className="flex items-center gap-4 text-secondary">
-            <div className="p-3 bg-secondary/10 rounded-2xl">
-              <Ticket className="w-6 h-6" />
-            </div>
-            <h3 className="font-semibold text-lg">Total Registrations</h3>
-          </div>
-          <p className="text-5xl font-serif font-bold mt-6">{summary?.totalRegistrations || 0}</p>
-        </div>
-
-        <div className="bg-card border shadow-sm rounded-3xl p-6 flex flex-col lg:col-span-1 md:col-span-2">
-          <div className="flex items-center gap-4 text-accent-foreground">
-            <div className="p-3 bg-accent/20 rounded-2xl">
-              <Activity className="w-6 h-6" />
-            </div>
-            <h3 className="font-semibold text-lg">Largest Branches</h3>
-          </div>
-          <div className="mt-6 flex flex-col gap-3">
-            {summary?.byGroup?.sort((a, b) => b.attendeeCount - a.attendeeCount).slice(0, 3).map((group) => (
-              <div key={group.siblingName} className="flex items-center justify-between">
-                <span className="font-medium text-foreground/80">{group.siblingName}'s Branch</span>
-                <span className="font-bold text-foreground bg-accent/20 px-3 py-1 rounded-full text-sm">
-                  {group.attendeeCount} people
-                </span>
-              </div>
-            ))}
-            {(!summary?.byGroup || summary.byGroup.length === 0) && (
-              <p className="text-sm text-muted-foreground">No registrations yet.</p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* My Registrations */}
       <section>
-        <h2 className="font-serif text-3xl font-bold text-foreground mb-6">My Registrations</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-serif text-2xl font-bold text-foreground">My Registrations</h2>
+        </div>
         
-        {!myRegistrations?.length ? (
-          <div className="bg-card border shadow-sm rounded-3xl p-12 flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-              <Ticket className="w-8 h-8 text-muted-foreground" />
+        {loadingRegistrations ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-32 rounded-3xl" />
+            <Skeleton className="h-32 rounded-3xl" />
+          </div>
+        ) : !registrations || registrations.length === 0 ? (
+          <div className="bg-card border shadow-sm rounded-3xl p-8 text-center flex flex-col items-center">
+            <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mb-4">
+              <CalendarDays className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-bold mb-2">No registrations found</h3>
-            <p className="text-muted-foreground mb-6 max-w-sm">
-              You haven't registered anyone for the reunion yet. Let's get your family on the list!
-            </p>
-            <Link 
-              href="/register" 
-              className="bg-primary text-primary-foreground px-6 py-3 rounded-full font-bold shadow-md hover:bg-primary/90 transition-all"
-            >
-              Start Registration
-            </Link>
+            <h3 className="font-bold text-lg mb-2">No registrations yet</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">You haven't RSVP'd to any family reunions. Join one using a family code.</p>
+            <Link href="/join" className="text-primary font-bold hover:underline">Join a Reunion</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {myRegistrations.map((reg, idx) => (
-              <Link key={reg.id} href={`/registrations/${reg.id}`}>
-                <div 
-                  className="bg-card border shadow-sm rounded-3xl p-6 hover-elevate transition-all cursor-pointer group"
-                  style={{ animationDelay: `${idx * 100}ms` }}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
-                        {reg.siblingName} Branch
-                      </span>
-                      <h3 className="font-serif text-2xl font-bold">
-                        {reg.attendees?.[0]?.name || 'Family'} & Guests
-                      </h3>
-                    </div>
-                    <div className="bg-primary/10 text-primary w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <ArrowRight className="w-5 h-5" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {registrations.map(reg => (
+              <div key={reg.id} className="bg-card border shadow-sm rounded-3xl p-6 flex flex-col gap-4 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-xl mb-1">{reg.reunionName || `Reunion ${reg.reunionCode}`}</h3>
+                    <p className="text-muted-foreground text-sm">Attending as: <span className="font-medium text-foreground">{reg.branchName}</span></p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    reg.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    reg.paymentStatus === 'waived' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
+                    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  }`}>
+                    {reg.paymentStatus}
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Users className="w-4 h-4" />
+                  <span>{reg.attendeeCount} {reg.attendeeCount === 1 ? 'person' : 'people'}</span>
+                </div>
+                
+                <div className="mt-2 pt-4 border-t flex items-center gap-3">
+                  <Link href={`/registrations/${reg.id}`} className="flex-1 text-center py-2 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded-xl font-medium transition-colors">
+                    View Details
+                  </Link>
+                  <Link href={`/r/${reg.reunionCode}`} className="flex-1 text-center py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl font-medium transition-colors">
+                    Reunion Hub
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-serif text-2xl font-bold text-foreground">Reunions I Organize</h2>
+        </div>
+        
+        {loadingReunions ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-40 rounded-3xl" />
+          </div>
+        ) : !reunions || reunions.length === 0 ? (
+          <div className="bg-card border shadow-sm rounded-3xl p-8 text-center flex flex-col items-center">
+            <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mb-4">
+              <Settings className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-bold text-lg mb-2">No organized reunions</h3>
+            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">You aren't organizing any reunions yet.</p>
+            <Link href="/create" className="text-primary font-bold hover:underline">Create a Reunion</Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {reunions.map(({ reunion, registrationCount, attendeeCount }) => (
+              <Link key={reunion.id} href={`/organize/${reunion.id}`} className="bg-card border shadow-sm rounded-3xl p-6 group hover:border-primary/50 transition-all flex flex-col">
+                <div className="mb-4 flex-1">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{reunion.name}</h3>
+                    <div className="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-md font-mono">
+                      {reunion.code}
                     </div>
                   </div>
-                  
-                  <div className="flex gap-4 text-sm mt-6 pt-4 border-t">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Attendees</span>
-                      <span className="font-bold">{reg.attendeeCount}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">Registered On</span>
-                      <span className="font-bold">{format(new Date(reg.createdAt), "MMM d, yyyy")}</span>
-                    </div>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(reunion.startDate), 'MMM d')} - {format(new Date(reunion.endDate), 'MMM d, yyyy')}
+                  </p>
+                </div>
+                
+                <div className="flex gap-4 text-sm mt-auto pt-4 border-t">
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground">Households</span>
+                    <span className="font-bold">{registrationCount}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-muted-foreground">Attendees</span>
+                    <span className="font-bold">{attendeeCount}</span>
+                  </div>
+                  <div className="ml-auto flex items-center text-primary">
+                    <span className="sr-only">Manage</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </Link>
