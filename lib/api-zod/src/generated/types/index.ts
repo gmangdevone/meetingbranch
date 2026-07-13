@@ -8,6 +8,8 @@
 
 export * from './adminRegistration';
 export * from './adminReport';
+export * from './adminSetupResult';
+export * from './adminSetupStatus';
 export * from './adminUser';
 export * from './announcement';
 export * from './announcementInput';

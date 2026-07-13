@@ -22,6 +22,8 @@ import type {
 import type {
   AdminRegistration,
   AdminReport,
+  AdminSetupResult,
+  AdminSetupStatus,
   AdminUser,
   Announcement,
   AnnouncementInput,
@@ -2004,6 +2006,160 @@ export function useGetRegistration<TData = Awaited<ReturnType<typeof getRegistra
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetRegistrationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAdminSetupStatusUrl = () => {
+
+
+
+
+  return `/api/admin/setup-status`
+}
+
+/**
+ * @summary Report whether an administrator already exists (first-run bootstrap)
+ */
+export const getAdminSetupStatus = async ( options?: RequestInit): Promise<AdminSetupStatus> => {
+
+  return customFetch<AdminSetupStatus>(getGetAdminSetupStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminSetupStatusQueryKey = () => {
+    return [
+    `/api/admin/setup-status`
+    ] as const;
+    }
+
+
+export const getGetAdminSetupStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAdminSetupStatus>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSetupStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminSetupStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminSetupStatus>>> = ({ signal }) => getAdminSetupStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminSetupStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminSetupStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminSetupStatus>>>
+export type GetAdminSetupStatusQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Report whether an administrator already exists (first-run bootstrap)
+ */
+
+export function useGetAdminSetupStatus<TData = Awaited<ReturnType<typeof getAdminSetupStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminSetupStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminSetupStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdminSetupUrl = () => {
+
+
+
+
+  return `/api/admin/setup`
+}
+
+/**
+ * @summary Claim admin access as the first operator (only while no admin exists)
+ */
+export const adminSetup = async ( options?: RequestInit): Promise<AdminSetupResult> => {
+
+  return customFetch<AdminSetupResult>(getAdminSetupUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminSetupQueryKey = () => {
+    return [
+    `/api/admin/setup`
+    ] as const;
+    }
+
+
+export const getAdminSetupQueryOptions = <TData = Awaited<ReturnType<typeof adminSetup>>, TError = ErrorType<void | ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminSetupQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminSetup>>> = ({ signal }) => adminSetup({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminSetup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminSetupQueryResult = NonNullable<Awaited<ReturnType<typeof adminSetup>>>
+export type AdminSetupQueryError = ErrorType<void | ErrorResponse>
+
+
+/**
+ * @summary Claim admin access as the first operator (only while no admin exists)
+ */
+
+export function useAdminSetup<TData = Awaited<ReturnType<typeof adminSetup>>, TError = ErrorType<void | ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminSetup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminSetupQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

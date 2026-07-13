@@ -650,6 +650,24 @@ export const GetRegistrationResponse = zod.object({
 
 
 /**
+ * @summary Report whether an administrator already exists (first-run bootstrap)
+ */
+export const GetAdminSetupStatusResponse = zod.object({
+  "adminExists": zod.boolean()
+})
+
+
+/**
+ * @summary Claim admin access as the first operator (only while no admin exists)
+ */
+export const AdminSetupResponse = zod.object({
+  "success": zod.boolean(),
+  "message": zod.string(),
+  "userId": zod.string()
+})
+
+
+/**
  * @summary Enable or disable reunion creation platform-wide
  */
 export const AdminUpdateSettingsBody = zod.object({

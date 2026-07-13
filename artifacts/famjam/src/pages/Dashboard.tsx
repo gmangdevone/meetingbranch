@@ -3,6 +3,7 @@ import { useListMyReunions, useListMyRegistrations } from "@workspace/api-client
 import { CalendarDays, Settings, Users, ArrowRight, Plus, Key } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "../components/ui/skeleton";
+import { AdminSetupPrompt } from "../components/AdminSetupPrompt";
 
 export function Dashboard() {
   const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
@@ -35,6 +36,8 @@ export function Dashboard() {
           </div>
         </Link>
       </div>
+
+      <AdminSetupPrompt />
 
       <section>
         <div className="flex items-center justify-between mb-6">

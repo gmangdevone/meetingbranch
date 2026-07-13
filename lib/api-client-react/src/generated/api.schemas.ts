@@ -263,3 +263,13 @@ export interface ToggleAdminInput {
   isAdmin: boolean;
 }
 
+export interface AdminSetupStatus {
+  adminExists: boolean;
+}
+
+export interface AdminSetupResult {
+  success: boolean;
+  message: string;
+  userId: string;
+}
+

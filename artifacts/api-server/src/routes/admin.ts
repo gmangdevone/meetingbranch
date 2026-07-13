@@ -24,6 +24,19 @@ const router: IRouter = Router();
 // ──────────────────────────────────────────────────────────────
 // First-run admin setup (public to any signed-in user, self-closing)
 // ──────────────────────────────────────────────────────────────
+// Public, read-only companion to /admin/setup: lets the app decide whether to
+// show the first-run "become the administrator" prompt. Reveals only whether
+// any admin exists yet (a boolean), so it needs no auth and never mutates.
+router.get("/admin/setup-status", async (_req, res): Promise<void> => {
+  const [existingAdmin] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.isAdmin, true))
+    .limit(1);
+
+  res.json({ adminExists: !!existingAdmin });
+});
+
 // One-time bootstrap: promotes the first signed-in user to platform admin IF no
 // admin exists yet. Once any admin exists, this route refuses (409). Must be
 // registered BEFORE the requireAdmin gate so the first operator can reach it.

@@ -587,6 +587,42 @@ paths:
           description: Not found
 
   # ── Platform admin ────────────────────────────────────────────────────────────
+  /admin/setup-status:
+    get:
+      operationId: getAdminSetupStatus
+      tags: [admin]
+      summary: Report whether an administrator already exists (first-run bootstrap)
+      responses:
+        "200":
+          description: Whether admin setup is still available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSetupStatus"
+
+  /admin/setup:
+    get:
+      operationId: adminSetup
+      tags: [admin]
+      summary: Claim admin access as the first operator (only while no admin exists)
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Caller is now the administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSetupResult"
+        "401":
+          description: Unauthorized
+        "409":
+          description: Admin already exists; setup is closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /admin/settings:
     patch:
       operationId: adminUpdateSettings
@@ -1153,3 +1189,21 @@ components:
       properties:
         isAdmin:
           type: boolean
+
+    AdminSetupStatus:
+      type: object
+      required: [adminExists]
+      properties:
+        adminExists:
+          type: boolean
+
+    AdminSetupResult:
+      type: object
+      required: [success, message, userId]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        userId:
+          type: string
