@@ -3,20 +3,26 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: FamJam – Lacey Family Reunion API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: registrations
+    description: Reunion registrations
+  - name: announcements
+    description: Family announcements
+  - name: schedule
+    description: Reunion schedule items
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +30,276 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /registrations:
+    post:
+      operationId: createRegistration
+      tags: [registrations]
+      summary: Submit a new reunion registration
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+      responses:
+        "201":
+          description: Registration created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registration"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+
+  /registrations/mine:
+    get:
+      operationId: listMyRegistrations
+      tags: [registrations]
+      summary: List the current user's registrations
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: List of registrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Registration"
+        "401":
+          description: Unauthorized
+
+  /registrations/summary:
+    get:
+      operationId: getRegistrationSummary
+      tags: [registrations]
+      summary: Summary stats – total headcount, count by sibling group
+      responses:
+        "200":
+          description: Summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationSummary"
+
+  /registrations/{id}:
+    get:
+      operationId: getRegistration
+      tags: [registrations]
+      summary: Get a single registration with attendees
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Registration detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registration"
+        "404":
+          description: Not found
+
+  /announcements:
+    get:
+      operationId: listAnnouncements
+      tags: [announcements]
+      summary: List all family announcements
+      responses:
+        "200":
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+
+  /schedule:
+    get:
+      operationId: listScheduleItems
+      tags: [schedule]
+      summary: List all reunion schedule items
+      responses:
+        "200":
+          description: List of schedule items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduleItem"
+
 components:
+  securitySchemes:
+    clerkAuth:
+      type: http
+      scheme: bearer
+
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    SiblingName:
+      type: string
+      enum:
+        - John
+        - Louise
+        - Willie Mae
+        - June
+        - Frances
+        - Edna
+        - Loretta
+        - Betty
+        - Dorothy
+        - Richard
+
+    ShirtSize:
+      type: string
+      enum: [XS, S, M, L, XL, "2XL", "3XL"]
+
+    AttendeeInput:
+      type: object
+      required: [name, shirtSize]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        shirtSize:
+          $ref: "#/components/schemas/ShirtSize"
+        dietaryRestrictions:
+          type: string
+
+    Attendee:
+      type: object
+      required: [id, registrationId, name, shirtSize]
+      properties:
+        id:
+          type: integer
+        registrationId:
+          type: integer
+        name:
+          type: string
+        shirtSize:
+          $ref: "#/components/schemas/ShirtSize"
+        dietaryRestrictions:
+          type: ["string", "null"]
+
+    RegistrationInput:
+      type: object
+      required: [siblingName, attendees]
+      properties:
+        siblingName:
+          $ref: "#/components/schemas/SiblingName"
+        attendees:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttendeeInput"
+          minItems: 1
+
+    Registration:
+      type: object
+      required: [id, userId, siblingName, attendeeCount, createdAt, attendees]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        siblingName:
+          $ref: "#/components/schemas/SiblingName"
+        attendeeCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        attendees:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attendee"
+
+    RegistrationSummary:
+      type: object
+      required: [totalRegistrations, totalAttendees, byGroup]
+      properties:
+        totalRegistrations:
+          type: integer
+        totalAttendees:
+          type: integer
+        byGroup:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupCount"
+
+    GroupCount:
+      type: object
+      required: [siblingName, registrationCount, attendeeCount]
+      properties:
+        siblingName:
+          $ref: "#/components/schemas/SiblingName"
+        registrationCount:
+          type: integer
+        attendeeCount:
+          type: integer
+
+    Announcement:
+      type: object
+      required: [id, title, body, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        pinned:
+          type: boolean
+
+    ScheduleItem:
+      type: object
+      required: [id, title, startTime, day]
+      properties:
+        id:
+          type: integer
+        day:
+          type: string
+          description: "Day label, e.g. Thursday July 17"
+        startTime:
+          type: string
+          description: "Time string, e.g. 9:00 AM"
+        endTime:
+          type: ["string", "null"]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]

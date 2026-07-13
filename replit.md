@@ -1,45 +1,66 @@
-# [Project name]
+# FamJam – Lacey Family Reunion 2027
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A mobile-first family reunion web app for the Lacey Family Reunion (July 16–19, 2027). Participants register, view the schedule, read announcements, and receive email confirmations with a Cash App payment link.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
+- `pnpm --filter @workspace/famjam run dev` — run the FamJam web app (port 19634)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
+- `pnpm run typecheck:libs` — rebuild lib declarations (run after changing lib/* schemas)
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
+- API: Express 5 + Clerk auth middleware
+- Auth: Clerk (Replit-managed, auto-provisioned keys)
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
+- Email: Resend (requires RESEND_API_KEY secret)
+- Validation: Zod (zod/v4), drizzle-zod
 - API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Frontend: React + Vite, TanStack Query, Wouter, shadcn/ui, Tailwind v4
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (source of truth for all API contracts)
+- `lib/db/src/schema/` — Drizzle schema files (users, registrations, attendees, announcements, schedule_items)
+- `artifacts/api-server/src/routes/` — Express route handlers
+- `artifacts/api-server/src/lib/email.ts` — Resend email confirmation builder
+- `artifacts/api-server/src/middlewares/requireAuth.ts` — Clerk auth middleware
+- `artifacts/famjam/src/pages/` — All frontend pages
+- `lib/api-client-react/src/generated/` — Generated React Query hooks (do not edit)
+- `lib/api-zod/src/generated/` — Generated Zod schemas for server validation (do not edit)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Contract-first OpenAPI: all API types flow from `lib/api-spec/openapi.yaml` → codegen → frontend hooks + server Zod schemas
+- Clerk is Replit-managed; keys are auto-provisioned. Never touch dashboard.clerk.com manually.
+- Email sends are non-blocking fire-and-forget; the registration is saved even if email fails
+- Admin flag (`is_admin`) on the users table gates the admin dashboard (Task #2)
+- `generatedAlwaysAsIdentity()` primary keys are excluded from Drizzle insert schemas automatically; do not call `.omit({ id: true })` on those schemas
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Home** – Live countdown to July 16, 2027, hero image, CTA to register
+- **Register** – Sibling group dropdown (10 names), dynamic per-person attendee rows (name, shirt size, dietary restrictions), server-timestamped on submit
+- **Dashboard** – User's registrations, summary stats
+- **Schedule** – Full 3-day reunion schedule (Thu–Sat)
+- **Announcements** – Family news, pinned items at top
+- **FAQ** – Static Q&A accordion
+- **Registration Detail** – Attendee list, $50/person fee calc, Cash App payment button
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Cash App handle: $goudycgp (https://cash.app/$goudycgp)
+- Reunion fee: $50.00 per person
+- Reunion dates: July 16–19, 2027
+- Sibling names dropdown: John, Louise, Willie Mae, June, Frances, Edna, Loretta, Betty, Dorothy, Richard
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- After changing `lib/db/src/schema/`, run `pnpm run typecheck:libs` before typechecking artifact packages — stale lib declarations cause false TS2305 errors
+- After changing `lib/api-spec/openapi.yaml`, always re-run codegen before touching generated files
+- Clerk dev-key warning in console is normal in development — expected behavior, not a bug
+- `RESEND_API_KEY` must be set as a secret for email confirmations to send; if missing, emails are skipped with a warning log but registrations still save
