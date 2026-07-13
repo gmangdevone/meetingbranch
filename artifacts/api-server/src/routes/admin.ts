@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 import {
   db,
   registrationsTable,
   usersTable,
   reunionsTable,
   reunionBranchesTable,
+  reunionFeesTable,
   appSettingsTable,
 } from "@workspace/db";
 import {
@@ -124,6 +125,11 @@ router.get("/admin/reunions", async (_req, res): Promise<void> => {
         .from(reunionBranchesTable)
         .where(eq(reunionBranchesTable.reunionId, r.id))
         .orderBy(reunionBranchesTable.sortOrder);
+      const fees = await db
+        .select()
+        .from(reunionFeesTable)
+        .where(eq(reunionFeesTable.reunionId, r.id))
+        .orderBy(asc(reunionFeesTable.sortOrder), asc(reunionFeesTable.id));
       const [counts] = await db
         .select({
           registrationCount: sql<number>`cast(count(*) as int)`,
@@ -132,7 +138,7 @@ router.get("/admin/reunions", async (_req, res): Promise<void> => {
         .from(registrationsTable)
         .where(eq(registrationsTable.reunionId, r.id));
       return {
-        reunion: { ...r, branches },
+        reunion: { ...r, branches, fees },
         registrationCount: counts?.registrationCount ?? 0,
         attendeeCount: counts?.attendeeCount ?? 0,
       };
