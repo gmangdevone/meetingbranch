@@ -12,6 +12,7 @@ import {
   usersTable,
   announcementsTable,
   scheduleItemsTable,
+  REUNION_ROLES,
 } from "@workspace/db";
 import {
   CreateReunionBody,
@@ -35,6 +36,7 @@ import {
   GetReunionReportsResponse,
   ListReunionOrganizersResponse,
   AddReunionOrganizerBody,
+  UpdateOrganizerRolesBody,
   TransferReunionOwnershipBody,
   CreateFeeBody,
   UpdateFeeBody,
@@ -44,6 +46,7 @@ import { attachAuth } from "../middlewares/requireAdmin";
 import {
   requireReunionManager,
   requireReunionOwner,
+  requireReunionPermission,
 } from "../middlewares/requireReunionManager";
 import { generateUniqueReunionCode } from "../lib/reunionCode";
 import { getOrCreateSettings } from "../lib/settings";
@@ -294,14 +297,20 @@ router.get("/reunions/:reunionId/schedule", async (req, res): Promise<void> => {
 // ═══════════════════════════════════════════════════════════════════════════════
 const manage = [attachAuth, requireReunionManager] as const;
 
-// Reunion detail for management
+// Reunion detail for management. Open to any manager (even a co-organizer with
+// no roles) so they can load the organize shell; the viewer's permissions ride
+// along so the client can filter navigation and pages.
 router.get("/reunions/:reunionId", ...manage, async (req, res): Promise<void> => {
   const payload = await getReunionSummaryPayload(req.managedReunion!.id);
-  res.json(GetReunionResponse.parse(payload));
+  res.json(GetReunionResponse.parse({ ...payload, viewer: req.reunionAccess }));
 });
 
-// Update reunion settings
-router.put("/reunions/:reunionId", ...manage, async (req, res): Promise<void> => {
+// Update reunion settings (Power User area)
+router.put(
+  "/reunions/:reunionId",
+  ...manage,
+  requireReunionPermission("power_user"),
+  async (req, res): Promise<void> => {
   const body = UpdateReunionBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -323,7 +332,7 @@ router.put("/reunions/:reunionId", ...manage, async (req, res): Promise<void> =>
 });
 
 // ── Branches ──────────────────────────────────────────────────────────────────
-router.post("/reunions/:reunionId/branches", ...manage, async (req, res): Promise<void> => {
+router.post("/reunions/:reunionId/branches", ...manage, requireReunionPermission("branches"), async (req, res): Promise<void> => {
   const body = CreateBranchBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -340,7 +349,7 @@ router.post("/reunions/:reunionId/branches", ...manage, async (req, res): Promis
   res.status(201).json(created);
 });
 
-router.put("/reunions/:reunionId/branches/:branchId", ...manage, async (req, res): Promise<void> => {
+router.put("/reunions/:reunionId/branches/:branchId", ...manage, requireReunionPermission("branches"), async (req, res): Promise<void> => {
   const body = UpdateBranchBody.safeParse(req.body);
   const branchId = Number(req.params.branchId);
   if (!body.success || !Number.isInteger(branchId)) {
@@ -364,7 +373,7 @@ router.put("/reunions/:reunionId/branches/:branchId", ...manage, async (req, res
   res.json(updated);
 });
 
-router.delete("/reunions/:reunionId/branches/:branchId", ...manage, async (req, res): Promise<void> => {
+router.delete("/reunions/:reunionId/branches/:branchId", ...manage, requireReunionPermission("branches"), async (req, res): Promise<void> => {
   const branchId = Number(req.params.branchId);
   if (!Number.isInteger(branchId)) {
     res.status(400).json({ error: "Invalid branch id" });
@@ -387,7 +396,7 @@ router.delete("/reunions/:reunionId/branches/:branchId", ...manage, async (req, 
 });
 
 // ── Fees & dues (manage) ──────────────────────────────────────────────────────
-router.post("/reunions/:reunionId/fees", ...manage, async (req, res): Promise<void> => {
+router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
   const body = CreateFeeBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -403,7 +412,7 @@ router.post("/reunions/:reunionId/fees", ...manage, async (req, res): Promise<vo
   res.status(201).json(created);
 });
 
-router.put("/reunions/:reunionId/fees/:feeId", ...manage, async (req, res): Promise<void> => {
+router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
   const body = UpdateFeeBody.safeParse(req.body);
   const feeId = Number(req.params.feeId);
   if (!body.success || !Number.isInteger(feeId)) {
@@ -427,7 +436,7 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, async (req, res): Prom
   res.json(updated);
 });
 
-router.delete("/reunions/:reunionId/fees/:feeId", ...manage, async (req, res): Promise<void> => {
+router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
   const feeId = Number(req.params.feeId);
   if (!Number.isInteger(feeId)) {
     res.status(400).json({ error: "Invalid fee id" });
@@ -450,7 +459,7 @@ router.delete("/reunions/:reunionId/fees/:feeId", ...manage, async (req, res): P
 });
 
 // ── Announcements (manage) ────────────────────────────────────────────────────
-router.post("/reunions/:reunionId/announcements", ...manage, async (req, res): Promise<void> => {
+router.post("/reunions/:reunionId/announcements", ...manage, requireReunionPermission("announcements"), async (req, res): Promise<void> => {
   const body = CreateAnnouncementBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -468,7 +477,7 @@ router.post("/reunions/:reunionId/announcements", ...manage, async (req, res): P
   res.status(201).json(created);
 });
 
-router.put("/reunions/:reunionId/announcements/:announcementId", ...manage, async (req, res): Promise<void> => {
+router.put("/reunions/:reunionId/announcements/:announcementId", ...manage, requireReunionPermission("announcements"), async (req, res): Promise<void> => {
   const body = UpdateAnnouncementBody.safeParse(req.body);
   const announcementId = Number(req.params.announcementId);
   if (!body.success || !Number.isInteger(announcementId)) {
@@ -492,7 +501,7 @@ router.put("/reunions/:reunionId/announcements/:announcementId", ...manage, asyn
   res.json(updated);
 });
 
-router.delete("/reunions/:reunionId/announcements/:announcementId", ...manage, async (req, res): Promise<void> => {
+router.delete("/reunions/:reunionId/announcements/:announcementId", ...manage, requireReunionPermission("announcements"), async (req, res): Promise<void> => {
   const announcementId = Number(req.params.announcementId);
   if (!Number.isInteger(announcementId)) {
     res.status(400).json({ error: "Invalid announcement id" });
@@ -515,7 +524,7 @@ router.delete("/reunions/:reunionId/announcements/:announcementId", ...manage, a
 });
 
 // ── Schedule (manage) ─────────────────────────────────────────────────────────
-router.post("/reunions/:reunionId/schedule", ...manage, async (req, res): Promise<void> => {
+router.post("/reunions/:reunionId/schedule", ...manage, requireReunionPermission("schedule"), async (req, res): Promise<void> => {
   const body = CreateScheduleItemBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -537,7 +546,7 @@ router.post("/reunions/:reunionId/schedule", ...manage, async (req, res): Promis
   res.status(201).json(created);
 });
 
-router.put("/reunions/:reunionId/schedule/:scheduleId", ...manage, async (req, res): Promise<void> => {
+router.put("/reunions/:reunionId/schedule/:scheduleId", ...manage, requireReunionPermission("schedule"), async (req, res): Promise<void> => {
   const body = UpdateScheduleItemBody.safeParse(req.body);
   const scheduleId = Number(req.params.scheduleId);
   if (!body.success || !Number.isInteger(scheduleId)) {
@@ -569,7 +578,7 @@ router.put("/reunions/:reunionId/schedule/:scheduleId", ...manage, async (req, r
   res.json(updated);
 });
 
-router.delete("/reunions/:reunionId/schedule/:scheduleId", ...manage, async (req, res): Promise<void> => {
+router.delete("/reunions/:reunionId/schedule/:scheduleId", ...manage, requireReunionPermission("schedule"), async (req, res): Promise<void> => {
   const scheduleId = Number(req.params.scheduleId);
   if (!Number.isInteger(scheduleId)) {
     res.status(400).json({ error: "Invalid schedule id" });
@@ -592,7 +601,7 @@ router.delete("/reunions/:reunionId/schedule/:scheduleId", ...manage, async (req
 });
 
 // ── Registrations (manage) ────────────────────────────────────────────────────
-router.get("/reunions/:reunionId/registrations", ...manage, async (req, res): Promise<void> => {
+router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
   const reunionId = req.managedReunion!.id;
   const rows = await db
     .select({
@@ -636,7 +645,7 @@ router.get("/reunions/:reunionId/registrations", ...manage, async (req, res): Pr
   res.json(ListReunionRegistrationsResponse.parse(withAttendees));
 });
 
-router.get("/reunions/:reunionId/registrations/export", ...manage, async (req, res): Promise<void> => {
+router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
   const reunion = req.managedReunion!;
   const rows = await db
     .select({
@@ -706,6 +715,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, async (req, r
 router.patch(
   "/reunions/:reunionId/registrations/:registrationId/payment",
   ...manage,
+  requireReunionPermission("registration"),
   async (req, res): Promise<void> => {
     const body = UpdateRegistrationPaymentBody.safeParse(req.body);
     const registrationId = Number(req.params.registrationId);
@@ -753,7 +763,7 @@ router.patch(
 );
 
 // ── Reports (manage) ──────────────────────────────────────────────────────────
-router.get("/reunions/:reunionId/reports", ...manage, async (req, res): Promise<void> => {
+router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("reports"), async (req, res): Promise<void> => {
   const reunionId = req.managedReunion!.id;
   const [totals, byGroup, byShirtSize, paymentCounts, dietaryCount, overTime] =
     await Promise.all([
@@ -831,7 +841,8 @@ router.get("/reunions/:reunionId/reports", ...manage, async (req, res): Promise<
 
 // ── Co-organizers (manage) ────────────────────────────────────────────────────
 // List all organizers: the owner (isOwner=true) followed by added co-organizers.
-router.get("/reunions/:reunionId/organizers", ...manage, async (req, res): Promise<void> => {
+// Owner-only (plus platform admin) — co-organizers cannot manage the roster.
+router.get("/reunions/:reunionId/organizers", ...manage, requireReunionOwner, async (req, res): Promise<void> => {
   const reunion = req.managedReunion!;
 
   const [owner] = await db
@@ -850,6 +861,7 @@ router.get("/reunions/:reunionId/organizers", ...manage, async (req, res): Promi
       email: usersTable.email,
       firstName: usersTable.firstName,
       lastName: usersTable.lastName,
+      roles: reunionOrganizersTable.roles,
     })
     .from(reunionOrganizersTable)
     .innerJoin(usersTable, eq(reunionOrganizersTable.userId, usersTable.id))
@@ -858,16 +870,16 @@ router.get("/reunions/:reunionId/organizers", ...manage, async (req, res): Promi
 
   const payload = [
     ...(owner
-      ? [{ ...owner, isOwner: true }]
-      : [{ userId: reunion.organizerId, email: "", firstName: null, lastName: null, isOwner: true }]),
-    ...co.map((c) => ({ ...c, isOwner: false })),
+      ? [{ ...owner, isOwner: true, roles: [] }]
+      : [{ userId: reunion.organizerId, email: "", firstName: null, lastName: null, isOwner: true, roles: [] }]),
+    ...co.map((c) => ({ ...c, roles: c.roles ?? [], isOwner: false })),
   ];
 
   res.json(ListReunionOrganizersResponse.parse(payload));
 });
 
-// Add a co-organizer by their account email.
-router.post("/reunions/:reunionId/organizers", ...manage, async (req, res): Promise<void> => {
+// Add a co-organizer by their account email. Owner-only (plus platform admin).
+router.post("/reunions/:reunionId/organizers", ...manage, requireReunionOwner, async (req, res): Promise<void> => {
   const body = AddReunionOrganizerBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
@@ -907,9 +919,10 @@ router.post("/reunions/:reunionId/organizers", ...manage, async (req, res): Prom
     return;
   }
 
+  const roles = body.data.roles ?? [];
   await db
     .insert(reunionOrganizersTable)
-    .values({ reunionId: reunion.id, userId: user.id });
+    .values({ reunionId: reunion.id, userId: user.id, roles });
 
   res.status(201).json({
     userId: user.id,
@@ -917,13 +930,15 @@ router.post("/reunions/:reunionId/organizers", ...manage, async (req, res): Prom
     firstName: user.firstName,
     lastName: user.lastName,
     isOwner: false,
+    roles,
   });
 });
 
-// Remove a co-organizer. The owner cannot be removed here.
+// Remove a co-organizer. The owner cannot be removed here. Owner-only.
 router.delete(
   "/reunions/:reunionId/organizers/:userId",
   ...manage,
+  requireReunionOwner,
   async (req, res): Promise<void> => {
     const reunion = req.managedReunion!;
     const userId = String(req.params.userId);
@@ -1018,9 +1033,11 @@ router.post(
           ),
         );
       if (!alreadyCo) {
+        // The demoted previous owner keeps every role so they retain full
+        // management access as a co-organizer after the handoff.
         await tx
           .insert(reunionOrganizersTable)
-          .values({ reunionId: reunion.id, userId: previousOwnerId });
+          .values({ reunionId: reunion.id, userId: previousOwnerId, roles: [...REUNION_ROLES] });
       }
     });
 
@@ -1041,6 +1058,7 @@ router.post(
         email: usersTable.email,
         firstName: usersTable.firstName,
         lastName: usersTable.lastName,
+        roles: reunionOrganizersTable.roles,
       })
       .from(reunionOrganizersTable)
       .innerJoin(usersTable, eq(reunionOrganizersTable.userId, usersTable.id))
@@ -1049,12 +1067,69 @@ router.post(
 
     const payload = [
       ...(owner
-        ? [{ ...owner, isOwner: true }]
-        : [{ userId: newOwnerId, email: "", firstName: null, lastName: null, isOwner: true }]),
-      ...co.map((c) => ({ ...c, isOwner: false })),
+        ? [{ ...owner, isOwner: true, roles: [] }]
+        : [{ userId: newOwnerId, email: "", firstName: null, lastName: null, isOwner: true, roles: [] }]),
+      ...co.map((c) => ({ ...c, roles: c.roles ?? [], isOwner: false })),
     ];
 
     res.json(ListReunionOrganizersResponse.parse(payload));
+  },
+);
+
+// Update a co-organizer's roles. Owner-only (plus platform admin). The owner
+// cannot be given a role set here — their access is implicit and full.
+router.put(
+  "/reunions/:reunionId/organizers/:userId/roles",
+  ...manage,
+  requireReunionOwner,
+  async (req, res): Promise<void> => {
+    const reunion = req.managedReunion!;
+    const userId = String(req.params.userId);
+
+    const body = UpdateOrganizerRolesBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+
+    if (userId === reunion.organizerId) {
+      res.status(400).json({ error: "The reunion owner already has full access." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(reunionOrganizersTable)
+      .set({ roles: body.data.roles })
+      .where(
+        and(
+          eq(reunionOrganizersTable.reunionId, reunion.id),
+          eq(reunionOrganizersTable.userId, userId),
+        ),
+      )
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Co-organizer not found" });
+      return;
+    }
+
+    const [user] = await db
+      .select({
+        userId: usersTable.id,
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    res.json({
+      userId,
+      email: user?.email ?? "",
+      firstName: user?.firstName ?? null,
+      lastName: user?.lastName ?? null,
+      isOwner: false,
+      roles: updated.roles ?? [],
+    });
   },
 );
 

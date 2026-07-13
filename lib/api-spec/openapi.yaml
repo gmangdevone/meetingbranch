@@ -656,6 +656,52 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/organizers/{userId}/roles:
+    put:
+      operationId: updateOrganizerRoles
+      tags: [manage]
+      summary: Update a co-organizer's roles (owner or platform admin only)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizerRolesInput"
+      responses:
+        "200":
+          description: Updated co-organizer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionOrganizer"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Only the owner or a platform admin can assign roles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Co-organizer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /reunions/{reunionId}/transfer-ownership:
     post:
       operationId: transferReunionOwnership
@@ -1096,9 +1142,17 @@ components:
           type: integer
           default: 0
 
+    ReunionRole:
+      type: string
+      enum: [registration, announcements, schedule, branches, reports, power_user]
+      description: >-
+        A delegable management area a co-organizer can be granted. power_user
+        covers editing reunion details, payment, and fees & dues (but not
+        managing organizers or transferring ownership, which stay owner-only).
+
     ReunionOrganizer:
       type: object
-      required: [userId, email, isOwner]
+      required: [userId, email, isOwner, roles]
       properties:
         userId:
           type: string
@@ -1111,6 +1165,32 @@ components:
         isOwner:
           type: boolean
           description: True for the reunion creator/owner; false for added co-organizers
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionRole"
+          description: >-
+            The roles granted to this co-organizer. Empty for the owner (whose
+            access is implicit and full).
+
+    ReunionViewerPermissions:
+      type: object
+      required: [isOwner, isAdmin, canManageOrganizers, roles]
+      properties:
+        isOwner:
+          type: boolean
+        isAdmin:
+          type: boolean
+        canManageOrganizers:
+          type: boolean
+          description: True only for the owner or a platform admin (add/remove organizers, assign roles, transfer ownership).
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionRole"
+          description: >-
+            Effective roles for the current viewer. Owners and platform admins
+            receive every role; co-organizers receive their assigned set.
 
     AddOrganizerInput:
       type: object
@@ -1118,7 +1198,20 @@ components:
       properties:
         email:
           type: string
-          minLength: 1
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionRole"
+          description: Roles to grant the new co-organizer. Defaults to none.
+
+    UpdateOrganizerRolesInput:
+      type: object
+      required: [roles]
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionRole"
 
     TransferOwnershipInput:
       type: object
@@ -1139,6 +1232,11 @@ components:
           type: integer
         attendeeCount:
           type: integer
+        viewer:
+          $ref: "#/components/schemas/ReunionViewerPermissions"
+          description: >-
+            The current viewer's permissions for this reunion. Populated by the
+            manage detail endpoint (GET /reunions/{reunionId}); omitted elsewhere.
 
     ReunionInput:
       type: object

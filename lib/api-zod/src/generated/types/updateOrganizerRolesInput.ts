@@ -7,8 +7,6 @@
  */
 import type { ReunionRole } from './reunionRole';
 
-export interface AddOrganizerInput {
-  email: string;
-  /** Roles to grant the new co-organizer. Defaults to none. */
-  roles?: ReunionRole[];
+export interface UpdateOrganizerRolesInput {
+  roles: ReunionRole[];
 }

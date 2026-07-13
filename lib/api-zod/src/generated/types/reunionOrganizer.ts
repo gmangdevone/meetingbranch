@@ -5,6 +5,7 @@
  * FamJam – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { ReunionRole } from './reunionRole';
 
 export interface ReunionOrganizer {
   userId: string;
@@ -15,4 +16,6 @@ export interface ReunionOrganizer {
   lastName?: string | null;
   /** True for the reunion creator/owner; false for added co-organizers */
   isOwner: boolean;
+  /** The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full). */
+  roles: ReunionRole[];
 }

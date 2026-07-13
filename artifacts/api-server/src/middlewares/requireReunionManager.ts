@@ -1,20 +1,35 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, reunionsTable, reunionOrganizersTable } from "@workspace/db";
+import { db, reunionsTable, reunionOrganizersTable, REUNION_ROLES } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
-import type { Reunion } from "@workspace/db";
+import type { Reunion, ReunionRole } from "@workspace/db";
+
+/**
+ * The current viewer's effective access to req.managedReunion, computed once by
+ * requireReunionManager and reused by requireReunionPermission / handlers.
+ * Owners and platform admins receive every role plus organizer-management rights.
+ */
+export interface ReunionAccess {
+  isOwner: boolean;
+  isAdmin: boolean;
+  canManageOrganizers: boolean;
+  roles: ReunionRole[];
+}
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       managedReunion?: Reunion;
+      reunionAccess?: ReunionAccess;
     }
   }
 }
 
 /**
  * Authorizes the current user to manage a specific reunion.
- * Allows the reunion's owner, any added co-organizer, OR any platform admin.
+ * Allows the reunion's owner, any added co-organizer (regardless of their role
+ * set), OR any platform admin. Populates req.managedReunion and req.reunionAccess
+ * so downstream role checks and handlers can reuse the viewer's permissions.
  * Must run after attachAuth (so req.userId / req.isAdmin are set).
  */
 export async function requireReunionManager(
@@ -42,11 +57,22 @@ export async function requireReunionManager(
     return;
   }
 
-  let authorized = reunion.organizerId === req.userId || req.isAdmin === true;
+  const isOwner = reunion.organizerId === req.userId;
+  const isAdmin = req.isAdmin === true;
 
-  if (!authorized) {
+  let access: ReunionAccess | null = null;
+
+  if (isOwner || isAdmin) {
+    // Owners and platform admins implicitly have every area.
+    access = {
+      isOwner,
+      isAdmin,
+      canManageOrganizers: true,
+      roles: [...REUNION_ROLES],
+    };
+  } else {
     const [coOrganizer] = await db
-      .select({ id: reunionOrganizersTable.id })
+      .select({ roles: reunionOrganizersTable.roles })
       .from(reunionOrganizersTable)
       .where(
         and(
@@ -54,16 +80,46 @@ export async function requireReunionManager(
           eq(reunionOrganizersTable.userId, req.userId),
         ),
       );
-    authorized = Boolean(coOrganizer);
+    if (coOrganizer) {
+      access = {
+        isOwner: false,
+        isAdmin: false,
+        canManageOrganizers: false,
+        roles: (coOrganizer.roles ?? []) as ReunionRole[],
+      };
+    }
   }
 
-  if (!authorized) {
+  if (!access) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
 
   req.managedReunion = reunion;
+  req.reunionAccess = access;
   next();
+}
+
+/**
+ * Restricts an area-specific action to viewers who hold the given role.
+ * Owners and platform admins always pass (they hold every role). Must run AFTER
+ * requireReunionManager, which populates req.reunionAccess.
+ */
+export function requireReunionPermission(role: ReunionRole) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const access = req.reunionAccess;
+    if (!access) {
+      res
+        .status(500)
+        .json({ error: "requireReunionPermission must run after requireReunionManager" });
+      return;
+    }
+    if (access.isOwner || access.isAdmin || access.roles.includes(role)) {
+      next();
+      return;
+    }
+    res.status(403).json({ error: "You don't have permission to manage this area." });
+  };
 }
 
 /**

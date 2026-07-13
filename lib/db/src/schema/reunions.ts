@@ -53,9 +53,34 @@ export const reunionBranchesTable = pgTable("reunion_branches", {
 });
 
 /**
+ * The delegable management areas a co-organizer can be granted. The reunion
+ * owner (and platform admins) always have every area implicitly; these roles
+ * only ever apply to *added* co-organizers.
+ * - registration:  manage the Registrations page (view, CSV export, payment status)
+ * - announcements: create/edit/delete announcements
+ * - schedule:      create/edit/delete schedule items
+ * - branches:      create/edit/delete branches
+ * - reports:       view reporting
+ * - power_user:    edit reunion details, payment info, and fees & dues
+ *   (NOT managing organizers/roles or transferring ownership — those stay owner-only)
+ */
+export const reunionRoleEnum = pgEnum("reunion_role", [
+  "registration",
+  "announcements",
+  "schedule",
+  "branches",
+  "reports",
+  "power_user",
+]);
+
+export const REUNION_ROLES = reunionRoleEnum.enumValues;
+export type ReunionRole = (typeof reunionRoleEnum.enumValues)[number];
+
+/**
  * Co-organizers granted management access to a reunion.
  * The reunion's creator/owner stays in `reunions.organizerId`; this table holds
- * the *additional* organizers. Management access = owner ∪ these rows.
+ * the *additional* organizers. Each co-organizer holds a set of `roles` that
+ * scope which areas they can manage (empty = no access until the owner assigns).
  */
 export const reunionOrganizersTable = pgTable(
   "reunion_organizers",
@@ -67,6 +92,7 @@ export const reunionOrganizersTable = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => usersTable.id),
+    roles: reunionRoleEnum("roles").array().notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique().on(t.reunionId, t.userId)],

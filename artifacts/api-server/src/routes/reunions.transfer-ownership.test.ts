@@ -70,7 +70,7 @@ vi.mock("@workspace/db", () => {
       "organizerId",
       "createdAt",
     ],
-    reunion_organizers: ["id", "reunionId", "userId", "createdAt"],
+    reunion_organizers: ["id", "reunionId", "userId", "roles", "createdAt"],
     reunion_branches: ["id", "reunionId", "name", "sortOrder"],
     registrations: ["id", "reunionId", "userId", "branchName", "attendeeCount"],
     attendees: ["id"],
@@ -320,6 +320,14 @@ vi.mock("@workspace/db", () => {
   for (const [exportName, tableName] of Object.entries(tableExports)) {
     tokens[exportName] = makeToken(tableName, tables[tableName as keyof typeof tables]);
   }
+  tokens.REUNION_ROLES = [
+    "registration",
+    "announcements",
+    "schedule",
+    "branches",
+    "reports",
+    "power_user",
+  ];
   return tokens;
 });
 

@@ -6,6 +6,7 @@ import {
   useListReunionOrganizers,
   useAddReunionOrganizer,
   useRemoveReunionOrganizer,
+  useUpdateOrganizerRoles,
   useTransferReunionOwnership,
   useCreateFee,
   useUpdateFee,
@@ -13,9 +14,9 @@ import {
   getListReunionOrganizersQueryKey,
   type ReunionFee,
   type FeeInput,
+  type ReunionRole,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@clerk/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +28,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Checkbox } from "../../components/ui/checkbox";
 import { useToast } from "../../hooks/use-toast";
 import { describeFee } from "../../lib/fees";
+import { ROLE_OPTIONS, ROLE_LABELS } from "../../lib/roles";
 
 const formSchema = z.object({
   name: z.string().min(1, "Required"),
@@ -91,7 +93,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   if (!summary) return null;
 
   return (
-    <OrganizerLayout reunionId={reunionId}>
+    <OrganizerLayout reunionId={reunionId} requiredRole="power_user">
       <div className="flex flex-col gap-6 max-w-2xl">
         <h1 className="font-serif text-3xl font-bold">Settings</h1>
         
@@ -178,7 +180,9 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
         <FeesManager reunionId={reunionId} fees={summary.reunion.fees} />
 
-        <CoOrganizers reunionId={reunionId} />
+        {summary.viewer?.canManageOrganizers && <CoOrganizers reunionId={reunionId} />}
+        {/* CoOrganizers is only shown to owner/admin (canManageOrganizers), so all
+            roster controls inside are available to whoever can see it. */}
       </div>
     </OrganizerLayout>
   );
@@ -550,11 +554,52 @@ function fullName(o: { firstName?: string | null; lastName?: string | null; emai
   return name || o.email;
 }
 
+function RolePicker({
+  selected,
+  onToggle,
+  disabled,
+  idPrefix,
+}: {
+  selected: ReunionRole[];
+  onToggle: (role: ReunionRole, checked: boolean) => void;
+  disabled?: boolean;
+  idPrefix: string;
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {ROLE_OPTIONS.map((role) => {
+        const id = `${idPrefix}-${role.value}`;
+        return (
+          <label
+            key={role.value}
+            htmlFor={id}
+            className="flex items-start gap-3 rounded-xl border bg-background p-3 cursor-pointer hover:border-primary/40"
+          >
+            <Checkbox
+              id={id}
+              checked={selected.includes(role.value)}
+              disabled={disabled}
+              onCheckedChange={(v) => onToggle(role.value, v === true)}
+              className="mt-0.5"
+            />
+            <span className="text-sm leading-tight">
+              <span className="font-bold block">{role.label}</span>
+              <span className="text-muted-foreground text-xs">{role.description}</span>
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 function CoOrganizers({ reunionId }: { reunionId: number }) {
   const queryClient = useQueryClient();
-  const { userId } = useAuth();
   const [email, setEmail] = useState("");
+  const [newRoles, setNewRoles] = useState<ReunionRole[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editRoles, setEditRoles] = useState<ReunionRole[]>([]);
 
   const { data: organizers, isLoading } = useListReunionOrganizers(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getListReunionOrganizersQueryKey(reunionId) },
@@ -562,15 +607,17 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
 
   const addMutation = useAddReunionOrganizer();
   const removeMutation = useRemoveReunionOrganizer();
+  const rolesMutation = useUpdateOrganizerRoles();
   const transferMutation = useTransferReunionOwnership();
-
-  // Only the current owner may transfer ownership or remove co-organizers.
-  const isCurrentUserOwner = (organizers ?? []).some(
-    (o) => o.isOwner && o.userId === userId,
-  );
 
   const refetch = () =>
     queryClient.invalidateQueries({ queryKey: getListReunionOrganizersQueryKey(reunionId) });
+
+  const toggle = (
+    setter: React.Dispatch<React.SetStateAction<ReunionRole[]>>,
+    role: ReunionRole,
+    checked: boolean,
+  ) => setter((prev) => (checked ? [...new Set([...prev, role])] : prev.filter((r) => r !== role)));
 
   const onAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -578,15 +625,39 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
     const value = email.trim();
     if (!value) return;
     addMutation.mutate(
-      { reunionId, data: { email: value } },
+      { reunionId, data: { email: value, roles: newRoles } },
       {
         onSuccess: () => {
           setEmail("");
+          setNewRoles([]);
           refetch();
         },
         onError: (err: unknown) => {
           const anyErr = err as { data?: { error?: string } };
           setError(anyErr?.data?.error ?? "Could not add that co-organizer. Please try again.");
+        },
+      },
+    );
+  };
+
+  const startEdit = (member: { userId: string; roles: ReunionRole[] }) => {
+    setError(null);
+    setEditingId(member.userId);
+    setEditRoles(member.roles ?? []);
+  };
+
+  const onSaveRoles = (memberId: string) => {
+    setError(null);
+    rolesMutation.mutate(
+      { reunionId, userId: memberId, data: { roles: editRoles } },
+      {
+        onSuccess: () => {
+          setEditingId(null);
+          refetch();
+        },
+        onError: (err: unknown) => {
+          const anyErr = err as { data?: { error?: string } };
+          setError(anyErr?.data?.error ?? "Could not update roles. Please try again.");
         },
       },
     );
@@ -625,14 +696,21 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
     );
   };
 
+  const busy =
+    addMutation.isPending ||
+    removeMutation.isPending ||
+    transferMutation.isPending ||
+    rolesMutation.isPending;
+
   return (
     <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-5">
       <div>
         <h2 className="font-serif text-2xl font-bold">Organizers</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Co-organizers can manage registrations, the schedule, announcements, and payments — the
-          same as you. As the owner, you can hand off ownership to any co-organizer with "Make
-          owner"; you'll stay on as a co-organizer afterward.
+          Give each co-organizer only the areas they should manage — registrations, announcements,
+          schedule, branches, reports, or Power User access to reunion details and fees. As the
+          owner you always have full access, and you can hand off ownership with "Make owner"
+          (you'll stay on as a co-organizer afterward).
         </p>
       </div>
 
@@ -641,53 +719,118 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
       ) : (
         <ul className="divide-y rounded-2xl border bg-muted/30">
           {(organizers ?? []).map((o) => (
-            <li key={o.userId} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <div className="font-medium truncate flex items-center gap-2">
-                  {fullName(o)}
-                  {o.isOwner && (
-                    <span className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5">
-                      <Crown className="w-3 h-3" /> Owner
-                    </span>
-                  )}
+            <li key={o.userId} className="px-4 py-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-medium truncate flex items-center gap-2">
+                    {fullName(o)}
+                    {o.isOwner && (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                        <Crown className="w-3 h-3" /> Owner
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{o.email}</div>
                 </div>
-                <div className="text-xs text-muted-foreground truncate">{o.email}</div>
-              </div>
-              {!o.isOwner && (
-                <div className="flex items-center gap-1 shrink-0">
-                  {isCurrentUserOwner && (
+                {!o.isOwner && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    {editingId !== o.userId && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full gap-1.5"
+                        disabled={busy}
+                        onClick={() => startEdit(o)}
+                        aria-label={`Edit roles for ${fullName(o)}`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Roles
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="text-primary hover:text-primary hover:bg-primary/10 rounded-full gap-1.5"
-                      disabled={transferMutation.isPending || removeMutation.isPending}
+                      disabled={busy}
                       onClick={() => onTransfer(o)}
                       aria-label={`Make ${fullName(o)} the owner`}
                     >
                       <Crown className="w-4 h-4" />
                       Make owner
                     </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
-                    disabled={removeMutation.isPending || transferMutation.isPending}
-                    onClick={() => onRemove(o.userId)}
-                    aria-label={`Remove ${fullName(o)}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full"
+                      disabled={busy}
+                      onClick={() => onRemove(o.userId)}
+                      aria-label={`Remove ${fullName(o)}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {!o.isOwner && editingId === o.userId ? (
+                <div className="space-y-3 rounded-2xl border bg-background p-3">
+                  <RolePicker
+                    selected={editRoles}
+                    onToggle={(role, checked) => toggle(setEditRoles, role, checked)}
+                    disabled={rolesMutation.isPending}
+                    idPrefix={`edit-${o.userId}`}
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="rounded-full font-bold gap-1.5"
+                      disabled={rolesMutation.isPending}
+                      onClick={() => onSaveRoles(o.userId)}
+                    >
+                      <Check className="w-4 h-4" /> Save roles
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-full gap-1.5"
+                      disabled={rolesMutation.isPending}
+                      onClick={() => setEditingId(null)}
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </Button>
+                  </div>
                 </div>
+              ) : (
+                !o.isOwner && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {o.roles.length === 0 ? (
+                      <span className="text-xs text-muted-foreground italic">
+                        No areas assigned yet
+                      </span>
+                    ) : (
+                      o.roles.map((r) => (
+                        <span
+                          key={r}
+                          className="text-xs font-bold bg-secondary text-secondary-foreground rounded-full px-2.5 py-0.5"
+                        >
+                          {ROLE_LABELS[r]}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                )
               )}
             </li>
           ))}
         </ul>
       )}
 
-      <form onSubmit={onAdd} className="flex flex-col sm:flex-row gap-3 pt-1">
+      <form onSubmit={onAdd} className="space-y-3 pt-1">
         <Input
           type="email"
           placeholder="co-organizer@email.com"
@@ -698,10 +841,19 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
           }}
           className="rounded-xl bg-muted/50"
         />
+        <div>
+          <p className="text-sm font-bold mb-2">Which areas should they manage?</p>
+          <RolePicker
+            selected={newRoles}
+            onToggle={(role, checked) => toggle(setNewRoles, role, checked)}
+            disabled={addMutation.isPending}
+            idPrefix="new"
+          />
+        </div>
         <Button
           type="submit"
           disabled={addMutation.isPending || !email.trim()}
-          className="rounded-full font-bold shrink-0 gap-2"
+          className="rounded-full font-bold gap-2"
         >
           <UserPlus className="w-4 h-4" />
           Add co-organizer
@@ -710,7 +862,7 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
       {error && <p className="text-sm text-destructive font-medium">{error}</p>}
       <p className="text-xs text-muted-foreground">
         They need a FamJam account already — ask them to sign in once, then add them by the email on
-        their account.
+        their account. You can change their areas any time.
       </p>
     </div>
   );

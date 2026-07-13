@@ -112,7 +112,7 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   const days = Object.keys(groupedSchedule || {});
 
   return (
-    <OrganizerLayout reunionId={reunionId}>
+    <OrganizerLayout reunionId={reunionId} requiredRole="schedule">
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <h1 className="font-serif text-3xl font-bold">Schedule Itinerary</h1>

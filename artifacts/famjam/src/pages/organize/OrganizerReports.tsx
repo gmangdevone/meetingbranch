@@ -11,7 +11,7 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
     query: { enabled: !isNaN(reunionId), queryKey: getGetReunionReportsQueryKey(reunionId) }
   });
 
-  if (isLoading || !reports) return <OrganizerLayout reunionId={reunionId}><div className="p-8">Loading reports...</div></OrganizerLayout>;
+  if (isLoading || !reports) return <OrganizerLayout reunionId={reunionId} requiredRole="reports"><div className="p-8">Loading reports...</div></OrganizerLayout>;
 
   const paymentData = [
     { name: 'Paid', value: reports.paidCount },
@@ -30,7 +30,7 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
   }));
 
   return (
-    <OrganizerLayout reunionId={reunionId}>
+    <OrganizerLayout reunionId={reunionId} requiredRole="reports">
       <div className="flex flex-col gap-8">
         <h1 className="font-serif text-3xl font-bold">Reports & Analytics</h1>
 

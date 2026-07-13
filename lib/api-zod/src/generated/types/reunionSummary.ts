@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Reunion } from './reunion';
+import type { ReunionViewerPermissions } from './reunionViewerPermissions';
 
 export interface ReunionSummary {
   reunion: Reunion;
   registrationCount: number;
   attendeeCount: number;
+  /** The current viewer's permissions for this reunion. Populated by the manage detail endpoint (GET /reunions/{reunionId}); omitted elsewhere. */
+  viewer?: ReunionViewerPermissions;
 }

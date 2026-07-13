@@ -87,7 +87,7 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
   };
 
   return (
-    <OrganizerLayout reunionId={reunionId}>
+    <OrganizerLayout reunionId={reunionId} requiredRole="announcements">
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <h1 className="font-serif text-3xl font-bold">Announcements</h1>

@@ -66,7 +66,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   };
 
   return (
-    <OrganizerLayout reunionId={reunionId}>
+    <OrganizerLayout reunionId={reunionId} requiredRole="registration">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="font-serif text-3xl font-bold">Registrations</h1>

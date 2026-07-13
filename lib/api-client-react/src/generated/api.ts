@@ -47,6 +47,7 @@ import type {
   ScheduleItemInput,
   ToggleAdminInput,
   TransferOwnershipInput,
+  UpdateOrganizerRolesInput,
   UpdatePaymentStatusInput
 } from './api.schemas';
 
@@ -2160,6 +2161,80 @@ export const useRemoveReunionOrganizer = <TError = ErrorType<ErrorResponse | voi
         TContext
       > => {
       return useMutation(getRemoveReunionOrganizerMutationOptions(options));
+    }
+
+export const getUpdateOrganizerRolesUrl = (reunionId: number,
+    userId: string,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/organizers/${userId}/roles`
+}
+
+/**
+ * @summary Update a co-organizer's roles (owner or platform admin only)
+ */
+export const updateOrganizerRoles = async (reunionId: number,
+    userId: string,
+    updateOrganizerRolesInput: UpdateOrganizerRolesInput, options?: RequestInit): Promise<ReunionOrganizer> => {
+
+  return customFetch<ReunionOrganizer>(getUpdateOrganizerRolesUrl(reunionId,userId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateOrganizerRolesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateOrganizerRolesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganizerRoles>>, TError,{reunionId: number;userId: string;data: BodyType<UpdateOrganizerRolesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOrganizerRoles>>, TError,{reunionId: number;userId: string;data: BodyType<UpdateOrganizerRolesInput>}, TContext> => {
+
+const mutationKey = ['updateOrganizerRoles'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOrganizerRoles>>, {reunionId: number;userId: string;data: BodyType<UpdateOrganizerRolesInput>}> = (props) => {
+          const {reunionId,userId,data} = props ?? {};
+
+          return  updateOrganizerRoles(reunionId,userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOrganizerRolesMutationResult = NonNullable<Awaited<ReturnType<typeof updateOrganizerRoles>>>
+    export type UpdateOrganizerRolesMutationBody = BodyType<UpdateOrganizerRolesInput>
+    export type UpdateOrganizerRolesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a co-organizer's roles (owner or platform admin only)
+ */
+export const useUpdateOrganizerRoles = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOrganizerRoles>>, TError,{reunionId: number;userId: string;data: BodyType<UpdateOrganizerRolesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOrganizerRoles>>,
+        TError,
+        {reunionId: number;userId: string;data: BodyType<UpdateOrganizerRolesInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateOrganizerRolesMutationOptions(options));
     }
 
 export const getTransferReunionOwnershipUrl = (reunionId: number,) => {

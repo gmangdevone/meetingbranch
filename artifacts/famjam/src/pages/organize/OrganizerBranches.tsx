@@ -68,7 +68,7 @@ export function OrganizerBranches({ params }: { params: { reunionId: string } })
   const branches = [...summary.reunion.branches].sort((a,b) => a.sortOrder - b.sortOrder);
 
   return (
-    <OrganizerLayout reunionId={reunionId}>
+    <OrganizerLayout reunionId={reunionId} requiredRole="branches">
       <div className="flex flex-col gap-6 max-w-2xl">
         <h1 className="font-serif text-3xl font-bold">Family Branches</h1>
         <p className="text-muted-foreground">Manage the groups users can select when they register.</p>

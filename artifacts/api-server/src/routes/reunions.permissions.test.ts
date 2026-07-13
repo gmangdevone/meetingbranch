@@ -3,42 +3,30 @@ import express, { type Express } from "express";
 import request from "supertest";
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Co-organizer add/remove are authorization-sensitive and mutate the
-// reunion_organizers table. These tests exercise the real Express handler +
-// middleware chain (attachAuth → requireReunionManager → handler) against an
-// in-memory fake of @workspace/db, mirroring the pattern established in
-// reunions.transfer-ownership.test.ts.
-//
-// The add-by-email handler looks the user up with a raw `sql` predicate
-// (`lower(email) = <email>`), so this file's drizzle-orm mock gives `sql` an
-// inspectable descriptor and the fake db knows how to evaluate that one shape.
+// Role-delegation authorization matrix. Co-organizers hold a set of `roles`;
+// each management area is gated to its role (owner + platform admin bypass all).
+// Organizer management (add/remove/roles/transfer) is owner-only. These tests
+// drive the real Express handler + middleware chain against an in-memory fake of
+// @workspace/db, mirroring reunions.organizers.test.ts.
 // ──────────────────────────────────────────────────────────────────────────────
 
-// Shared, mutable state driving both the auth mock and the fake db. Declared via
-// vi.hoisted so it exists before the hoisted vi.mock factories run.
 const state = vi.hoisted(() => {
   type Row = Record<string, unknown>;
   return {
     auth: null as
       | null
       | { userId: string | null; sessionClaims: Record<string, unknown> | null },
-    rows: {
-      users: [] as Row[],
-      reunions: [] as Row[],
-      reunion_organizers: [] as Row[],
-    } as Record<string, Row[]>,
+    rows: {} as Record<string, Row[]>,
     seq: 0,
   };
 });
 
-// ── Mock @clerk/express ─────────────────────────────────────────────────────────
 vi.mock("@clerk/express", () => ({
   getAuth: () => state.auth ?? { userId: null, sessionClaims: null },
   clerkMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   clerkClient: {},
 }));
 
-// ── Mock drizzle-orm operators as descriptors ───────────────────────────────────
 const columnTokens = vi.hoisted(() => new Set<string>());
 
 vi.mock("drizzle-orm", () => ({
@@ -46,7 +34,6 @@ vi.mock("drizzle-orm", () => ({
   and: (...parts: unknown[]) => ({ kind: "and", parts }),
   asc: (col: string) => ({ kind: "asc", col }),
   desc: (col: string) => ({ kind: "desc", col }),
-  // Tagged-template descriptor so the fake db can interpret the email lookup.
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     kind: "sql",
     strings: Array.from(strings),
@@ -54,7 +41,6 @@ vi.mock("drizzle-orm", () => ({
   }),
 }));
 
-// ── Mock @workspace/db with a small in-memory drizzle-like query builder ─────────
 vi.mock("@workspace/db", () => {
   const tables = {
     users: ["id", "email", "firstName", "lastName", "isAdmin", "createdAt"],
@@ -64,7 +50,6 @@ vi.mock("@workspace/db", () => {
       "name",
       "startDate",
       "endDate",
-      "feePerPerson",
       "paymentHandle",
       "paymentUrl",
       "organizerId",
@@ -72,8 +57,20 @@ vi.mock("@workspace/db", () => {
     ],
     reunion_organizers: ["id", "reunionId", "userId", "roles", "createdAt"],
     reunion_branches: ["id", "reunionId", "name", "sortOrder"],
-    registrations: ["id", "reunionId", "userId", "branchName", "attendeeCount"],
-    attendees: ["id"],
+    reunion_fees: [
+      "id",
+      "reunionId",
+      "label",
+      "chargeType",
+      "isOptional",
+      "amount",
+      "ageThreshold",
+      "amountUnderThreshold",
+      "sortOrder",
+    ],
+    registrations: ["id", "reunionId", "userId", "branchName", "attendeeCount", "paymentStatus"],
+    registration_fees: ["id", "registrationId", "feeId"],
+    attendees: ["id", "registrationId"],
     announcements: ["id", "reunionId", "title", "body", "pinned", "createdAt"],
     schedule_items: ["id", "reunionId", "day", "sortOrder"],
     app_settings: ["id"],
@@ -108,7 +105,6 @@ vi.mock("@workspace/db", () => {
       return scoped[t]?.[f] === resolve(expr.val, scoped);
     }
     if (expr.kind === "sql") {
-      // Only the add-organizer lookup uses raw sql: `lower(<col>) = <literal>`.
       const s: string[] = expr.strings;
       const looksLikeLowerEq =
         s.length === 3 && s[0].includes("lower(") && s[1].includes("=");
@@ -130,7 +126,10 @@ vi.mock("@workspace/db", () => {
     if (!proj) return { ...scoped[primary] };
     const out: Record<string, unknown> = {};
     for (const [alias, token] of Object.entries(proj)) {
-      if (typeof token === "string" && token.includes(".")) {
+      if (token && typeof token === "object" && (token as any).kind === "sql") {
+        // Aggregate placeholders (count/sum) — return 0 for empty test data.
+        out[alias] = 0;
+      } else if (typeof token === "string" && token.includes(".")) {
         const [t, f] = token.split(".");
         out[alias] = scoped[t]?.[f];
       } else {
@@ -157,8 +156,14 @@ vi.mock("@workspace/db", () => {
     _where: unknown;
     _orderBy: any[] = [];
     _limit?: number;
+    _isAggregate = false;
     constructor(proj?: Record<string, unknown>) {
       this._proj = proj;
+      if (proj) {
+        this._isAggregate = Object.values(proj).some(
+          (v) => v && typeof v === "object" && (v as any).kind === "sql",
+        );
+      }
     }
     from(token: any) {
       this._table = token.__table;
@@ -184,11 +189,11 @@ vi.mock("@workspace/db", () => {
       return this._run();
     }
     _run() {
-      let scoped = state.rows[this._table].map((r) => ({ [this._table]: r }));
+      let scoped = (state.rows[this._table] ?? []).map((r) => ({ [this._table]: r }));
       for (const j of this._joins) {
         const next: Array<Record<string, Record<string, unknown>>> = [];
         for (const s of scoped) {
-          for (const r2 of state.rows[j.table]) {
+          for (const r2 of state.rows[j.table] ?? []) {
             const merged = { ...s, [j.table]: r2 };
             if (evalExpr(j.on, merged)) next.push(merged);
           }
@@ -207,6 +212,10 @@ vi.mock("@workspace/db", () => {
         });
       }
       if (this._limit !== undefined) scoped = scoped.slice(0, this._limit);
+      // Aggregate selects always return a single summary row.
+      if (this._isAggregate) {
+        return Promise.resolve([project(this._proj, {}, this._table)]);
+      }
       return Promise.resolve(scoped.map((s) => project(this._proj, s, this._table)));
     }
     then(onF: any, onR: any) {
@@ -226,16 +235,16 @@ vi.mock("@workspace/db", () => {
     }
     onConflictDoUpdate({ set }: { set: Record<string, unknown> }) {
       const v = this._values as Record<string, unknown>;
-      const existing = state.rows[this._table].find((r) => r.id === v.id);
+      const existing = (state.rows[this._table] ?? []).find((r) => r.id === v.id);
       if (existing) Object.assign(existing, set);
-      else state.rows[this._table].push(defaultsFor(this._table, v));
+      else (state.rows[this._table] ??= []).push(defaultsFor(this._table, v));
       return Promise.resolve([]);
     }
     _run() {
       const list = Array.isArray(this._values) ? this._values : [this._values];
       const created = list.map((v) => {
         const row = defaultsFor(this._table, v);
-        state.rows[this._table].push(row);
+        (state.rows[this._table] ??= []).push(row);
         return { ...row };
       });
       return created;
@@ -265,7 +274,7 @@ vi.mock("@workspace/db", () => {
     }
     _run() {
       const updated: Record<string, unknown>[] = [];
-      for (const r of state.rows[this._table]) {
+      for (const r of state.rows[this._table] ?? []) {
         if (evalExpr(this._where, { [this._table]: r })) {
           Object.assign(r, this._set);
           updated.push({ ...r });
@@ -294,7 +303,7 @@ vi.mock("@workspace/db", () => {
     _run() {
       const keep: Record<string, unknown>[] = [];
       const deleted: Record<string, unknown>[] = [];
-      for (const r of state.rows[this._table]) {
+      for (const r of state.rows[this._table] ?? []) {
         if (evalExpr(this._where, { [this._table]: r })) deleted.push({ ...r });
         else keep.push(r);
       }
@@ -323,7 +332,9 @@ vi.mock("@workspace/db", () => {
     reunionsTable: "reunions",
     reunionOrganizersTable: "reunion_organizers",
     reunionBranchesTable: "reunion_branches",
+    reunionFeesTable: "reunion_fees",
     registrationsTable: "registrations",
+    registrationFeesTable: "registration_fees",
     attendeesTable: "attendees",
     announcementsTable: "announcements",
     scheduleItemsTable: "schedule_items",
@@ -343,7 +354,6 @@ vi.mock("@workspace/db", () => {
   return tokens;
 });
 
-// Import the router AFTER the mocks are registered.
 const { default: reunionsRouter } = await import("./reunions");
 
 function buildApp(): Express {
@@ -353,12 +363,11 @@ function buildApp(): Express {
   return app;
 }
 
-// ── Seed helpers ────────────────────────────────────────────────────────────────
 const OWNER = "user_owner";
+const ADMIN = "user_admin";
 const CO = "user_co";
 const OUTSIDER = "user_outsider";
-const NEWBIE = "user_newbie";
-const REUNION_ID = 100;
+const REUNION_ID = 200;
 
 function authAs(userId: string | null) {
   state.auth = userId
@@ -366,254 +375,261 @@ function authAs(userId: string | null) {
     : { userId: null, sessionClaims: null };
 }
 
-function seedBase() {
-  state.rows.users = [
-    { id: OWNER, email: "owner@example.com", firstName: "Olivia", lastName: "Owner", isAdmin: false },
-    { id: CO, email: "co@example.com", firstName: "Cody", lastName: "Coorg", isAdmin: false },
-    { id: OUTSIDER, email: "out@example.com", firstName: "Otto", lastName: "Outsider", isAdmin: false },
-    { id: NEWBIE, email: "newbie@example.com", firstName: "Nina", lastName: "Newbie", isAdmin: false },
-  ];
-  state.rows.reunions = [
-    {
-      id: REUNION_ID,
-      code: "ABC1234",
-      name: "Smith Family Reunion",
-      startDate: "2026-08-01",
-      endDate: "2026-08-03",
-      feePerPerson: 25,
-      paymentHandle: "@smith",
-      paymentUrl: null,
-      organizerId: OWNER,
-      createdAt: new Date("2026-01-01").toISOString(),
-    },
-  ];
-  state.rows.reunion_organizers = [
-    { id: 1, reunionId: REUNION_ID, userId: CO, createdAt: new Date("2026-01-02").toISOString() },
-  ];
+/** Seeds a reunion owned by OWNER plus a single co-organizer CO with `roles`. */
+function seed(roles: string[]) {
+  state.rows = {
+    users: [
+      { id: OWNER, email: "owner@example.com", firstName: "O", lastName: "W", isAdmin: false },
+      { id: ADMIN, email: "admin@example.com", firstName: "A", lastName: "D", isAdmin: true },
+      { id: CO, email: "co@example.com", firstName: "C", lastName: "O", isAdmin: false },
+      { id: OUTSIDER, email: "out@example.com", firstName: "X", lastName: "Y", isAdmin: false },
+    ],
+    reunions: [
+      {
+        id: REUNION_ID,
+        code: "ABC1234",
+        name: "Test Reunion",
+        startDate: "2026-08-01",
+        endDate: "2026-08-03",
+        paymentHandle: "@t",
+        paymentUrl: null,
+        organizerId: OWNER,
+        createdAt: new Date("2026-01-01").toISOString(),
+      },
+    ],
+    reunion_organizers: [
+      { id: 1, reunionId: REUNION_ID, userId: CO, roles, createdAt: new Date("2026-01-02").toISOString() },
+    ],
+    reunion_branches: [],
+    reunion_fees: [],
+    registrations: [],
+    registration_fees: [],
+    attendees: [],
+    announcements: [],
+    schedule_items: [],
+    app_settings: [],
+  };
   state.seq = 1000;
 }
 
-// ── DELETE /reunions/:reunionId/organizers/:userId ──────────────────────────────
-describe("DELETE /api/reunions/:reunionId/organizers/:userId", () => {
+// Representative endpoint per management area. GETs where an area has one; a
+// write otherwise (middleware runs before body validation, so denied → 403).
+const app = () => request(buildApp());
+const hit = {
+  registration: () => app().get(`/api/reunions/${REUNION_ID}/registrations`),
+  reports: () => app().get(`/api/reunions/${REUNION_ID}/reports`),
+  branches: () => app().post(`/api/reunions/${REUNION_ID}/branches`).send({ name: "B" }),
+  announcements: () =>
+    app().post(`/api/reunions/${REUNION_ID}/announcements`).send({ title: "T", body: "B" }),
+  schedule: () => app().post(`/api/reunions/${REUNION_ID}/schedule`).send({ day: "Fri" }),
+  power_user: () =>
+    app()
+      .put(`/api/reunions/${REUNION_ID}`)
+      .send({
+        name: "New",
+        startDate: "2026-08-01",
+        endDate: "2026-08-03",
+        paymentHandle: "@t",
+      }),
+} as const;
+
+type Area = keyof typeof hit;
+const ALL_AREAS: Area[] = [
+  "registration",
+  "reports",
+  "branches",
+  "announcements",
+  "schedule",
+  "power_user",
+];
+
+describe("co-organizer area role gating", () => {
   beforeEach(() => {
     state.auth = null;
-    seedBase();
   });
 
-  const removeOrganizer = (userId: string) =>
-    request(buildApp()).delete(`/api/reunions/${REUNION_ID}/organizers/${userId}`);
+  for (const area of ALL_AREAS) {
+    it(`grants only the "${area}" area to a co-organizer who holds just that role`, async () => {
+      seed([area]);
+      authAs(CO);
 
-  it("lets a manager remove a co-organizer", async () => {
-    authAs(OWNER);
+      // The matching area is permitted (not blocked by the role guard).
+      const allowed = await hit[area]();
+      expect(allowed.status).not.toBe(403);
 
-    const res = await removeOrganizer(CO);
-
-    expect(res.status).toBe(204);
-    const coRows = state.rows.reunion_organizers.filter((r) => r.reunionId === REUNION_ID);
-    expect(coRows.some((r) => r.userId === CO)).toBe(false);
-    expect(coRows).toHaveLength(0);
-  });
-
-  it("returns 400 when trying to remove the owner", async () => {
-    authAs(OWNER);
-
-    const res = await removeOrganizer(OWNER);
-
-    expect(res.status).toBe(400);
-    // The reunion is not stranded: the owner row is untouched.
-    expect(state.rows.reunions.find((r) => r.id === REUNION_ID)?.organizerId).toBe(OWNER);
-    // Existing co-organizers remain intact.
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-  });
-
-  it("returns 404 when the target isn't a co-organizer", async () => {
-    authAs(OWNER);
-
-    const res = await removeOrganizer(OUTSIDER);
-
-    expect(res.status).toBe(404);
-    // Nothing was deleted.
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-    expect(state.rows.reunion_organizers[0]?.userId).toBe(CO);
-  });
-
-  it("rejects a non-manager with 403 and leaves organizers untouched", async () => {
-    authAs(OUTSIDER);
-
-    const res = await removeOrganizer(CO);
-
-    expect(res.status).toBe(403);
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-    expect(state.rows.reunion_organizers[0]?.userId).toBe(CO);
-  });
-});
-
-// ── POST /reunions/:reunionId/organizers (add by email) ─────────────────────────
-describe("POST /api/reunions/:reunionId/organizers", () => {
-  beforeEach(() => {
-    state.auth = null;
-    seedBase();
-  });
-
-  const addOrganizer = (email: string) =>
-    request(buildApp()).post(`/api/reunions/${REUNION_ID}/organizers`).send({ email });
-
-  it("adds an existing account as a co-organizer", async () => {
-    authAs(OWNER);
-
-    const res = await addOrganizer("newbie@example.com");
-
-    expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ userId: NEWBIE, isOwner: false });
-    const coRows = state.rows.reunion_organizers.filter((r) => r.reunionId === REUNION_ID);
-    expect(coRows.some((r) => r.userId === NEWBIE)).toBe(true);
-  });
-
-  it("matches the account email case-insensitively", async () => {
-    authAs(OWNER);
-
-    const res = await addOrganizer("NewBie@Example.com");
-
-    expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ userId: NEWBIE });
-  });
-
-  it("returns 404 when no account has that email", async () => {
-    authAs(OWNER);
-
-    const res = await addOrganizer("nobody@example.com");
-
-    expect(res.status).toBe(404);
-    // No organizer row was created.
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-  });
-
-  it("returns 409 when the email belongs to the reunion owner", async () => {
-    authAs(OWNER);
-
-    const res = await addOrganizer("owner@example.com");
-
-    expect(res.status).toBe(409);
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-  });
-
-  it("returns 409 when the person is already a co-organizer", async () => {
-    authAs(OWNER);
-
-    const res = await addOrganizer("co@example.com");
-
-    expect(res.status).toBe(409);
-    // Still only the single, original co-organizer row.
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-  });
-
-  it("rejects a non-manager with 403", async () => {
-    authAs(OUTSIDER);
-
-    const res = await addOrganizer("newbie@example.com");
-
-    expect(res.status).toBe(403);
-    expect(state.rows.reunion_organizers).toHaveLength(1);
-  });
-});
-
-// ── GET /reunions/:reunionId/organizers (list) ──────────────────────────────────
-describe("GET /api/reunions/:reunionId/organizers", () => {
-  beforeEach(() => {
-    state.auth = null;
-    seedBase();
-  });
-
-  const listOrganizers = () =>
-    request(buildApp()).get(`/api/reunions/${REUNION_ID}/organizers`);
-
-  it("returns the owner first with isOwner=true, then co-organizers with isOwner=false", async () => {
-    authAs(OWNER);
-
-    const res = await listOrganizers();
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual([
-      {
-        userId: OWNER,
-        email: "owner@example.com",
-        firstName: "Olivia",
-        lastName: "Owner",
-        isOwner: true,
-        roles: [],
-      },
-      {
-        userId: CO,
-        email: "co@example.com",
-        firstName: "Cody",
-        lastName: "Coorg",
-        isOwner: false,
-        roles: [],
-      },
-    ]);
-  });
-
-  it("lists co-organizers in createdAt order regardless of insertion order", async () => {
-    authAs(OWNER);
-    // Add a second co-organizer whose row is inserted AFTER Cody but whose
-    // createdAt is EARLIER — the handler must sort by createdAt, not row order.
-    state.rows.reunion_organizers.push({
-      id: 2,
-      reunionId: REUNION_ID,
-      userId: NEWBIE,
-      createdAt: new Date("2026-01-01").toISOString(),
+      // Every other area is forbidden.
+      for (const other of ALL_AREAS.filter((a) => a !== area)) {
+        const denied = await hit[other]();
+        expect(denied.status).toBe(403);
+      }
     });
+  }
 
-    const res = await listOrganizers();
-
-    expect(res.status).toBe(200);
-    // Owner is always first; the two co-organizers follow in createdAt order
-    // (Nina @ 2026-01-01 before Cody @ 2026-01-02).
-    expect(res.body.map((o: { userId: string }) => o.userId)).toEqual([
-      OWNER,
-      NEWBIE,
-      CO,
-    ]);
-    expect(res.body.slice(1).every((o: { isOwner: boolean }) => o.isOwner === false)).toBe(true);
+  it("blocks a co-organizer with NO roles from every area", async () => {
+    seed([]);
+    authAs(CO);
+    for (const area of ALL_AREAS) {
+      const res = await hit[area]();
+      expect(res.status).toBe(403);
+    }
   });
 
-  it("returns just the owner when there are no co-organizers", async () => {
-    authAs(OWNER);
-    state.rows.reunion_organizers = [];
-
-    const res = await listOrganizers();
-
+  it("still lets a no-role co-organizer load the reunion shell (GET detail)", async () => {
+    seed([]);
+    authAs(CO);
+    const res = await app().get(`/api/reunions/${REUNION_ID}`);
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0]).toMatchObject({ userId: OWNER, isOwner: true });
-  });
-
-  it("falls back gracefully when the owner's user row is missing", async () => {
-    authAs(OWNER);
-    // The reunion still points at OWNER, but the user profile row is gone.
-    state.rows.users = state.rows.users.filter((u) => u.id !== OWNER);
-
-    const res = await listOrganizers();
-
-    expect(res.status).toBe(200);
-    // Owner slot is still present (blank profile), marked as the owner.
-    expect(res.body[0]).toEqual({
-      userId: OWNER,
-      email: "",
-      firstName: null,
-      lastName: null,
-      isOwner: true,
+    expect(res.body.viewer).toMatchObject({
+      isOwner: false,
+      isAdmin: false,
+      canManageOrganizers: false,
       roles: [],
     });
-    // Co-organizer still resolves normally.
-    expect(res.body[1]).toMatchObject({ userId: CO, isOwner: false });
   });
 
-  it("rejects a non-manager with 403", async () => {
-    authAs(OUTSIDER);
+  it("reports every role in the viewer permissions for the detail endpoint", async () => {
+    seed(["registration", "reports"]);
+    authAs(CO);
+    const res = await app().get(`/api/reunions/${REUNION_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body.viewer.roles.sort()).toEqual(["registration", "reports"]);
+  });
+});
 
-    const res = await listOrganizers();
+describe("owner and platform admin bypass all role checks", () => {
+  beforeEach(() => {
+    state.auth = null;
+  });
 
+  it("lets the owner into every area", async () => {
+    seed([]);
+    authAs(OWNER);
+    for (const area of ALL_AREAS) {
+      const res = await hit[area]();
+      expect(res.status).not.toBe(403);
+    }
+  });
+
+  it("lets a platform admin (not owner, not co-organizer) into every area", async () => {
+    seed([]);
+    authAs(ADMIN);
+    for (const area of ALL_AREAS) {
+      const res = await hit[area]();
+      expect(res.status).not.toBe(403);
+    }
+  });
+
+  it("marks the owner's viewer with full permissions", async () => {
+    seed([]);
+    authAs(OWNER);
+    const res = await app().get(`/api/reunions/${REUNION_ID}`);
+    expect(res.body.viewer).toMatchObject({ isOwner: true, canManageOrganizers: true });
+    expect(res.body.viewer.roles.sort()).toEqual(
+      ["announcements", "branches", "power_user", "registration", "reports", "schedule"],
+    );
+  });
+});
+
+describe("organizer management is owner-only (Power User cannot)", () => {
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  it("forbids a Power User co-organizer from adding an organizer", async () => {
+    seed(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/organizers`)
+      .send({ email: "out@example.com" });
     expect(res.status).toBe(403);
+    expect(state.rows.reunion_organizers).toHaveLength(1);
+  });
+
+  it("forbids a Power User co-organizer from updating another's roles", async () => {
+    seed(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}/organizers/${OUTSIDER}/roles`)
+      .send({ roles: ["registration"] });
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids a Power User co-organizer from listing organizers", async () => {
+    seed(["power_user"]);
+    authAs(CO);
+    const res = await app().get(`/api/reunions/${REUNION_ID}/organizers`);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("owner assigns and updates co-organizer roles", () => {
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  it("persists roles when adding a co-organizer by email", async () => {
+    seed([]);
+    // Remove the seeded CO so we add a fresh one with roles.
+    state.rows.reunion_organizers = [];
+    authAs(OWNER);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/organizers`)
+      .send({ email: "co@example.com", roles: ["announcements", "schedule"] });
+    expect(res.status).toBe(201);
+    expect(res.body.roles.sort()).toEqual(["announcements", "schedule"]);
+    const row = state.rows.reunion_organizers.find((r) => r.userId === CO);
+    expect((row?.roles as string[]).sort()).toEqual(["announcements", "schedule"]);
+  });
+
+  it("updates an existing co-organizer's roles", async () => {
+    seed(["registration"]);
+    authAs(OWNER);
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}/organizers/${CO}/roles`)
+      .send({ roles: ["reports", "power_user"] });
+    expect(res.status).toBe(200);
+    expect(res.body.roles.sort()).toEqual(["power_user", "reports"]);
+    const row = state.rows.reunion_organizers.find((r) => r.userId === CO);
+    expect((row?.roles as string[]).sort()).toEqual(["power_user", "reports"]);
+  });
+
+  it("allows clearing a co-organizer back to zero roles (revocation-to-none)", async () => {
+    seed(["registration", "reports"]);
+    authAs(OWNER);
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}/organizers/${CO}/roles`)
+      .send({ roles: [] });
+    expect(res.status).toBe(200);
+    expect(res.body.roles).toEqual([]);
+    const row = state.rows.reunion_organizers.find((r) => r.userId === CO);
+    expect(row?.roles).toEqual([]);
+  });
+
+  it("lets a platform admin (not the owner) update a co-organizer's roles", async () => {
+    seed(["registration"]);
+    authAs(ADMIN);
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}/organizers/${CO}/roles`)
+      .send({ roles: ["schedule"] });
+    expect(res.status).toBe(200);
+    expect(res.body.roles).toEqual(["schedule"]);
+  });
+
+  it("returns 404 updating roles for someone who isn't a co-organizer", async () => {
+    seed(["registration"]);
+    authAs(OWNER);
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}/organizers/${OUTSIDER}/roles`)
+      .send({ roles: ["reports"] });
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects assigning roles to the owner", async () => {
+    seed(["registration"]);
+    authAs(OWNER);
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}/organizers/${OWNER}/roles`)
+      .send({ roles: ["reports"] });
+    expect(res.status).toBe(400);
   });
 });

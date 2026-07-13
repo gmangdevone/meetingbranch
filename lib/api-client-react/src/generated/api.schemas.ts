@@ -112,6 +112,21 @@ export interface FeeInput {
   sortOrder?: number;
 }
 
+/**
+ * A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).
+ */
+export type ReunionRole = typeof ReunionRole[keyof typeof ReunionRole];
+
+
+export const ReunionRole = {
+  registration: 'registration',
+  announcements: 'announcements',
+  schedule: 'schedule',
+  branches: 'branches',
+  reports: 'reports',
+  power_user: 'power_user',
+} as const;
+
 export interface ReunionOrganizer {
   userId: string;
   email: string;
@@ -121,11 +136,27 @@ export interface ReunionOrganizer {
   lastName?: string | null;
   /** True for the reunion creator/owner; false for added co-organizers */
   isOwner: boolean;
+  /** The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full). */
+  roles: ReunionRole[];
+}
+
+export interface ReunionViewerPermissions {
+  isOwner: boolean;
+  isAdmin: boolean;
+  /** True only for the owner or a platform admin (add/remove organizers, assign roles, transfer ownership). */
+  canManageOrganizers: boolean;
+  /** Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set. */
+  roles: ReunionRole[];
 }
 
 export interface AddOrganizerInput {
-  /** @minLength 1 */
   email: string;
+  /** Roles to grant the new co-organizer. Defaults to none. */
+  roles?: ReunionRole[];
+}
+
+export interface UpdateOrganizerRolesInput {
+  roles: ReunionRole[];
 }
 
 export interface TransferOwnershipInput {
@@ -140,6 +171,8 @@ export interface ReunionSummary {
   reunion: Reunion;
   registrationCount: number;
   attendeeCount: number;
+  /** The current viewer's permissions for this reunion. Populated by the manage detail endpoint (GET /reunions/{reunionId}); omitted elsewhere. */
+  viewer?: ReunionViewerPermissions;
 }
 
 export interface ReunionInput {
