@@ -9,9 +9,12 @@ import type { Attendee } from './attendee';
 import type { PaymentStatus } from './paymentStatus';
 import type { SiblingName } from './siblingName';
 
-export interface Registration {
+export interface AdminRegistration {
   id: number;
   userId: string;
+  userEmail: string;
+  /** @nullable */
+  userName?: string | null;
   siblingName: SiblingName;
   attendeeCount: number;
   paymentStatus: PaymentStatus;

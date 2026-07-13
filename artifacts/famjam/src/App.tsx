@@ -15,6 +15,15 @@ import { Schedule } from "./pages/Schedule";
 import { Announcements } from "./pages/Announcements";
 import { FAQ } from "./pages/FAQ";
 
+import { AdminGuard } from "./components/AdminGuard";
+import { AdminOverview } from "./pages/admin/AdminOverview";
+import { AdminRegistrations } from "./pages/admin/AdminRegistrations";
+import { AdminRegistrationDetail } from "./pages/admin/AdminRegistrationDetail";
+import { AdminReports } from "./pages/admin/AdminReports";
+import { AdminAnnouncements } from "./pages/admin/AdminAnnouncements";
+import { AdminSchedule } from "./pages/admin/AdminSchedule";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
@@ -201,6 +210,15 @@ function ClerkProviderWithRoutes() {
           <Route path="/schedule" component={() => <Layout><Schedule /></Layout>} />
           <Route path="/announcements" component={() => <Layout><Announcements /></Layout>} />
           <Route path="/faq" component={() => <Layout><FAQ /></Layout>} />
+          
+          <Route path="/admin" component={() => <AdminGuard><AdminOverview /></AdminGuard>} />
+          <Route path="/admin/registrations" component={() => <AdminGuard><AdminRegistrations /></AdminGuard>} />
+          <Route path="/admin/registrations/:id" component={() => <AdminGuard><AdminRegistrationDetail /></AdminGuard>} />
+          <Route path="/admin/reports" component={() => <AdminGuard><AdminReports /></AdminGuard>} />
+          <Route path="/admin/announcements" component={() => <AdminGuard><AdminAnnouncements /></AdminGuard>} />
+          <Route path="/admin/schedule" component={() => <AdminGuard><AdminSchedule /></AdminGuard>} />
+          <Route path="/admin/users" component={() => <AdminGuard><AdminUsers /></AdminGuard>} />
+
           <Route component={NotFound} />
         </Switch>
       </QueryClientProvider>

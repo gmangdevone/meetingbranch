@@ -42,6 +42,15 @@ export const ShirtSize = {
   '3XL': '3XL',
 } as const;
 
+export type PaymentStatus = typeof PaymentStatus[keyof typeof PaymentStatus];
+
+
+export const PaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  waived: 'waived',
+} as const;
+
 export interface AttendeeInput {
   /** @minLength 1 */
   name: string;
@@ -69,8 +78,33 @@ export interface Registration {
   userId: string;
   siblingName: SiblingName;
   attendeeCount: number;
+  paymentStatus: PaymentStatus;
   createdAt: string;
   attendees: Attendee[];
+}
+
+export interface AdminRegistration {
+  id: number;
+  userId: string;
+  userEmail: string;
+  /** @nullable */
+  userName?: string | null;
+  siblingName: SiblingName;
+  attendeeCount: number;
+  paymentStatus: PaymentStatus;
+  createdAt: string;
+  attendees: Attendee[];
+}
+
+export interface AdminRegistrationListResponse {
+  registrations: AdminRegistration[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface UpdatePaymentStatusInput {
+  paymentStatus: PaymentStatus;
 }
 
 export interface GroupCount {
@@ -85,11 +119,41 @@ export interface RegistrationSummary {
   byGroup: GroupCount[];
 }
 
+export interface ShirtSizeCount {
+  shirtSize: ShirtSize;
+  count: number;
+}
+
+export interface DayRegistrationCount {
+  date: string;
+  count: number;
+}
+
+export interface AdminReport {
+  totalRegistrations: number;
+  totalAttendees: number;
+  paidCount: number;
+  pendingCount: number;
+  waivedCount: number;
+  dietaryCount: number;
+  byGroup: GroupCount[];
+  byShirtSize: ShirtSizeCount[];
+  registrationsOverTime: DayRegistrationCount[];
+}
+
 export interface Announcement {
   id: number;
   title: string;
   body: string;
   createdAt: string;
+  pinned?: boolean;
+}
+
+export interface AnnouncementInput {
+  /** @minLength 1 */
+  title: string;
+  /** @minLength 1 */
+  body: string;
   pinned?: boolean;
 }
 
@@ -106,5 +170,44 @@ export interface ScheduleItem {
   description?: string | null;
   /** @nullable */
   location?: string | null;
+  sortOrder?: number;
 }
+
+export interface ScheduleItemInput {
+  /** @minLength 1 */
+  day: string;
+  /** @minLength 1 */
+  startTime: string;
+  endTime?: string;
+  /** @minLength 1 */
+  title: string;
+  description?: string;
+  location?: string;
+  sortOrder?: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  isAdmin: boolean;
+  registrationCount: number;
+  attendeeCount: number;
+  createdAt: string;
+}
+
+export interface ToggleAdminInput {
+  isAdmin: boolean;
+}
+
+export type AdminListRegistrationsParams = {
+page?: number;
+limit?: number;
+search?: string;
+siblingName?: SiblingName;
+paymentStatus?: PaymentStatus;
+};
 

@@ -6,15 +6,27 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminListRegistrationsParams';
+export * from './adminRegistration';
+export * from './adminRegistrationListResponse';
+export * from './adminReport';
+export * from './adminUser';
 export * from './announcement';
+export * from './announcementInput';
 export * from './attendee';
 export * from './attendeeInput';
+export * from './dayRegistrationCount';
 export * from './errorResponse';
 export * from './groupCount';
 export * from './healthStatus';
+export * from './paymentStatus';
 export * from './registration';
 export * from './registrationInput';
 export * from './registrationSummary';
 export * from './scheduleItem';
+export * from './scheduleItemInput';
 export * from './shirtSize';
+export * from './shirtSizeCount';
 export * from './siblingName';
+export * from './toggleAdminInput';
+export * from './updatePaymentStatusInput';

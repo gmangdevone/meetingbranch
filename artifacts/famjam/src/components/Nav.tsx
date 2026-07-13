@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { Home, CalendarDays, Bell, User, Edit3, LogOut, FileText } from "lucide-react";
+import { Home, CalendarDays, Bell, User, Edit3, LogOut, FileText, Shield } from "lucide-react";
 import { useAuth, useClerk } from "@clerk/react";
+import { useAdminGetReports, getAdminGetReportsQueryKey } from "@workspace/api-client-react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -8,6 +9,17 @@ export function Nav() {
   const [location] = useLocation();
   const { isSignedIn } = useAuth();
   const { signOut } = useClerk();
+  
+  const { data: adminReports, isError } = useAdminGetReports({
+    query: {
+      queryKey: getAdminGetReportsQueryKey(),
+      enabled: !!isSignedIn,
+      retry: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+    }
+  });
+  
+  const isAdmin = !isError && !!adminReports;
 
   const links = [
     { href: "/", label: "Home", icon: Home },
@@ -16,6 +28,9 @@ export function Nav() {
     ...(isSignedIn
       ? [{ href: "/dashboard", label: "Dashboard", icon: User }]
       : [{ href: "/register", label: "Register", icon: Edit3 }]),
+    ...(isAdmin
+      ? [{ href: "/admin", label: "Admin", icon: Shield }]
+      : []),
   ];
 
   const isActive = (href: string) => location === href;

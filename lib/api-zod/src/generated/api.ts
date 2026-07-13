@@ -37,6 +37,7 @@ export const CreateRegistrationResponse = zod.object({
   "userId": zod.string(),
   "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']),
   "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -56,6 +57,7 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "userId": zod.string(),
   "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']),
   "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -94,6 +96,7 @@ export const GetRegistrationResponse = zod.object({
   "userId": zod.string(),
   "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']),
   "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -128,8 +131,280 @@ export const ListScheduleItemsResponseItem = zod.object({
   "endTime": zod.string().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
-  "location": zod.string().nullish()
+  "location": zod.string().nullish(),
+  "sortOrder": zod.number().optional()
 })
 export const ListScheduleItemsResponse = zod.array(ListScheduleItemsResponseItem)
+
+
+/**
+ * @summary List all registrations (admin)
+ */
+export const adminListRegistrationsQueryPageDefault = 1;
+export const adminListRegistrationsQueryLimitDefault = 20;
+
+export const AdminListRegistrationsQueryParams = zod.object({
+  "page": zod.coerce.number().default(adminListRegistrationsQueryPageDefault),
+  "limit": zod.coerce.number().default(adminListRegistrationsQueryLimitDefault),
+  "search": zod.coerce.string().optional(),
+  "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']).optional(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']).optional()
+})
+
+export const AdminListRegistrationsResponse = zod.object({
+  "registrations": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "userEmail": zod.string(),
+  "userName": zod.string().nullish(),
+  "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']),
+  "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "createdAt": zod.coerce.date(),
+  "attendees": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish()
+}))
+})),
+  "total": zod.number(),
+  "page": zod.number(),
+  "limit": zod.number()
+})
+
+
+/**
+ * @summary Export all registrations as CSV
+ */
+export const AdminExportRegistrationsResponse = zod.unknown()
+
+
+/**
+ * @summary Update payment status for a registration
+ */
+export const AdminUpdatePaymentStatusParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminUpdatePaymentStatusBody = zod.object({
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived'])
+})
+
+export const AdminUpdatePaymentStatusResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.string(),
+  "userEmail": zod.string(),
+  "userName": zod.string().nullish(),
+  "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']),
+  "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "createdAt": zod.coerce.date(),
+  "attendees": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Extended analytics report (shirt sizes, dietary counts, registrations over time)
+ */
+export const AdminGetReportsResponse = zod.object({
+  "totalRegistrations": zod.number(),
+  "totalAttendees": zod.number(),
+  "paidCount": zod.number(),
+  "pendingCount": zod.number(),
+  "waivedCount": zod.number(),
+  "dietaryCount": zod.number(),
+  "byGroup": zod.array(zod.object({
+  "siblingName": zod.enum(['John', 'Louise', 'Willie Mae', 'June', 'Frances', 'Edna', 'Loretta', 'Betty', 'Dorothy', 'Richard']),
+  "registrationCount": zod.number(),
+  "attendeeCount": zod.number()
+})),
+  "byShirtSize": zod.array(zod.object({
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "count": zod.number()
+})),
+  "registrationsOverTime": zod.array(zod.object({
+  "date": zod.coerce.date(),
+  "count": zod.number()
+}))
+})
+
+
+/**
+ * @summary Create a new announcement
+ */
+
+
+export const adminCreateAnnouncementBodyPinnedDefault = false;
+
+export const AdminCreateAnnouncementBody = zod.object({
+  "title": zod.string().min(1),
+  "body": zod.string().min(1),
+  "pinned": zod.boolean().default(adminCreateAnnouncementBodyPinnedDefault)
+})
+
+export const AdminCreateAnnouncementResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "pinned": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update an announcement
+ */
+export const AdminUpdateAnnouncementParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+export const adminUpdateAnnouncementBodyPinnedDefault = false;
+
+export const AdminUpdateAnnouncementBody = zod.object({
+  "title": zod.string().min(1),
+  "body": zod.string().min(1),
+  "pinned": zod.boolean().default(adminUpdateAnnouncementBodyPinnedDefault)
+})
+
+export const AdminUpdateAnnouncementResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "pinned": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Delete an announcement
+ */
+export const AdminDeleteAnnouncementParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminDeleteAnnouncementResponse = zod.void()
+
+
+/**
+ * @summary Create a schedule item
+ */
+
+
+
+export const adminCreateScheduleItemBodySortOrderDefault = 0;
+
+export const AdminCreateScheduleItemBody = zod.object({
+  "day": zod.string().min(1),
+  "startTime": zod.string().min(1),
+  "endTime": zod.string().optional(),
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "location": zod.string().optional(),
+  "sortOrder": zod.number().default(adminCreateScheduleItemBodySortOrderDefault)
+})
+
+export const AdminCreateScheduleItemResponse = zod.object({
+  "id": zod.number(),
+  "day": zod.string().describe('Day label, e.g. Thursday July 17'),
+  "startTime": zod.string().describe('Time string, e.g. 9:00 AM'),
+  "endTime": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "sortOrder": zod.number().optional()
+})
+
+
+/**
+ * @summary Update a schedule item
+ */
+export const AdminUpdateScheduleItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const adminUpdateScheduleItemBodySortOrderDefault = 0;
+
+export const AdminUpdateScheduleItemBody = zod.object({
+  "day": zod.string().min(1),
+  "startTime": zod.string().min(1),
+  "endTime": zod.string().optional(),
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "location": zod.string().optional(),
+  "sortOrder": zod.number().default(adminUpdateScheduleItemBodySortOrderDefault)
+})
+
+export const AdminUpdateScheduleItemResponse = zod.object({
+  "id": zod.number(),
+  "day": zod.string().describe('Day label, e.g. Thursday July 17'),
+  "startTime": zod.string().describe('Time string, e.g. 9:00 AM'),
+  "endTime": zod.string().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "location": zod.string().nullish(),
+  "sortOrder": zod.number().optional()
+})
+
+
+/**
+ * @summary Delete a schedule item
+ */
+export const AdminDeleteScheduleItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AdminDeleteScheduleItemResponse = zod.void()
+
+
+/**
+ * @summary List all registered users with registration stats
+ */
+export const AdminListUsersResponseItem = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "isAdmin": zod.boolean(),
+  "registrationCount": zod.number(),
+  "attendeeCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const AdminListUsersResponse = zod.array(AdminListUsersResponseItem)
+
+
+/**
+ * @summary Grant or revoke admin access for a user
+ */
+export const AdminToggleAdminFlagParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminToggleAdminFlagBody = zod.object({
+  "isAdmin": zod.boolean()
+})
+
+export const AdminToggleAdminFlagResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "isAdmin": zod.boolean(),
+  "registrationCount": zod.number(),
+  "attendeeCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
 
 

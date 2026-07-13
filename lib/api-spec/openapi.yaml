@@ -16,6 +16,8 @@ tags:
     description: Family announcements
   - name: schedule
     description: Reunion schedule items
+  - name: admin
+    description: Admin-only operations
 
 paths:
   /healthz:
@@ -145,6 +147,309 @@ paths:
                 items:
                   $ref: "#/components/schemas/ScheduleItem"
 
+  # ── Admin endpoints ────────────────────────────────────────────────────────
+
+  /admin/registrations:
+    get:
+      operationId: adminListRegistrations
+      tags: [admin]
+      summary: List all registrations (admin)
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: siblingName
+          in: query
+          schema:
+            $ref: "#/components/schemas/SiblingName"
+        - name: paymentStatus
+          in: query
+          schema:
+            $ref: "#/components/schemas/PaymentStatus"
+      responses:
+        "200":
+          description: Paginated list of registrations with user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRegistrationListResponse"
+        "403":
+          description: Forbidden
+
+  /admin/registrations/export:
+    get:
+      operationId: adminExportRegistrations
+      tags: [admin]
+      summary: Export all registrations as CSV
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+        "403":
+          description: Forbidden
+
+  /admin/registrations/{id}/payment:
+    patch:
+      operationId: adminUpdatePaymentStatus
+      tags: [admin]
+      summary: Update payment status for a registration
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePaymentStatusInput"
+      responses:
+        "200":
+          description: Updated registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRegistration"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /admin/reports:
+    get:
+      operationId: adminGetReports
+      tags: [admin]
+      summary: Extended analytics report (shirt sizes, dietary counts, registrations over time)
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Full report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReport"
+        "403":
+          description: Forbidden
+
+  /admin/announcements:
+    post:
+      operationId: adminCreateAnnouncement
+      tags: [admin]
+      summary: Create a new announcement
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "403":
+          description: Forbidden
+
+  /admin/announcements/{id}:
+    put:
+      operationId: adminUpdateAnnouncement
+      tags: [admin]
+      summary: Update an announcement
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "200":
+          description: Updated announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: adminDeleteAnnouncement
+      tags: [admin]
+      summary: Delete an announcement
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /admin/schedule:
+    post:
+      operationId: adminCreateScheduleItem
+      tags: [admin]
+      summary: Create a schedule item
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleItemInput"
+      responses:
+        "201":
+          description: Created schedule item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleItem"
+        "403":
+          description: Forbidden
+
+  /admin/schedule/{id}:
+    put:
+      operationId: adminUpdateScheduleItem
+      tags: [admin]
+      summary: Update a schedule item
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleItemInput"
+      responses:
+        "200":
+          description: Updated schedule item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleItem"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: adminDeleteScheduleItem
+      tags: [admin]
+      summary: Delete a schedule item
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: List all registered users with registration stats
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "403":
+          description: Forbidden
+
+  /admin/users/{id}/admin:
+    patch:
+      operationId: adminToggleAdminFlag
+      tags: [admin]
+      summary: Grant or revoke admin access for a user
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ToggleAdminInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
 components:
   securitySchemes:
     clerkAuth:
@@ -183,6 +488,10 @@ components:
     ShirtSize:
       type: string
       enum: [XS, S, M, L, XL, "2XL", "3XL"]
+
+    PaymentStatus:
+      type: string
+      enum: [pending, paid, waived]
 
     AttendeeInput:
       type: object
@@ -225,7 +534,7 @@ components:
 
     Registration:
       type: object
-      required: [id, userId, siblingName, attendeeCount, createdAt, attendees]
+      required: [id, userId, siblingName, attendeeCount, createdAt, attendees, paymentStatus]
       properties:
         id:
           type: integer
@@ -235,6 +544,8 @@ components:
           $ref: "#/components/schemas/SiblingName"
         attendeeCount:
           type: integer
+        paymentStatus:
+          $ref: "#/components/schemas/PaymentStatus"
         createdAt:
           type: string
           format: date-time
@@ -242,6 +553,54 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Attendee"
+
+    AdminRegistration:
+      type: object
+      required: [id, userId, siblingName, attendeeCount, createdAt, attendees, paymentStatus, userEmail]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        userEmail:
+          type: string
+        userName:
+          type: ["string", "null"]
+        siblingName:
+          $ref: "#/components/schemas/SiblingName"
+        attendeeCount:
+          type: integer
+        paymentStatus:
+          $ref: "#/components/schemas/PaymentStatus"
+        createdAt:
+          type: string
+          format: date-time
+        attendees:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attendee"
+
+    AdminRegistrationListResponse:
+      type: object
+      required: [registrations, total, page, limit]
+      properties:
+        registrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminRegistration"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    UpdatePaymentStatusInput:
+      type: object
+      required: [paymentStatus]
+      properties:
+        paymentStatus:
+          $ref: "#/components/schemas/PaymentStatus"
 
     RegistrationSummary:
       type: object
@@ -267,6 +626,54 @@ components:
         attendeeCount:
           type: integer
 
+    ShirtSizeCount:
+      type: object
+      required: [shirtSize, count]
+      properties:
+        shirtSize:
+          $ref: "#/components/schemas/ShirtSize"
+        count:
+          type: integer
+
+    DayRegistrationCount:
+      type: object
+      required: [date, count]
+      properties:
+        date:
+          type: string
+          format: date
+        count:
+          type: integer
+
+    AdminReport:
+      type: object
+      required: [totalRegistrations, totalAttendees, paidCount, pendingCount, waivedCount, dietaryCount, byGroup, byShirtSize, registrationsOverTime]
+      properties:
+        totalRegistrations:
+          type: integer
+        totalAttendees:
+          type: integer
+        paidCount:
+          type: integer
+        pendingCount:
+          type: integer
+        waivedCount:
+          type: integer
+        dietaryCount:
+          type: integer
+        byGroup:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupCount"
+        byShirtSize:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShirtSizeCount"
+        registrationsOverTime:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayRegistrationCount"
+
     Announcement:
       type: object
       required: [id, title, body, createdAt]
@@ -282,6 +689,20 @@ components:
           format: date-time
         pinned:
           type: boolean
+
+    AnnouncementInput:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        body:
+          type: string
+          minLength: 1
+        pinned:
+          type: boolean
+          default: false
 
     ScheduleItem:
       type: object
@@ -303,3 +724,57 @@ components:
           type: ["string", "null"]
         location:
           type: ["string", "null"]
+        sortOrder:
+          type: integer
+
+    ScheduleItemInput:
+      type: object
+      required: [day, startTime, title]
+      properties:
+        day:
+          type: string
+          minLength: 1
+        startTime:
+          type: string
+          minLength: 1
+        endTime:
+          type: string
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        location:
+          type: string
+        sortOrder:
+          type: integer
+          default: 0
+
+    AdminUser:
+      type: object
+      required: [id, email, isAdmin, createdAt, registrationCount, attendeeCount]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        isAdmin:
+          type: boolean
+        registrationCount:
+          type: integer
+        attendeeCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    ToggleAdminInput:
+      type: object
+      required: [isAdmin]
+      properties:
+        isAdmin:
+          type: boolean

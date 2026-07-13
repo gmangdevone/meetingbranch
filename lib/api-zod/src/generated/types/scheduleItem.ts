@@ -19,4 +19,5 @@ export interface ScheduleItem {
   description?: string | null;
   /** @nullable */
   location?: string | null;
+  sortOrder?: number;
 }

@@ -5,16 +5,13 @@
  * FamJam – Lacey Family Reunion API
  * OpenAPI spec version: 0.1.0
  */
-import type { Attendee } from './attendee';
 import type { PaymentStatus } from './paymentStatus';
 import type { SiblingName } from './siblingName';
 
-export interface Registration {
-  id: number;
-  userId: string;
-  siblingName: SiblingName;
-  attendeeCount: number;
-  paymentStatus: PaymentStatus;
-  createdAt: Date;
-  attendees: Attendee[];
-}
+export type AdminListRegistrationsParams = {
+page?: number;
+limit?: number;
+search?: string;
+siblingName?: SiblingName;
+paymentStatus?: PaymentStatus;
+};

@@ -25,11 +25,18 @@ export const shirtSizeEnum = pgEnum("shirt_size", [
   "3XL",
 ]);
 
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "paid",
+  "waived",
+]);
+
 export const registrationsTable = pgTable("registrations", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: text("user_id").notNull(),
   siblingName: siblingNameEnum("sibling_name").notNull(),
   attendeeCount: integer("attendee_count").notNull(),
+  paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
