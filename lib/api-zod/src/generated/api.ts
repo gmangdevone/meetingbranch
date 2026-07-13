@@ -531,6 +531,57 @@ export const UpdateRegistrationPaymentResponse = zod.object({
 
 
 /**
+ * @summary List the organizers (owner + co-organizers) of a reunion
+ */
+export const ListReunionOrganizersParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListReunionOrganizersResponseItem = zod.object({
+  "userId": zod.string(),
+  "email": zod.string(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers')
+})
+export const ListReunionOrganizersResponse = zod.array(ListReunionOrganizersResponseItem)
+
+
+/**
+ * @summary Add a co-organizer to a reunion by their account email
+ */
+export const AddReunionOrganizerParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+export const AddReunionOrganizerBody = zod.object({
+  "email": zod.string().min(1)
+})
+
+export const AddReunionOrganizerResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string(),
+  "firstName": zod.string().nullish(),
+  "lastName": zod.string().nullish(),
+  "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers')
+})
+
+
+/**
+ * @summary Remove a co-organizer from a reunion
+ */
+export const RemoveReunionOrganizerParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "userId": zod.coerce.string()
+})
+
+export const RemoveReunionOrganizerResponse = zod.void()
+
+
+/**
  * @summary Extended analytics report for a reunion
  */
 export const GetReunionReportsParams = zod.object({

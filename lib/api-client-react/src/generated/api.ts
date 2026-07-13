@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AddOrganizerInput,
   AdminRegistration,
   AdminReport,
   AdminSetupResult,
@@ -37,6 +38,7 @@ import type {
   Reunion,
   ReunionBranch,
   ReunionInput,
+  ReunionOrganizer,
   ReunionSummary,
   ReunionUpdateInput,
   ScheduleItem,
@@ -1714,6 +1716,228 @@ export const useUpdateRegistrationPayment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateRegistrationPaymentMutationOptions(options));
+    }
+
+export const getListReunionOrganizersUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/organizers`
+}
+
+/**
+ * @summary List the organizers (owner + co-organizers) of a reunion
+ */
+export const listReunionOrganizers = async (reunionId: number, options?: RequestInit): Promise<ReunionOrganizer[]> => {
+
+  return customFetch<ReunionOrganizer[]>(getListReunionOrganizersUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReunionOrganizersQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/organizers`
+    ] as const;
+    }
+
+
+export const getListReunionOrganizersQueryOptions = <TData = Awaited<ReturnType<typeof listReunionOrganizers>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReunionOrganizers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReunionOrganizersQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReunionOrganizers>>> = ({ signal }) => listReunionOrganizers(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReunionOrganizers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReunionOrganizersQueryResult = NonNullable<Awaited<ReturnType<typeof listReunionOrganizers>>>
+export type ListReunionOrganizersQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the organizers (owner + co-organizers) of a reunion
+ */
+
+export function useListReunionOrganizers<TData = Awaited<ReturnType<typeof listReunionOrganizers>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReunionOrganizers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReunionOrganizersQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddReunionOrganizerUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/organizers`
+}
+
+/**
+ * @summary Add a co-organizer to a reunion by their account email
+ */
+export const addReunionOrganizer = async (reunionId: number,
+    addOrganizerInput: AddOrganizerInput, options?: RequestInit): Promise<ReunionOrganizer> => {
+
+  return customFetch<ReunionOrganizer>(getAddReunionOrganizerUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(addOrganizerInput)
+  }
+);}
+
+
+
+
+
+export const getAddReunionOrganizerMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addReunionOrganizer>>, TError,{reunionId: number;data: BodyType<AddOrganizerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addReunionOrganizer>>, TError,{reunionId: number;data: BodyType<AddOrganizerInput>}, TContext> => {
+
+const mutationKey = ['addReunionOrganizer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addReunionOrganizer>>, {reunionId: number;data: BodyType<AddOrganizerInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  addReunionOrganizer(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddReunionOrganizerMutationResult = NonNullable<Awaited<ReturnType<typeof addReunionOrganizer>>>
+    export type AddReunionOrganizerMutationBody = BodyType<AddOrganizerInput>
+    export type AddReunionOrganizerMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Add a co-organizer to a reunion by their account email
+ */
+export const useAddReunionOrganizer = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addReunionOrganizer>>, TError,{reunionId: number;data: BodyType<AddOrganizerInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addReunionOrganizer>>,
+        TError,
+        {reunionId: number;data: BodyType<AddOrganizerInput>},
+        TContext
+      > => {
+      return useMutation(getAddReunionOrganizerMutationOptions(options));
+    }
+
+export const getRemoveReunionOrganizerUrl = (reunionId: number,
+    userId: string,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/organizers/${userId}`
+}
+
+/**
+ * @summary Remove a co-organizer from a reunion
+ */
+export const removeReunionOrganizer = async (reunionId: number,
+    userId: string, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getRemoveReunionOrganizerUrl(reunionId,userId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getRemoveReunionOrganizerMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeReunionOrganizer>>, TError,{reunionId: number;userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeReunionOrganizer>>, TError,{reunionId: number;userId: string}, TContext> => {
+
+const mutationKey = ['removeReunionOrganizer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeReunionOrganizer>>, {reunionId: number;userId: string}> = (props) => {
+          const {reunionId,userId} = props ?? {};
+
+          return  removeReunionOrganizer(reunionId,userId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveReunionOrganizerMutationResult = NonNullable<Awaited<ReturnType<typeof removeReunionOrganizer>>>
+
+    export type RemoveReunionOrganizerMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Remove a co-organizer from a reunion
+ */
+export const useRemoveReunionOrganizer = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeReunionOrganizer>>, TError,{reunionId: number;userId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeReunionOrganizer>>,
+        TError,
+        {reunionId: number;userId: string},
+        TContext
+      > => {
+      return useMutation(getRemoveReunionOrganizerMutationOptions(options));
     }
 
 export const getGetReunionReportsUrl = (reunionId: number,) => {

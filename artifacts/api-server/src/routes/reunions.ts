@@ -4,6 +4,7 @@ import {
   db,
   reunionsTable,
   reunionBranchesTable,
+  reunionOrganizersTable,
   registrationsTable,
   attendeesTable,
   usersTable,
@@ -30,6 +31,8 @@ import {
   ListReunionRegistrationsResponse,
   UpdateRegistrationPaymentBody,
   GetReunionReportsResponse,
+  ListReunionOrganizersResponse,
+  AddReunionOrganizerBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
@@ -127,11 +130,24 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
 // ── Reunions I organize ───────────────────────────────────────────────────────
 router.get("/reunions/mine", requireAuth, async (req, res): Promise<void> => {
   const userId = (req as any).userId as string;
-  const mine = await db
+  // Reunions I own, plus reunions where I'm an added co-organizer.
+  const owned = await db
     .select()
     .from(reunionsTable)
-    .where(eq(reunionsTable.organizerId, userId))
-    .orderBy(desc(reunionsTable.createdAt));
+    .where(eq(reunionsTable.organizerId, userId));
+  const coOrganized = await db
+    .select({ reunion: reunionsTable })
+    .from(reunionOrganizersTable)
+    .innerJoin(reunionsTable, eq(reunionOrganizersTable.reunionId, reunionsTable.id))
+    .where(eq(reunionOrganizersTable.userId, userId));
+
+  const byId = new Map<number, (typeof owned)[number]>();
+  for (const r of owned) byId.set(r.id, r);
+  for (const { reunion } of coOrganized) byId.set(reunion.id, reunion);
+
+  const mine = [...byId.values()].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 
   const withDetail = await Promise.all(
     mine.map(async (r) => (await getReunionSummaryPayload(r.id))!),
@@ -686,5 +702,126 @@ router.get("/reunions/:reunionId/reports", ...manage, async (req, res): Promise<
     }),
   );
 });
+
+// ── Co-organizers (manage) ────────────────────────────────────────────────────
+// List all organizers: the owner (isOwner=true) followed by added co-organizers.
+router.get("/reunions/:reunionId/organizers", ...manage, async (req, res): Promise<void> => {
+  const reunion = req.managedReunion!;
+
+  const [owner] = await db
+    .select({
+      userId: usersTable.id,
+      email: usersTable.email,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.id, reunion.organizerId));
+
+  const co = await db
+    .select({
+      userId: usersTable.id,
+      email: usersTable.email,
+      firstName: usersTable.firstName,
+      lastName: usersTable.lastName,
+    })
+    .from(reunionOrganizersTable)
+    .innerJoin(usersTable, eq(reunionOrganizersTable.userId, usersTable.id))
+    .where(eq(reunionOrganizersTable.reunionId, reunion.id))
+    .orderBy(asc(reunionOrganizersTable.createdAt));
+
+  const payload = [
+    ...(owner
+      ? [{ ...owner, isOwner: true }]
+      : [{ userId: reunion.organizerId, email: "", firstName: null, lastName: null, isOwner: true }]),
+    ...co.map((c) => ({ ...c, isOwner: false })),
+  ];
+
+  res.json(ListReunionOrganizersResponse.parse(payload));
+});
+
+// Add a co-organizer by their account email.
+router.post("/reunions/:reunionId/organizers", ...manage, async (req, res): Promise<void> => {
+  const body = AddReunionOrganizerBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const reunion = req.managedReunion!;
+  const email = body.data.email.trim().toLowerCase();
+
+  const [user] = await db
+    .select()
+    .from(usersTable)
+    .where(sql`lower(${usersTable.email}) = ${email}`);
+
+  if (!user) {
+    res.status(404).json({
+      error: "No FamJam account found with that email. Ask them to sign in once first.",
+    });
+    return;
+  }
+
+  if (user.id === reunion.organizerId) {
+    res.status(409).json({ error: "That person is already the reunion owner." });
+    return;
+  }
+
+  const [existing] = await db
+    .select({ id: reunionOrganizersTable.id })
+    .from(reunionOrganizersTable)
+    .where(
+      and(
+        eq(reunionOrganizersTable.reunionId, reunion.id),
+        eq(reunionOrganizersTable.userId, user.id),
+      ),
+    );
+  if (existing) {
+    res.status(409).json({ error: "That person is already a co-organizer." });
+    return;
+  }
+
+  await db
+    .insert(reunionOrganizersTable)
+    .values({ reunionId: reunion.id, userId: user.id });
+
+  res.status(201).json({
+    userId: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    isOwner: false,
+  });
+});
+
+// Remove a co-organizer. The owner cannot be removed here.
+router.delete(
+  "/reunions/:reunionId/organizers/:userId",
+  ...manage,
+  async (req, res): Promise<void> => {
+    const reunion = req.managedReunion!;
+    const userId = String(req.params.userId);
+
+    if (userId === reunion.organizerId) {
+      res.status(400).json({ error: "The reunion owner cannot be removed." });
+      return;
+    }
+
+    const [deleted] = await db
+      .delete(reunionOrganizersTable)
+      .where(
+        and(
+          eq(reunionOrganizersTable.reunionId, reunion.id),
+          eq(reunionOrganizersTable.userId, userId),
+        ),
+      )
+      .returning();
+    if (!deleted) {
+      res.status(404).json({ error: "Co-organizer not found" });
+      return;
+    }
+    res.status(204).send();
+  },
+);
 
 export default router;

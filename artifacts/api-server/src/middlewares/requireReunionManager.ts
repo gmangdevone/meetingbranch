@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import { db, reunionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, reunionsTable, reunionOrganizersTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
 import type { Reunion } from "@workspace/db";
 
 declare global {
@@ -14,7 +14,7 @@ declare global {
 
 /**
  * Authorizes the current user to manage a specific reunion.
- * Allows the reunion's organizer OR any platform admin.
+ * Allows the reunion's owner, any added co-organizer, OR any platform admin.
  * Must run after attachAuth (so req.userId / req.isAdmin are set).
  */
 export async function requireReunionManager(
@@ -42,7 +42,22 @@ export async function requireReunionManager(
     return;
   }
 
-  if (reunion.organizerId !== req.userId && !req.isAdmin) {
+  let authorized = reunion.organizerId === req.userId || req.isAdmin === true;
+
+  if (!authorized) {
+    const [coOrganizer] = await db
+      .select({ id: reunionOrganizersTable.id })
+      .from(reunionOrganizersTable)
+      .where(
+        and(
+          eq(reunionOrganizersTable.reunionId, reunionId),
+          eq(reunionOrganizersTable.userId, req.userId),
+        ),
+      );
+    authorized = Boolean(coOrganizer);
+  }
+
+  if (!authorized) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }

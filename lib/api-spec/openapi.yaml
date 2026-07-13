@@ -495,6 +495,98 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/organizers:
+    get:
+      operationId: listReunionOrganizers
+      tags: [manage]
+      summary: List the organizers (owner + co-organizers) of a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: List of organizers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReunionOrganizer"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    post:
+      operationId: addReunionOrganizer
+      tags: [manage]
+      summary: Add a co-organizer to a reunion by their account email
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddOrganizerInput"
+      responses:
+        "201":
+          description: Added co-organizer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionOrganizer"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: No account found with that email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already an organizer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reunions/{reunionId}/organizers/{userId}:
+    delete:
+      operationId: removeReunionOrganizer
+      tags: [manage]
+      summary: Remove a co-organizer from a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Removed
+        "400":
+          description: Cannot remove the reunion owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   /reunions/{reunionId}/reports:
     get:
       operationId: getReunionReports
@@ -828,6 +920,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ReunionBranch"
+
+    ReunionOrganizer:
+      type: object
+      required: [userId, email, isOwner]
+      properties:
+        userId:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        isOwner:
+          type: boolean
+          description: True for the reunion creator/owner; false for added co-organizers
+
+    AddOrganizerInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          minLength: 1
 
     ReunionSummary:
       type: object

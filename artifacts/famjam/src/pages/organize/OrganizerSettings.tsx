@@ -1,9 +1,18 @@
-import { useEffect } from "react";
-import { useGetReunion, useUpdateReunion, getGetReunionQueryKey } from "@workspace/api-client-react";
+import { useEffect, useState } from "react";
+import {
+  useGetReunion,
+  useUpdateReunion,
+  getGetReunionQueryKey,
+  useListReunionOrganizers,
+  useAddReunionOrganizer,
+  useRemoveReunionOrganizer,
+  getListReunionOrganizersQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { Crown, Trash2, UserPlus } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -176,7 +185,134 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
             </Button>
           </form>
         </Form>
+
+        <CoOrganizers reunionId={reunionId} />
       </div>
     </OrganizerLayout>
+  );
+}
+
+function fullName(o: { firstName?: string | null; lastName?: string | null; email: string }) {
+  const name = [o.firstName, o.lastName].filter(Boolean).join(" ").trim();
+  return name || o.email;
+}
+
+function CoOrganizers({ reunionId }: { reunionId: number }) {
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: organizers, isLoading } = useListReunionOrganizers(reunionId, {
+    query: { enabled: !isNaN(reunionId), queryKey: getListReunionOrganizersQueryKey(reunionId) },
+  });
+
+  const addMutation = useAddReunionOrganizer();
+  const removeMutation = useRemoveReunionOrganizer();
+
+  const refetch = () =>
+    queryClient.invalidateQueries({ queryKey: getListReunionOrganizersQueryKey(reunionId) });
+
+  const onAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const value = email.trim();
+    if (!value) return;
+    addMutation.mutate(
+      { reunionId, data: { email: value } },
+      {
+        onSuccess: () => {
+          setEmail("");
+          refetch();
+        },
+        onError: (err: unknown) => {
+          const anyErr = err as { data?: { error?: string } };
+          setError(anyErr?.data?.error ?? "Could not add that co-organizer. Please try again.");
+        },
+      },
+    );
+  };
+
+  const onRemove = (userId: string) => {
+    setError(null);
+    removeMutation.mutate(
+      { reunionId, userId },
+      {
+        onSuccess: refetch,
+        onError: () => setError("Could not remove that co-organizer. Please try again."),
+      },
+    );
+  };
+
+  return (
+    <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-5">
+      <div>
+        <h2 className="font-serif text-2xl font-bold">Organizers</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Co-organizers can manage registrations, the schedule, announcements, and payments — the
+          same as you. Only the owner can be changed by transferring the reunion.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading organizers…</p>
+      ) : (
+        <ul className="divide-y rounded-2xl border bg-muted/30">
+          {(organizers ?? []).map((o) => (
+            <li key={o.userId} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <div className="font-medium truncate flex items-center gap-2">
+                  {fullName(o)}
+                  {o.isOwner && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5">
+                      <Crown className="w-3 h-3" /> Owner
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">{o.email}</div>
+              </div>
+              {!o.isOwner && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-full shrink-0"
+                  disabled={removeMutation.isPending}
+                  onClick={() => onRemove(o.userId)}
+                  aria-label={`Remove ${fullName(o)}`}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={onAdd} className="flex flex-col sm:flex-row gap-3 pt-1">
+        <Input
+          type="email"
+          placeholder="co-organizer@email.com"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (error) setError(null);
+          }}
+          className="rounded-xl bg-muted/50"
+        />
+        <Button
+          type="submit"
+          disabled={addMutation.isPending || !email.trim()}
+          className="rounded-full font-bold shrink-0 gap-2"
+        >
+          <UserPlus className="w-4 h-4" />
+          Add co-organizer
+        </Button>
+      </form>
+      {error && <p className="text-sm text-destructive font-medium">{error}</p>}
+      <p className="text-xs text-muted-foreground">
+        They need a FamJam account already — ask them to sign in once, then add them by the email on
+        their account.
+      </p>
+    </div>
   );
 }

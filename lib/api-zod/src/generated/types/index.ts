@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './addOrganizerInput';
 export * from './adminRegistration';
 export * from './adminReport';
 export * from './adminSetupResult';
@@ -28,6 +29,7 @@ export * from './registrationSummary';
 export * from './reunion';
 export * from './reunionBranch';
 export * from './reunionInput';
+export * from './reunionOrganizer';
 export * from './reunionSummary';
 export * from './reunionUpdateInput';
 export * from './scheduleItem';

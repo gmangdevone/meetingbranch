@@ -63,6 +63,22 @@ export interface Reunion {
   branches: ReunionBranch[];
 }
 
+export interface ReunionOrganizer {
+  userId: string;
+  email: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** True for the reunion creator/owner; false for added co-organizers */
+  isOwner: boolean;
+}
+
+export interface AddOrganizerInput {
+  /** @minLength 1 */
+  email: string;
+}
+
 export interface ReunionSummary {
   reunion: Reunion;
   registrationCount: number;

@@ -1,4 +1,4 @@
-import { pgTable, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -29,12 +29,37 @@ export const reunionBranchesTable = pgTable("reunion_branches", {
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
+/**
+ * Co-organizers granted management access to a reunion.
+ * The reunion's creator/owner stays in `reunions.organizerId`; this table holds
+ * the *additional* organizers. Management access = owner ∪ these rows.
+ */
+export const reunionOrganizersTable = pgTable(
+  "reunion_organizers",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    reunionId: integer("reunion_id")
+      .notNull()
+      .references(() => reunionsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => usersTable.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique().on(t.reunionId, t.userId)],
+);
+
 export const insertReunionSchema = createInsertSchema(reunionsTable).omit({
   createdAt: true,
 });
 export const insertReunionBranchSchema = createInsertSchema(reunionBranchesTable);
+export const insertReunionOrganizerSchema = createInsertSchema(reunionOrganizersTable).omit({
+  createdAt: true,
+});
 
 export type InsertReunion = z.infer<typeof insertReunionSchema>;
 export type InsertReunionBranch = z.infer<typeof insertReunionBranchSchema>;
+export type InsertReunionOrganizer = z.infer<typeof insertReunionOrganizerSchema>;
 export type Reunion = typeof reunionsTable.$inferSelect;
 export type ReunionBranch = typeof reunionBranchesTable.$inferSelect;
+export type ReunionOrganizer = typeof reunionOrganizersTable.$inferSelect;
