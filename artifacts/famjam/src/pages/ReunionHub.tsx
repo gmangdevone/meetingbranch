@@ -1,14 +1,26 @@
 import { Link, useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home } from "lucide-react";
+import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { useState } from "react";
+import { useUser } from "@clerk/react";
 import { describeFee } from "../lib/fees";
 
 export function ReunionHub({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
   const [, setLocation] = useLocation();
+  const { isSignedIn } = useUser();
+  const [contributionAmount, setContributionAmount] = useState("");
+  const [contributorName, setContributorName] = useState("");
+  const [showThankYou, setShowThankYou] = useState(false);
+  const [isSponsorDialogOpen, setIsSponsorDialogOpen] = useState(false);
+  
+  const createContribution = useCreateSponsorshipContribution();
 
   const { data: reunion, isLoading, isError } = useGetReunionByCode(code, {
     query: { 
@@ -16,6 +28,30 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       retry: false
     , queryKey: getGetReunionByCodeQueryKey(code) }
   });
+
+  const handleContribute = () => {
+    if (!reunion) return;
+    const amount = parseInt(contributionAmount, 10);
+    if (isNaN(amount) || amount <= 0) return;
+    
+    createContribution.mutate({
+      reunionId: reunion.id,
+      data: {
+        amount,
+        contributorName: contributorName || undefined,
+      }
+    }, {
+      onSuccess: () => {
+        setShowThankYou(true);
+        setTimeout(() => {
+          setIsSponsorDialogOpen(false);
+          setShowThankYou(false);
+          setContributionAmount("");
+          setContributorName("");
+        }, 3000);
+      }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -159,6 +195,73 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                 <Home className="w-4 h-4 mr-2" /> Back to Dashboard
               </Link>
             </div>
+            
+            {isSignedIn && (
+              <div className="mt-6 pt-6 border-t">
+                <Dialog open={isSponsorDialogOpen} onOpenChange={setIsSponsorDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full rounded-xl bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100 hover:text-rose-700 dark:bg-rose-950/30 dark:border-rose-900/50 dark:hover:bg-rose-900/40">
+                      <Heart className="w-4 h-4 mr-2" /> Chip in to Fund
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-md">
+                    {showThankYou ? (
+                      <div className="text-center py-8">
+                        <div className="bg-rose-100 text-rose-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Heart className="w-8 h-8 fill-current" />
+                        </div>
+                        <h2 className="font-serif text-3xl font-bold mb-2">Thank You!</h2>
+                        <p className="text-muted-foreground">Your generous contribution has been recorded. It will help make the reunion special for everyone.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle className="font-serif text-2xl">Sponsorship Fund</DialogTitle>
+                          <DialogDescription>
+                            Help cover costs for family members who need a little assistance. Your contribution amount is kept private from other members.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="amount">Amount ($)</Label>
+                            <Input
+                              id="amount"
+                              type="number"
+                              min="1"
+                              placeholder="50"
+                              value={contributionAmount}
+                              onChange={(e) => setContributionAmount(e.target.value)}
+                              className="rounded-xl"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="name">Display Name (Optional)</Label>
+                            <Input
+                              id="name"
+                              placeholder="e.g. The Smith Family"
+                              value={contributorName}
+                              onChange={(e) => setContributorName(e.target.value)}
+                              className="rounded-xl"
+                            />
+                            <p className="text-xs text-muted-foreground">Leave blank to remain anonymous.</p>
+                          </div>
+                          {createContribution.isError && (
+                            <p className="text-sm text-destructive font-medium">{(createContribution.error as any)?.error || "Failed to submit contribution."}</p>
+                          )}
+                        </div>
+                        <Button 
+                          className="w-full rounded-full py-6 text-lg font-bold" 
+                          onClick={handleContribute}
+                          disabled={!contributionAmount || createContribution.isPending}
+                        >
+                          {createContribution.isPending ? "Submitting..." : "Contribute"}
+                        </Button>
+                      </>
+                    )}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -12,6 +12,8 @@ import {
   usersTable,
   announcementsTable,
   scheduleItemsTable,
+  sponsorshipContributionsTable,
+  sponsorshipAllocationsTable,
   REUNION_ROLES,
 } from "@workspace/db";
 import {
@@ -40,6 +42,9 @@ import {
   TransferReunionOwnershipBody,
   CreateFeeBody,
   UpdateFeeBody,
+  CancelRegistrationBody,
+  CreateSponsorshipAllocationBody,
+  CreateSponsorshipContributionBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
@@ -49,6 +54,7 @@ import {
   requireReunionPermission,
 } from "../middlewares/requireReunionManager";
 import { generateUniqueReunionCode } from "../lib/reunionCode";
+import { computeTotal } from "../lib/fees";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
 
@@ -103,6 +109,14 @@ function normalizeFeeInput(data: {
   };
 }
 
+/** Active (non-cancelled) registrations of a reunion — cancelled ones never count. */
+function activeInReunion(reunionId: number) {
+  return and(
+    eq(registrationsTable.reunionId, reunionId),
+    eq(registrationsTable.status, "active"),
+  );
+}
+
 async function getReunionSummaryPayload(reunionId: number) {
   const reunion = await getReunionWithBranches(reunionId);
   if (!reunion) return null;
@@ -112,7 +126,12 @@ async function getReunionSummaryPayload(reunionId: number) {
       attendeeCount: sql<number>`cast(coalesce(sum(${registrationsTable.attendeeCount}), 0) as int)`,
     })
     .from(registrationsTable)
-    .where(eq(registrationsTable.reunionId, reunionId));
+    .where(
+      and(
+        eq(registrationsTable.reunionId, reunionId),
+        eq(registrationsTable.status, "active"),
+      ),
+    );
   return {
     reunion,
     registrationCount: counts?.registrationCount ?? 0,
@@ -241,7 +260,12 @@ router.get("/reunions/:reunionId/summary", async (req, res): Promise<void> => {
       attendeeCount: sql<number>`cast(sum(${registrationsTable.attendeeCount}) as int)`,
     })
     .from(registrationsTable)
-    .where(eq(registrationsTable.reunionId, reunionId))
+    .where(
+      and(
+        eq(registrationsTable.reunionId, reunionId),
+        eq(registrationsTable.status, "active"),
+      ),
+    )
     .groupBy(registrationsTable.branchName)
     .orderBy(registrationsTable.branchName);
 
@@ -251,7 +275,12 @@ router.get("/reunions/:reunionId/summary", async (req, res): Promise<void> => {
       totalAttendees: sql<number>`cast(coalesce(sum(${registrationsTable.attendeeCount}), 0) as int)`,
     })
     .from(registrationsTable)
-    .where(eq(registrationsTable.reunionId, reunionId));
+    .where(
+      and(
+        eq(registrationsTable.reunionId, reunionId),
+        eq(registrationsTable.status, "active"),
+      ),
+    );
 
   res.json(
     GetReunionSummaryResponse.parse({
@@ -611,6 +640,8 @@ router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermis
       branchName: registrationsTable.branchName,
       attendeeCount: registrationsTable.attendeeCount,
       paymentStatus: registrationsTable.paymentStatus,
+      status: registrationsTable.status,
+      cancellationResolution: registrationsTable.cancellationResolution,
       createdAt: registrationsTable.createdAt,
       userEmail: usersTable.email,
       userName: sql<string | null>`
@@ -653,6 +684,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
       branchName: registrationsTable.branchName,
       attendeeCount: registrationsTable.attendeeCount,
       paymentStatus: registrationsTable.paymentStatus,
+      status: registrationsTable.status,
       createdAt: registrationsTable.createdAt,
       userEmail: usersTable.email,
       firstName: usersTable.firstName,
@@ -682,7 +714,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
 
   const escape = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
   const csvLines: string[] = [
-    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions",
+    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions",
   ];
   for (const r of rows) {
     const attendees = attendeeMap.get(r.id) ?? [];
@@ -695,6 +727,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
         escape(r.lastName),
         r.attendeeCount,
         r.paymentStatus,
+        r.status,
         new Date(r.createdAt).toISOString(),
         escape(attendees.map((a) => a.name).join("; ")),
         escape(attendees.map((a) => a.shirtSize).join("; ")),
@@ -773,7 +806,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
           totalAttendees: sql<number>`cast(coalesce(sum(${registrationsTable.attendeeCount}), 0) as int)`,
         })
         .from(registrationsTable)
-        .where(eq(registrationsTable.reunionId, reunionId)),
+        .where(activeInReunion(reunionId)),
       db
         .select({
           branchName: registrationsTable.branchName,
@@ -781,7 +814,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
           attendeeCount: sql<number>`cast(sum(${registrationsTable.attendeeCount}) as int)`,
         })
         .from(registrationsTable)
-        .where(eq(registrationsTable.reunionId, reunionId))
+        .where(activeInReunion(reunionId))
         .groupBy(registrationsTable.branchName)
         .orderBy(registrationsTable.branchName),
       db
@@ -791,7 +824,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
         })
         .from(attendeesTable)
         .innerJoin(registrationsTable, eq(attendeesTable.registrationId, registrationsTable.id))
-        .where(eq(registrationsTable.reunionId, reunionId))
+        .where(activeInReunion(reunionId))
         .groupBy(attendeesTable.shirtSize)
         .orderBy(attendeesTable.shirtSize),
       db
@@ -800,7 +833,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
           count: sql<number>`cast(count(*) as int)`,
         })
         .from(registrationsTable)
-        .where(eq(registrationsTable.reunionId, reunionId))
+        .where(activeInReunion(reunionId))
         .groupBy(registrationsTable.paymentStatus),
       db
         .select({ count: sql<number>`cast(count(*) as int)` })
@@ -808,7 +841,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
         .innerJoin(registrationsTable, eq(attendeesTable.registrationId, registrationsTable.id))
         .where(
           and(
-            eq(registrationsTable.reunionId, reunionId),
+            activeInReunion(reunionId),
             sql`${attendeesTable.dietaryRestrictions} IS NOT NULL AND trim(${attendeesTable.dietaryRestrictions}) != ''`,
           ),
         ),
@@ -818,7 +851,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
           count: sql<number>`cast(count(*) as int)`,
         })
         .from(registrationsTable)
-        .where(eq(registrationsTable.reunionId, reunionId))
+        .where(activeInReunion(reunionId))
         .groupBy(sql`date(${registrationsTable.createdAt} AT TIME ZONE 'UTC')`)
         .orderBy(asc(sql`date(${registrationsTable.createdAt} AT TIME ZONE 'UTC')`)),
     ]);
@@ -1130,6 +1163,341 @@ router.put(
       isOwner: false,
       roles: updated.roles ?? [],
     });
+  },
+);
+
+// ── Cancellation & sponsorship fund ─────────────────────────────────────────
+
+async function adminRegistrationShape(reg: typeof registrationsTable.$inferSelect) {
+  const [attendees, selectedFees, [user]] = await Promise.all([
+    db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, reg.id)),
+    db
+      .select({ feeId: registrationFeesTable.feeId })
+      .from(registrationFeesTable)
+      .where(eq(registrationFeesTable.registrationId, reg.id)),
+    db
+      .select({
+        email: usersTable.email,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.id, reg.userId)),
+  ]);
+  return {
+    ...reg,
+    attendees,
+    selectedFeeIds: selectedFees.map((f) => f.feeId),
+    userEmail: user?.email ?? "",
+    userName: user?.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : null,
+  };
+}
+
+// POST /reunions/:reunionId/registrations/:registrationId/cancel
+// Cancelling is an organizer action (registration area). When the household
+// had paid, the organizer chooses: refund outside the app, or donate the paid
+// amount to the sponsorship fund.
+router.post(
+  "/reunions/:reunionId/registrations/:registrationId/cancel",
+  ...manage,
+  requireReunionPermission("registration"),
+  async (req, res): Promise<void> => {
+    const body = CancelRegistrationBody.safeParse(req.body ?? {});
+    const registrationId = Number(req.params.registrationId);
+    if (!body.success || !Number.isInteger(registrationId)) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+
+    const [reg] = await db
+      .select()
+      .from(registrationsTable)
+      .where(
+        and(
+          eq(registrationsTable.id, registrationId),
+          eq(registrationsTable.reunionId, req.managedReunion!.id),
+        ),
+      );
+    if (!reg) {
+      res.status(404).json({ error: "Registration not found" });
+      return;
+    }
+    if (reg.status === "cancelled") {
+      res.status(400).json({ error: "This registration is already cancelled." });
+      return;
+    }
+
+    const wasPaid = reg.paymentStatus === "paid";
+    if (wasPaid && !body.data.resolution) {
+      res.status(400).json({
+        error: "This registration is paid — choose whether to refund or donate the payment.",
+      });
+      return;
+    }
+    const resolution = wasPaid ? body.data.resolution! : "no_payment";
+
+    if (resolution === "donated_to_fund") {
+      const [fees, attendees, selectedFees] = await Promise.all([
+        db
+          .select()
+          .from(reunionFeesTable)
+          .where(eq(reunionFeesTable.reunionId, reg.reunionId)),
+        db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, reg.id)),
+        db
+          .select({ feeId: registrationFeesTable.feeId })
+          .from(registrationFeesTable)
+          .where(eq(registrationFeesTable.registrationId, reg.id)),
+      ]);
+      const paidAmount = computeTotal(
+        fees,
+        attendees,
+        selectedFees.map((f) => f.feeId),
+      );
+      // Donation + cancellation must land together.
+      const updated = await db.transaction(async (tx) => {
+        if (paidAmount > 0) {
+          await tx.insert(sponsorshipContributionsTable).values({
+            reunionId: reg.reunionId,
+            registrationId: reg.id,
+            contributorUserId: reg.userId,
+            amount: paidAmount,
+            source: "cancellation",
+          });
+        }
+        const [row] = await tx
+          .update(registrationsTable)
+          .set({
+            status: "cancelled",
+            cancelledAt: new Date(),
+            cancellationResolution: resolution,
+          })
+          .where(
+            and(
+              eq(registrationsTable.id, reg.id),
+              eq(registrationsTable.status, "active"),
+            ),
+          )
+          .returning();
+        if (!row) throw new Error("Registration was already cancelled");
+        return row;
+      });
+      res.json(await adminRegistrationShape(updated));
+      return;
+    }
+
+    const [updated] = await db
+      .update(registrationsTable)
+      .set({
+        status: "cancelled",
+        cancelledAt: new Date(),
+        cancellationResolution: resolution,
+      })
+      .where(
+        and(eq(registrationsTable.id, reg.id), eq(registrationsTable.status, "active")),
+      )
+      .returning();
+    if (!updated) {
+      res.status(400).json({ error: "This registration is already cancelled." });
+      return;
+    }
+
+    res.json(await adminRegistrationShape(updated));
+  },
+);
+
+class FundBalanceError extends Error {
+  constructor(public balance: number) {
+    super("Insufficient sponsorship fund balance");
+  }
+}
+
+async function buildSponsorshipFund(reunionId: number) {
+  const [contributions, allocations] = await Promise.all([
+    db
+      .select()
+      .from(sponsorshipContributionsTable)
+      .where(eq(sponsorshipContributionsTable.reunionId, reunionId))
+      .orderBy(desc(sponsorshipContributionsTable.createdAt)),
+    db
+      .select({
+        id: sponsorshipAllocationsTable.id,
+        registrationId: sponsorshipAllocationsTable.registrationId,
+        amount: sponsorshipAllocationsTable.amount,
+        fundedFrom: sponsorshipAllocationsTable.fundedFrom,
+        sponsorName: sponsorshipAllocationsTable.sponsorName,
+        note: sponsorshipAllocationsTable.note,
+        createdAt: sponsorshipAllocationsTable.createdAt,
+        branchName: registrationsTable.branchName,
+        firstName: usersTable.firstName,
+        lastName: usersTable.lastName,
+        email: usersTable.email,
+      })
+      .from(sponsorshipAllocationsTable)
+      .leftJoin(
+        registrationsTable,
+        eq(sponsorshipAllocationsTable.registrationId, registrationsTable.id),
+      )
+      .leftJoin(usersTable, eq(registrationsTable.userId, usersTable.id))
+      .where(eq(sponsorshipAllocationsTable.reunionId, reunionId))
+      .orderBy(desc(sponsorshipAllocationsTable.createdAt)),
+  ]);
+
+  const totalContributed = contributions.reduce((s, c) => s + c.amount, 0);
+  const totalAllocated = allocations
+    .filter((a) => a.fundedFrom === "fund")
+    .reduce((s, a) => s + a.amount, 0);
+
+  return {
+    balance: totalContributed - totalAllocated,
+    totalContributed,
+    totalAllocated,
+    contributions,
+    allocations: allocations.map((a) => ({
+      id: a.id,
+      registrationId: a.registrationId,
+      registrantName: a.firstName ? `${a.firstName} ${a.lastName ?? ""}`.trim() : null,
+      registrantEmail: a.email ?? null,
+      branchName: a.branchName ?? null,
+      amount: a.amount,
+      fundedFrom: a.fundedFrom,
+      sponsorName: a.sponsorName,
+      note: a.note,
+      createdAt: a.createdAt,
+    })),
+  };
+}
+
+// GET /reunions/:reunionId/sponsorship — fund balance + ledger.
+// Power-user area only: contributor and sponsored-household details are
+// never exposed to regular members.
+router.get(
+  "/reunions/:reunionId/sponsorship",
+  ...manage,
+  requireReunionPermission("power_user"),
+  async (req, res): Promise<void> => {
+    res.json(await buildSponsorshipFund(req.managedReunion!.id));
+  },
+);
+
+// POST /reunions/:reunionId/sponsorship/allocations — apply fund money (or a
+// direct individual sponsor) to a registration.
+router.post(
+  "/reunions/:reunionId/sponsorship/allocations",
+  ...manage,
+  requireReunionPermission("power_user"),
+  async (req, res): Promise<void> => {
+    const body = CreateSponsorshipAllocationBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    const { registrationId, amount, fundedFrom, sponsorName, note } = body.data;
+
+    const [reg] = await db
+      .select()
+      .from(registrationsTable)
+      .where(
+        and(
+          eq(registrationsTable.id, registrationId),
+          eq(registrationsTable.reunionId, req.managedReunion!.id),
+        ),
+      );
+    if (!reg) {
+      res.status(400).json({ error: "That registration is not part of this reunion." });
+      return;
+    }
+    if (reg.status === "cancelled") {
+      res.status(400).json({ error: "Cannot sponsor a cancelled registration." });
+      return;
+    }
+
+    // Balance check + insert must be atomic: lock the reunion row so two
+    // concurrent fund allocations cannot both validate against the same balance.
+    const reunionId = req.managedReunion!.id;
+    try {
+      await db.transaction(async (tx) => {
+        if (fundedFrom === "fund") {
+          await tx.execute(
+            sql`SELECT id FROM reunions WHERE id = ${reunionId} FOR UPDATE`,
+          );
+          const [{ contributed }] = await tx
+            .select({
+              contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
+            })
+            .from(sponsorshipContributionsTable)
+            .where(eq(sponsorshipContributionsTable.reunionId, reunionId));
+          const [{ allocated }] = await tx
+            .select({
+              allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
+            })
+            .from(sponsorshipAllocationsTable)
+            .where(
+              and(
+                eq(sponsorshipAllocationsTable.reunionId, reunionId),
+                eq(sponsorshipAllocationsTable.fundedFrom, "fund"),
+              ),
+            );
+          const balance = contributed - allocated;
+          if (amount > balance) {
+            throw new FundBalanceError(balance);
+          }
+        }
+        await tx.insert(sponsorshipAllocationsTable).values({
+          reunionId,
+          registrationId,
+          amount,
+          fundedFrom,
+          sponsorName: sponsorName ?? null,
+          note: note ?? null,
+          createdBy: req.userId!,
+        });
+      });
+    } catch (err) {
+      if (err instanceof FundBalanceError) {
+        res.status(400).json({
+          error: `Only ${err.balance} is available in the sponsorship fund.`,
+        });
+        return;
+      }
+      throw err;
+    }
+
+    res.status(201).json(await buildSponsorshipFund(req.managedReunion!.id));
+  },
+);
+
+// POST /reunions/:reunionId/sponsorship/contributions — any signed-in member
+// can chip in. Returns only the contributor's own record; fund totals stay
+// private to organizers/power users.
+router.post(
+  "/reunions/:reunionId/sponsorship/contributions",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const body = CreateSponsorshipContributionBody.safeParse(req.body);
+    const reunionId = Number(req.params.reunionId);
+    if (!body.success || !Number.isInteger(reunionId)) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    const [reunion] = await db
+      .select({ id: reunionsTable.id })
+      .from(reunionsTable)
+      .where(eq(reunionsTable.id, reunionId));
+    if (!reunion) {
+      res.status(404).json({ error: "Reunion not found" });
+      return;
+    }
+    const [created] = await db
+      .insert(sponsorshipContributionsTable)
+      .values({
+        reunionId,
+        contributorUserId: (req as any).userId as string,
+        contributorName: body.data.contributorName ?? null,
+        amount: body.data.amount,
+        source: "direct",
+      })
+      .returning();
+    res.status(201).json(created);
   },
 );
 

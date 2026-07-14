@@ -1,13 +1,47 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { useListMyReunions, useListMyRegistrations } from "@workspace/api-client-react";
-import { CalendarDays, Settings, Users, ArrowRight, Plus, Key } from "lucide-react";
+import { useListMyReunions, useListMyRegistrations, useTransferRegistration, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
+import { CalendarDays, Settings, Users, ArrowRight, Plus, Key, Send } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "../components/ui/skeleton";
 import { AdminSetupPrompt } from "../components/AdminSetupPrompt";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Label } from "../components/ui/label";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function Dashboard() {
+  const queryClient = useQueryClient();
   const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
   const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
+
+  const [transferReg, setTransferReg] = useState<any>(null);
+  const [transferMode, setTransferMode] = useState<"registration" | "payment">("registration");
+  const [targetEmail, setTargetEmail] = useState("");
+  const [targetRegistrationId, setTargetRegistrationId] = useState("");
+  
+  const transferMutation = useTransferRegistration();
+
+  const handleTransfer = () => {
+    if (!transferReg) return;
+    transferMutation.mutate({
+      id: transferReg.id,
+      data: {
+        kind: transferMode,
+        targetEmail: transferMode === "registration" ? targetEmail : undefined,
+        targetRegistrationId: transferMode === "payment" ? parseInt(targetRegistrationId, 10) : undefined,
+      }
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
+        setTransferReg(null);
+        setTargetEmail("");
+        setTargetRegistrationId("");
+      }
+    });
+  };
 
   return (
     <div className="flex flex-col gap-12 pb-12">
@@ -60,19 +94,22 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {registrations.map(reg => (
-              <div key={reg.id} className="bg-card border shadow-sm rounded-3xl p-6 flex flex-col gap-4 hover:shadow-md transition-shadow">
+            {registrations.map(reg => {
+              const isCancelled = reg.status === 'cancelled';
+              return (
+              <div key={reg.id} className={`bg-card border shadow-sm rounded-3xl p-6 flex flex-col gap-4 hover:shadow-md transition-shadow ${isCancelled ? 'opacity-70 grayscale-[0.5]' : ''}`}>
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-xl mb-1">{reg.reunionName || `Reunion ${reg.reunionCode}`}</h3>
                     <p className="text-muted-foreground text-sm">Attending as: <span className="font-medium text-foreground">{reg.branchName}</span></p>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                    isCancelled ? 'bg-destructive/10 text-destructive' :
                     reg.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                     reg.paymentStatus === 'waived' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
                     'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                   }`}>
-                    {reg.paymentStatus}
+                    {isCancelled ? 'Cancelled' : reg.paymentStatus}
                   </div>
                 </div>
                 
@@ -90,7 +127,7 @@ export function Dashboard() {
                   </Link>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </section>

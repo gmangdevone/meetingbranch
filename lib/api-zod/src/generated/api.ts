@@ -625,6 +625,8 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -670,6 +672,8 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -680,6 +684,146 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "age": zod.number().nullish()
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
+})
+
+
+/**
+ * @summary Cancel a registration (organizer with registration role)
+ */
+export const CancelRegistrationParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "registrationId": zod.coerce.number()
+})
+
+export const CancelRegistrationBody = zod.object({
+  "resolution": zod.enum(['refunded', 'donated_to_fund']).optional().describe('Required when the registration is paid: refund outside the app, or donate the paid amount to the sponsorship fund. Ignored when nothing was paid.\n')
+})
+
+export const CancelRegistrationResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "userId": zod.string(),
+  "userEmail": zod.string(),
+  "userName": zod.string().nullish(),
+  "branchName": zod.string(),
+  "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "attendees": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
+})
+
+
+/**
+ * @summary Sponsorship fund balance and ledger (power user only)
+ */
+export const GetSponsorshipFundParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const GetSponsorshipFundResponse = zod.object({
+  "balance": zod.number().describe('totalContributed minus fund-funded allocations'),
+  "totalContributed": zod.number(),
+  "totalAllocated": zod.number().describe('total applied from the fund (excludes direct sponsorships)'),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number().nullish(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "createdAt": zod.coerce.date()
+})),
+  "allocations": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "registrantName": zod.string().nullish(),
+  "registrantEmail": zod.string().nullish(),
+  "branchName": zod.string().nullish(),
+  "amount": zod.number(),
+  "fundedFrom": zod.enum(['fund', 'direct']),
+  "sponsorName": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Sponsor a registration from the fund or an individual sponsor (power user only)
+ */
+export const CreateSponsorshipAllocationParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+export const CreateSponsorshipAllocationBody = zod.object({
+  "registrationId": zod.number(),
+  "amount": zod.number().min(1),
+  "fundedFrom": zod.enum(['fund', 'direct']),
+  "sponsorName": zod.string().nullish(),
+  "note": zod.string().nullish()
+})
+
+export const CreateSponsorshipAllocationResponse = zod.object({
+  "balance": zod.number().describe('totalContributed minus fund-funded allocations'),
+  "totalContributed": zod.number(),
+  "totalAllocated": zod.number().describe('total applied from the fund (excludes direct sponsorships)'),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number().nullish(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "createdAt": zod.coerce.date()
+})),
+  "allocations": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "registrantName": zod.string().nullish(),
+  "registrantEmail": zod.string().nullish(),
+  "branchName": zod.string().nullish(),
+  "amount": zod.number(),
+  "fundedFrom": zod.enum(['fund', 'direct']),
+  "sponsorName": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Contribute to a reunion's sponsorship fund (any signed-in member)
+ */
+export const CreateSponsorshipContributionParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+export const CreateSponsorshipContributionBody = zod.object({
+  "amount": zod.number().min(1),
+  "contributorName": zod.string().nullish()
+})
+
+export const CreateSponsorshipContributionResponse = zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number().nullish(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "createdAt": zod.coerce.date()
 })
 
 
@@ -821,6 +965,7 @@ export const createRegistrationBodyAttendeesItemAgeMin = 0;
 
 
 
+
 export const CreateRegistrationBody = zod.object({
   "reunionId": zod.number(),
   "branchName": zod.string().min(1),
@@ -830,7 +975,8 @@ export const CreateRegistrationBody = zod.object({
   "dietaryRestrictions": zod.string().optional(),
   "age": zod.number().min(createRegistrationBodyAttendeesItemAgeMin).nullish()
 })).min(1),
-  "selectedFeeIds": zod.array(zod.number()).optional().describe('IDs of OPTIONAL fees this household opted into. Mandatory fees always apply.')
+  "selectedFeeIds": zod.array(zod.number()).optional().describe('IDs of OPTIONAL fees this household opted into. Mandatory fees always apply.'),
+  "sponsorshipContribution": zod.number().min(1).optional().describe('Optional extra amount donated to the reunion\'s sponsorship fund.')
 })
 
 export const CreateRegistrationResponse = zod.object({
@@ -842,6 +988,8 @@ export const CreateRegistrationResponse = zod.object({
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -867,6 +1015,8 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),
@@ -897,6 +1047,49 @@ export const GetRegistrationResponse = zod.object({
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "attendees": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
+})
+
+
+/**
+ * @summary Transfer a registration (or its payment) to someone else
+ */
+export const TransferRegistrationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const transferRegistrationBodyTargetEmailMin = 3;
+
+
+
+export const TransferRegistrationBody = zod.object({
+  "kind": zod.enum(['registration', 'payment']),
+  "targetEmail": zod.string().min(transferRegistrationBodyTargetEmailMin).optional().describe('kind=registration: email of the account taking over this registration.'),
+  "targetRegistrationId": zod.number().optional().describe('kind=payment: registration (same reunion) that receives the paid status.')
+})
+
+export const TransferRegistrationResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "reunionName": zod.string().nullish(),
+  "reunionCode": zod.string().nullish(),
+  "userId": zod.string(),
+  "branchName": zod.string(),
+  "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
   "id": zod.number(),

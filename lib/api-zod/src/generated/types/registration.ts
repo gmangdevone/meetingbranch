@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Attendee } from './attendee';
+import type { CancellationResolution } from './cancellationResolution';
 import type { PaymentStatus } from './paymentStatus';
+import type { RegistrationStatus } from './registrationStatus';
 
 export interface Registration {
   id: number;
@@ -19,6 +21,8 @@ export interface Registration {
   branchName: string;
   attendeeCount: number;
   paymentStatus: PaymentStatus;
+  status: RegistrationStatus;
+  cancellationResolution?: CancellationResolution | null;
   createdAt: Date;
   attendees: Attendee[];
   selectedFeeIds?: number[];

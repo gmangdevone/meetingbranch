@@ -25,6 +25,7 @@ import { OrganizerAnnouncements } from "./pages/organize/OrganizerAnnouncements"
 import { OrganizerSchedule } from "./pages/organize/OrganizerSchedule";
 import { OrganizerBranches } from "./pages/organize/OrganizerBranches";
 import { OrganizerSettings } from "./pages/organize/OrganizerSettings";
+import { OrganizerSponsorship } from "./pages/organize/OrganizerSponsorship";
 
 import { AdminArea } from "./pages/admin/AdminArea";
 
@@ -253,6 +254,9 @@ function ClerkProviderWithRoutes() {
           </Route>
           <Route path="/organize/:reunionId/branches">
             {(params) => <ProtectedRoute component={() => <OrganizerBranches params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/sponsorship">
+            {(params) => <ProtectedRoute component={() => <OrganizerSponsorship params={params} />} />}
           </Route>
           <Route path="/organize/:reunionId/settings">
             {(params) => <ProtectedRoute component={() => <OrganizerSettings params={params} />} />}

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { ArrowLeft, Plus, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Users, Heart } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
@@ -25,6 +25,7 @@ const formSchema = z.object({
     dietaryRestrictions: z.string().optional(),
     age: z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age"),
   })).min(1, "Add at least one attendee"),
+  sponsorshipContribution: z.coerce.number().int().min(0).optional(),
 });
 
 export function ReunionRegister({ params }: { params: { code: string } }) {
@@ -55,6 +56,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
   });
 
   const watchAttendees = form.watch("attendees");
+  const watchSponsorshipContribution = form.watch("sponsorshipContribution");
 
   // Live totals: parse ages defensively since inputs emit strings before submit.
   const feeAttendees = useMemo(
@@ -77,8 +79,12 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
     [fees, selectedFeeIds, feeAttendees],
   );
   const totalCost = useMemo(
-    () => (reunion ? computeTotal(fees, feeAttendees, selectedFeeIds) : 0),
-    [reunion, fees, feeAttendees, selectedFeeIds],
+    () => {
+      const baseTotal = reunion ? computeTotal(fees, feeAttendees, selectedFeeIds) : 0;
+      const contribution = Number(watchSponsorshipContribution) || 0;
+      return baseTotal + contribution;
+    },
+    [reunion, fees, feeAttendees, selectedFeeIds, watchSponsorshipContribution],
   );
 
   const toggleFee = (feeId: number, checked: boolean) =>
@@ -94,6 +100,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
         reunionId: reunion.id,
         branchName: values.branchName,
         selectedFeeIds,
+        sponsorshipContribution: values.sponsorshipContribution && values.sponsorshipContribution > 0 ? values.sponsorshipContribution : undefined,
         attendees: values.attendees.map(a => ({
           ...a,
           dietaryRestrictions: a.dietaryRestrictions || undefined
@@ -315,6 +322,38 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                 </div>
               )}
 
+              <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-rose-100 text-rose-500 w-10 h-10 rounded-full flex items-center justify-center">
+                    <Heart className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold">Sponsorship Fund</h2>
+                    <p className="text-muted-foreground text-sm">Help cover costs for family members who need a little assistance. (Anonymous)</p>
+                  </div>
+                </div>
+                <FormField
+                  control={form.control}
+                  name="sponsorshipContribution"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Chip in amount ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="e.g. 50"
+                          className="rounded-xl bg-muted/50 border-transparent focus:border-primary w-full md:w-1/2"
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <div className="lg:hidden">
                 {/* Mobile summary duplicate */}
                 <div className="bg-primary text-primary-foreground rounded-3xl p-6 shadow-xl mb-6">
@@ -332,6 +371,12 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                             <span>${line.amount}</span>
                           </div>
                         ))}
+                        {Number(watchSponsorshipContribution) > 0 && (
+                          <div className="flex justify-between items-center text-sm text-rose-200">
+                            <span className="opacity-90">Sponsorship Contribution</span>
+                            <span>${watchSponsorshipContribution}</span>
+                          </div>
+                        )}
                       </div>
                       <div className="flex justify-between items-center font-bold text-2xl">
                         <span>Total</span>
@@ -359,7 +404,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                 <span className="font-bold text-xl">{watchAttendees.length}</span>
               </div>
               
-              {feeLines.length > 0 && (
+              {(feeLines.length > 0 || Number(watchSponsorshipContribution) > 0) && (
                 <>
                   <div className="space-y-2 pt-2">
                     {feeLines.map((line) => (
@@ -368,6 +413,12 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                         <span className="font-medium">${line.amount}</span>
                       </div>
                     ))}
+                    {Number(watchSponsorshipContribution) > 0 && (
+                      <div className="flex justify-between items-center text-rose-500">
+                        <span className="text-muted-foreground">Sponsorship Contribution</span>
+                        <span className="font-medium">${watchSponsorshipContribution}</span>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="pt-4 border-t border-dashed mt-4">

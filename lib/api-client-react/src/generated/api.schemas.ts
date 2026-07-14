@@ -39,6 +39,140 @@ export const PaymentStatus = {
   waived: 'waived',
 } as const;
 
+export type RegistrationStatus = typeof RegistrationStatus[keyof typeof RegistrationStatus];
+
+
+export const RegistrationStatus = {
+  active: 'active',
+  cancelled: 'cancelled',
+} as const;
+
+export type CancellationResolution = typeof CancellationResolution[keyof typeof CancellationResolution];
+
+
+export const CancellationResolution = {
+  refunded: 'refunded',
+  donated_to_fund: 'donated_to_fund',
+  no_payment: 'no_payment',
+} as const;
+
+/**
+ * Required when the registration is paid: refund outside the app, or donate the paid amount to the sponsorship fund. Ignored when nothing was paid.
+ */
+export type CancelRegistrationInputResolution = typeof CancelRegistrationInputResolution[keyof typeof CancelRegistrationInputResolution];
+
+
+export const CancelRegistrationInputResolution = {
+  refunded: 'refunded',
+  donated_to_fund: 'donated_to_fund',
+} as const;
+
+export interface CancelRegistrationInput {
+  /** Required when the registration is paid: refund outside the app, or donate the paid amount to the sponsorship fund. Ignored when nothing was paid. */
+  resolution?: CancelRegistrationInputResolution;
+}
+
+export type TransferRegistrationInputKind = typeof TransferRegistrationInputKind[keyof typeof TransferRegistrationInputKind];
+
+
+export const TransferRegistrationInputKind = {
+  registration: 'registration',
+  payment: 'payment',
+} as const;
+
+export interface TransferRegistrationInput {
+  kind: TransferRegistrationInputKind;
+  /**
+     * kind=registration: email of the account taking over this registration.
+     * @minLength 3
+     */
+  targetEmail?: string;
+  /** kind=payment: registration (same reunion) that receives the paid status. */
+  targetRegistrationId?: number;
+}
+
+export interface SponsorshipContributionInput {
+  /** @minimum 1 */
+  amount: number;
+  /** @nullable */
+  contributorName?: string | null;
+}
+
+export type SponsorshipContributionSource = typeof SponsorshipContributionSource[keyof typeof SponsorshipContributionSource];
+
+
+export const SponsorshipContributionSource = {
+  registration: 'registration',
+  direct: 'direct',
+  cancellation: 'cancellation',
+} as const;
+
+export interface SponsorshipContribution {
+  id: number;
+  /** @nullable */
+  registrationId?: number | null;
+  /** @nullable */
+  contributorName?: string | null;
+  amount: number;
+  source: SponsorshipContributionSource;
+  createdAt: string;
+}
+
+export type SponsorshipAllocationInputFundedFrom = typeof SponsorshipAllocationInputFundedFrom[keyof typeof SponsorshipAllocationInputFundedFrom];
+
+
+export const SponsorshipAllocationInputFundedFrom = {
+  fund: 'fund',
+  direct: 'direct',
+} as const;
+
+export interface SponsorshipAllocationInput {
+  registrationId: number;
+  /** @minimum 1 */
+  amount: number;
+  fundedFrom: SponsorshipAllocationInputFundedFrom;
+  /** @nullable */
+  sponsorName?: string | null;
+  /** @nullable */
+  note?: string | null;
+}
+
+export type SponsorshipAllocationFundedFrom = typeof SponsorshipAllocationFundedFrom[keyof typeof SponsorshipAllocationFundedFrom];
+
+
+export const SponsorshipAllocationFundedFrom = {
+  fund: 'fund',
+  direct: 'direct',
+} as const;
+
+export interface SponsorshipAllocation {
+  id: number;
+  registrationId: number;
+  /** @nullable */
+  registrantName?: string | null;
+  /** @nullable */
+  registrantEmail?: string | null;
+  /** @nullable */
+  branchName?: string | null;
+  amount: number;
+  fundedFrom: SponsorshipAllocationFundedFrom;
+  /** @nullable */
+  sponsorName?: string | null;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+}
+
+export interface SponsorshipFund {
+  /** totalContributed minus fund-funded allocations */
+  balance: number;
+  totalContributed: number;
+  /** total applied from the fund (excludes direct sponsorships) */
+  totalAllocated: number;
+  contributions: SponsorshipContribution[];
+  allocations: SponsorshipAllocation[];
+}
+
 export interface ReunionBranch {
   id: number;
   reunionId: number;
@@ -246,6 +380,11 @@ export interface RegistrationInput {
   attendees: AttendeeInput[];
   /** IDs of OPTIONAL fees this household opted into. Mandatory fees always apply. */
   selectedFeeIds?: number[];
+  /**
+     * Optional extra amount donated to the reunion's sponsorship fund.
+     * @minimum 1
+     */
+  sponsorshipContribution?: number;
 }
 
 export interface Registration {
@@ -259,6 +398,8 @@ export interface Registration {
   branchName: string;
   attendeeCount: number;
   paymentStatus: PaymentStatus;
+  status: RegistrationStatus;
+  cancellationResolution?: CancellationResolution | null;
   createdAt: string;
   attendees: Attendee[];
   selectedFeeIds?: number[];
@@ -274,6 +415,8 @@ export interface AdminRegistration {
   branchName: string;
   attendeeCount: number;
   paymentStatus: PaymentStatus;
+  status: RegistrationStatus;
+  cancellationResolution?: CancellationResolution | null;
   createdAt: string;
   attendees: Attendee[];
   selectedFeeIds?: number[];

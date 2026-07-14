@@ -564,6 +564,121 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/registrations/{registrationId}/cancel:
+    post:
+      operationId: cancelRegistration
+      tags: [manage]
+      summary: Cancel a registration (organizer with registration role)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/RegistrationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelRegistrationInput"
+      responses:
+        "200":
+          description: Cancelled registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRegistration"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/sponsorship:
+    get:
+      operationId: getSponsorshipFund
+      tags: [manage]
+      summary: Sponsorship fund balance and ledger (power user only)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Fund balance, contributions, and allocations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsorshipFund"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/sponsorship/allocations:
+    post:
+      operationId: createSponsorshipAllocation
+      tags: [manage]
+      summary: Sponsor a registration from the fund or an individual sponsor (power user only)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SponsorshipAllocationInput"
+      responses:
+        "201":
+          description: Allocation recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsorshipFund"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/sponsorship/contributions:
+    post:
+      operationId: createSponsorshipContribution
+      tags: [reunions]
+      summary: Contribute to a reunion's sponsorship fund (any signed-in member)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SponsorshipContributionInput"
+      responses:
+        "201":
+          description: Contribution recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsorshipContribution"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Reunion not found
+
   /reunions/{reunionId}/organizers:
     get:
       operationId: listReunionOrganizers
@@ -836,6 +951,43 @@ paths:
         "404":
           description: Not found
 
+  /registrations/{id}/transfer:
+    post:
+      operationId: transferRegistration
+      tags: [registrations]
+      summary: Transfer a registration (or its payment) to someone else
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferRegistrationInput"
+      responses:
+        "200":
+          description: Updated registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registration"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   # ── Platform admin ────────────────────────────────────────────────────────────
   /admin/setup-status:
     get:
@@ -1038,6 +1190,134 @@ components:
     PaymentStatus:
       type: string
       enum: [pending, paid, waived]
+
+    RegistrationStatus:
+      type: string
+      enum: [active, cancelled]
+
+    CancellationResolution:
+      type: string
+      enum: [refunded, donated_to_fund, no_payment]
+
+    CancelRegistrationInput:
+      type: object
+      properties:
+        resolution:
+          type: string
+          enum: [refunded, donated_to_fund]
+          description: >
+            Required when the registration is paid: refund outside the app, or
+            donate the paid amount to the sponsorship fund. Ignored when
+            nothing was paid.
+
+    TransferRegistrationInput:
+      type: object
+      required: [kind]
+      properties:
+        kind:
+          type: string
+          enum: [registration, payment]
+        targetEmail:
+          type: string
+          minLength: 3
+          description: "kind=registration: email of the account taking over this registration."
+        targetRegistrationId:
+          type: integer
+          description: "kind=payment: registration (same reunion) that receives the paid status."
+
+    SponsorshipContributionInput:
+      type: object
+      required: [amount]
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+        contributorName:
+          type: ["string", "null"]
+
+    SponsorshipContribution:
+      type: object
+      required: [id, amount, source, createdAt]
+      properties:
+        id:
+          type: integer
+        registrationId:
+          type: ["integer", "null"]
+        contributorName:
+          type: ["string", "null"]
+        amount:
+          type: integer
+        source:
+          type: string
+          enum: [registration, direct, cancellation]
+        createdAt:
+          type: string
+          format: date-time
+
+    SponsorshipAllocationInput:
+      type: object
+      required: [registrationId, amount, fundedFrom]
+      properties:
+        registrationId:
+          type: integer
+        amount:
+          type: integer
+          minimum: 1
+        fundedFrom:
+          type: string
+          enum: [fund, direct]
+        sponsorName:
+          type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+
+    SponsorshipAllocation:
+      type: object
+      required: [id, registrationId, amount, fundedFrom, createdAt]
+      properties:
+        id:
+          type: integer
+        registrationId:
+          type: integer
+        registrantName:
+          type: ["string", "null"]
+        registrantEmail:
+          type: ["string", "null"]
+        branchName:
+          type: ["string", "null"]
+        amount:
+          type: integer
+        fundedFrom:
+          type: string
+          enum: [fund, direct]
+        sponsorName:
+          type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    SponsorshipFund:
+      type: object
+      required: [balance, totalContributed, totalAllocated, contributions, allocations]
+      properties:
+        balance:
+          type: integer
+          description: totalContributed minus fund-funded allocations
+        totalContributed:
+          type: integer
+        totalAllocated:
+          type: integer
+          description: total applied from the fund (excludes direct sponsorships)
+        contributions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SponsorshipContribution"
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SponsorshipAllocation"
 
     ReunionBranch:
       type: object
@@ -1348,11 +1628,15 @@ components:
           items:
             type: integer
           description: "IDs of OPTIONAL fees this household opted into. Mandatory fees always apply."
+        sponsorshipContribution:
+          type: integer
+          minimum: 1
+          description: "Optional extra amount donated to the reunion's sponsorship fund."
 
     Registration:
       type: object
       required:
-        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus]
+        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, status]
       properties:
         id:
           type: integer
@@ -1370,6 +1654,12 @@ components:
           type: integer
         paymentStatus:
           $ref: "#/components/schemas/PaymentStatus"
+        status:
+          $ref: "#/components/schemas/RegistrationStatus"
+        cancellationResolution:
+          oneOf:
+            - $ref: "#/components/schemas/CancellationResolution"
+            - type: "null"
         createdAt:
           type: string
           format: date-time
@@ -1385,7 +1675,7 @@ components:
     AdminRegistration:
       type: object
       required:
-        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, userEmail]
+        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, userEmail, status]
       properties:
         id:
           type: integer
@@ -1403,6 +1693,12 @@ components:
           type: integer
         paymentStatus:
           $ref: "#/components/schemas/PaymentStatus"
+        status:
+          $ref: "#/components/schemas/RegistrationStatus"
+        cancellationResolution:
+          oneOf:
+            - $ref: "#/components/schemas/CancellationResolution"
+            - type: "null"
         createdAt:
           type: string
           format: date-time

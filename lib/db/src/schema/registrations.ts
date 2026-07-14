@@ -19,6 +19,23 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "waived",
 ]);
 
+export const registrationStatusEnum = pgEnum("registration_status", [
+  "active",
+  "cancelled",
+]);
+
+/**
+ * What happened to the household's money when the registration was cancelled.
+ * - refunded: organizer settles the refund outside the app
+ * - donated_to_fund: amount was added to the reunion's sponsorship fund
+ * - no_payment: nothing had been paid, nothing to resolve
+ */
+export const cancellationResolutionEnum = pgEnum("cancellation_resolution", [
+  "refunded",
+  "donated_to_fund",
+  "no_payment",
+]);
+
 export const registrationsTable = pgTable("registrations", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   reunionId: integer("reunion_id")
@@ -29,6 +46,9 @@ export const registrationsTable = pgTable("registrations", {
   branchName: text("branch_name").notNull(),
   attendeeCount: integer("attendee_count").notNull(),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
+  status: registrationStatusEnum("status").notNull().default("active"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  cancellationResolution: cancellationResolutionEnum("cancellation_resolution"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

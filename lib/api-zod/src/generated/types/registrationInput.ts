@@ -15,4 +15,9 @@ export interface RegistrationInput {
   attendees: AttendeeInput[];
   /** IDs of OPTIONAL fees this household opted into. Mandatory fees always apply. */
   selectedFeeIds?: number[];
+  /**
+     * Optional extra amount donated to the reunion's sponsorship fund.
+     * @minimum 1
+     */
+  sponsorshipContribution?: number;
 }

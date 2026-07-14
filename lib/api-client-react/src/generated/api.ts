@@ -29,6 +29,7 @@ import type {
   Announcement,
   AnnouncementInput,
   BranchInput,
+  CancelRegistrationInput,
   ErrorResponse,
   FeeInput,
   HealthStatus,
@@ -45,8 +46,13 @@ import type {
   ReunionUpdateInput,
   ScheduleItem,
   ScheduleItemInput,
+  SponsorshipAllocationInput,
+  SponsorshipContribution,
+  SponsorshipContributionInput,
+  SponsorshipFund,
   ToggleAdminInput,
   TransferOwnershipInput,
+  TransferRegistrationInput,
   UpdateOrganizerRolesInput,
   UpdatePaymentStatusInput
 } from './api.schemas';
@@ -1941,6 +1947,301 @@ export const useUpdateRegistrationPayment = <TError = ErrorType<void>,
       return useMutation(getUpdateRegistrationPaymentMutationOptions(options));
     }
 
+export const getCancelRegistrationUrl = (reunionId: number,
+    registrationId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/registrations/${registrationId}/cancel`
+}
+
+/**
+ * @summary Cancel a registration (organizer with registration role)
+ */
+export const cancelRegistration = async (reunionId: number,
+    registrationId: number,
+    cancelRegistrationInput: CancelRegistrationInput, options?: RequestInit): Promise<AdminRegistration> => {
+
+  return customFetch<AdminRegistration>(getCancelRegistrationUrl(reunionId,registrationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cancelRegistrationInput)
+  }
+);}
+
+
+
+
+
+export const getCancelRegistrationMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRegistration>>, TError,{reunionId: number;registrationId: number;data: BodyType<CancelRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof cancelRegistration>>, TError,{reunionId: number;registrationId: number;data: BodyType<CancelRegistrationInput>}, TContext> => {
+
+const mutationKey = ['cancelRegistration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof cancelRegistration>>, {reunionId: number;registrationId: number;data: BodyType<CancelRegistrationInput>}> = (props) => {
+          const {reunionId,registrationId,data} = props ?? {};
+
+          return  cancelRegistration(reunionId,registrationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CancelRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelRegistration>>>
+    export type CancelRegistrationMutationBody = BodyType<CancelRegistrationInput>
+    export type CancelRegistrationMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Cancel a registration (organizer with registration role)
+ */
+export const useCancelRegistration = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelRegistration>>, TError,{reunionId: number;registrationId: number;data: BodyType<CancelRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof cancelRegistration>>,
+        TError,
+        {reunionId: number;registrationId: number;data: BodyType<CancelRegistrationInput>},
+        TContext
+      > => {
+      return useMutation(getCancelRegistrationMutationOptions(options));
+    }
+
+export const getGetSponsorshipFundUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/sponsorship`
+}
+
+/**
+ * @summary Sponsorship fund balance and ledger (power user only)
+ */
+export const getSponsorshipFund = async (reunionId: number, options?: RequestInit): Promise<SponsorshipFund> => {
+
+  return customFetch<SponsorshipFund>(getGetSponsorshipFundUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSponsorshipFundQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/sponsorship`
+    ] as const;
+    }
+
+
+export const getGetSponsorshipFundQueryOptions = <TData = Awaited<ReturnType<typeof getSponsorshipFund>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSponsorshipFund>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSponsorshipFundQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSponsorshipFund>>> = ({ signal }) => getSponsorshipFund(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSponsorshipFund>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSponsorshipFundQueryResult = NonNullable<Awaited<ReturnType<typeof getSponsorshipFund>>>
+export type GetSponsorshipFundQueryError = ErrorType<void>
+
+
+/**
+ * @summary Sponsorship fund balance and ledger (power user only)
+ */
+
+export function useGetSponsorshipFund<TData = Awaited<ReturnType<typeof getSponsorshipFund>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSponsorshipFund>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSponsorshipFundQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSponsorshipAllocationUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/sponsorship/allocations`
+}
+
+/**
+ * @summary Sponsor a registration from the fund or an individual sponsor (power user only)
+ */
+export const createSponsorshipAllocation = async (reunionId: number,
+    sponsorshipAllocationInput: SponsorshipAllocationInput, options?: RequestInit): Promise<SponsorshipFund> => {
+
+  return customFetch<SponsorshipFund>(getCreateSponsorshipAllocationUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sponsorshipAllocationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSponsorshipAllocationMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSponsorshipAllocation>>, TError,{reunionId: number;data: BodyType<SponsorshipAllocationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSponsorshipAllocation>>, TError,{reunionId: number;data: BodyType<SponsorshipAllocationInput>}, TContext> => {
+
+const mutationKey = ['createSponsorshipAllocation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSponsorshipAllocation>>, {reunionId: number;data: BodyType<SponsorshipAllocationInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createSponsorshipAllocation(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSponsorshipAllocationMutationResult = NonNullable<Awaited<ReturnType<typeof createSponsorshipAllocation>>>
+    export type CreateSponsorshipAllocationMutationBody = BodyType<SponsorshipAllocationInput>
+    export type CreateSponsorshipAllocationMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Sponsor a registration from the fund or an individual sponsor (power user only)
+ */
+export const useCreateSponsorshipAllocation = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSponsorshipAllocation>>, TError,{reunionId: number;data: BodyType<SponsorshipAllocationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSponsorshipAllocation>>,
+        TError,
+        {reunionId: number;data: BodyType<SponsorshipAllocationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSponsorshipAllocationMutationOptions(options));
+    }
+
+export const getCreateSponsorshipContributionUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/sponsorship/contributions`
+}
+
+/**
+ * @summary Contribute to a reunion's sponsorship fund (any signed-in member)
+ */
+export const createSponsorshipContribution = async (reunionId: number,
+    sponsorshipContributionInput: SponsorshipContributionInput, options?: RequestInit): Promise<SponsorshipContribution> => {
+
+  return customFetch<SponsorshipContribution>(getCreateSponsorshipContributionUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sponsorshipContributionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateSponsorshipContributionMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSponsorshipContribution>>, TError,{reunionId: number;data: BodyType<SponsorshipContributionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSponsorshipContribution>>, TError,{reunionId: number;data: BodyType<SponsorshipContributionInput>}, TContext> => {
+
+const mutationKey = ['createSponsorshipContribution'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSponsorshipContribution>>, {reunionId: number;data: BodyType<SponsorshipContributionInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createSponsorshipContribution(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSponsorshipContributionMutationResult = NonNullable<Awaited<ReturnType<typeof createSponsorshipContribution>>>
+    export type CreateSponsorshipContributionMutationBody = BodyType<SponsorshipContributionInput>
+    export type CreateSponsorshipContributionMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Contribute to a reunion's sponsorship fund (any signed-in member)
+ */
+export const useCreateSponsorshipContribution = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSponsorshipContribution>>, TError,{reunionId: number;data: BodyType<SponsorshipContributionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSponsorshipContribution>>,
+        TError,
+        {reunionId: number;data: BodyType<SponsorshipContributionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateSponsorshipContributionMutationOptions(options));
+    }
+
 export const getListReunionOrganizersUrl = (reunionId: number,) => {
 
 
@@ -2610,6 +2911,78 @@ export function useGetRegistration<TData = Awaited<ReturnType<typeof getRegistra
 
 
 
+
+export const getTransferRegistrationUrl = (id: number,) => {
+
+
+
+
+  return `/api/registrations/${id}/transfer`
+}
+
+/**
+ * @summary Transfer a registration (or its payment) to someone else
+ */
+export const transferRegistration = async (id: number,
+    transferRegistrationInput: TransferRegistrationInput, options?: RequestInit): Promise<Registration> => {
+
+  return customFetch<Registration>(getTransferRegistrationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(transferRegistrationInput)
+  }
+);}
+
+
+
+
+
+export const getTransferRegistrationMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferRegistration>>, TError,{id: number;data: BodyType<TransferRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transferRegistration>>, TError,{id: number;data: BodyType<TransferRegistrationInput>}, TContext> => {
+
+const mutationKey = ['transferRegistration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferRegistration>>, {id: number;data: BodyType<TransferRegistrationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  transferRegistration(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransferRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof transferRegistration>>>
+    export type TransferRegistrationMutationBody = BodyType<TransferRegistrationInput>
+    export type TransferRegistrationMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Transfer a registration (or its payment) to someone else
+ */
+export const useTransferRegistration = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferRegistration>>, TError,{id: number;data: BodyType<TransferRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transferRegistration>>,
+        TError,
+        {id: number;data: BodyType<TransferRegistrationInput>},
+        TContext
+      > => {
+      return useMutation(getTransferRegistrationMutationOptions(options));
+    }
 
 export const getGetAdminSetupStatusUrl = () => {
 
