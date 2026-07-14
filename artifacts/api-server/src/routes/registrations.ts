@@ -292,7 +292,9 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
       return;
     }
     const [target] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-    if (!target) {
+    if (!target || target.isManaged) {
+      // Managed accounts share a synthetic contact email and can never sign
+      // in, so they are not valid transfer targets.
       res.status(400).json({
         error: "No account found with that email. Ask them to sign in to FamJam first.",
       });

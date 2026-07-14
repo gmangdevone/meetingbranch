@@ -1,17 +1,53 @@
-import { useState, useMemo } from "react";
-import { useListReunionRegistrations, useUpdateRegistrationPayment, useExportReunionRegistrations, getListReunionRegistrationsQueryKey, getGetReunionReportsQueryKey, getGetReunionSummaryQueryKey, useCancelRegistration, useTransferRegistration, getGetSponsorshipFundQueryKey } from "@workspace/api-client-react";
+import { useState, useMemo, useEffect } from "react";
+import { 
+  useListReunionRegistrations, 
+  useUpdateRegistrationPayment, 
+  useExportReunionRegistrations, 
+  getListReunionRegistrationsQueryKey, 
+  getGetReunionReportsQueryKey, 
+  getGetReunionSummaryQueryKey, 
+  useCancelRegistration, 
+  useTransferRegistration, 
+  getGetSponsorshipFundQueryKey,
+  useGetReunion,
+  getGetReunionQueryKey,
+  useCreateManagedRegistration
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Download, Check, X, Filter, Ban, Send, AlertTriangle } from "lucide-react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Label } from "../../components/ui/label";
 import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form";
+import { Checkbox } from "../../components/ui/checkbox";
 import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { format } from "date-fns";
+
+const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
+
+const managedRegistrationSchema = z.object({
+  memberFirstName: z.string().min(1, "First name is required"),
+  memberLastName: z.string().optional(),
+  branchName: z.string().min(1, "Please select a branch"),
+  attendees: z.array(z.object({
+    name: z.string().min(1, "Name is required"),
+    shirtSize: z.enum(SHIRT_SIZES, { required_error: "Shirt size is required" }),
+    dietaryRestrictions: z.string().optional(),
+    age: z.preprocess((val) => {
+      if (val === "" || val === undefined || val === null) return undefined;
+      return Number(val);
+    }, z.number().int().min(0).max(120).optional())
+  })).min(1, "Add at least one attendee"),
+  selectedFeeIds: z.array(z.number()).optional(),
+});
 
 export function OrganizerRegistrations({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -24,9 +60,15 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     query: { enabled: !isNaN(reunionId), queryKey: getListReunionRegistrationsQueryKey(reunionId) }
   });
 
+  const { data: summary } = useGetReunion(reunionId, {
+    query: { enabled: !isNaN(reunionId), queryKey: getGetReunionQueryKey(reunionId) }
+  });
+  const reunion = summary?.reunion;
+
   const updatePayment = useUpdateRegistrationPayment();
   const cancelMutation = useCancelRegistration();
   const transferMutation = useTransferRegistration();
+  const createManagedRegistration = useCreateManagedRegistration();
 
   const { refetch: fetchExport, isFetching: isExporting } = useExportReunionRegistrations(reunionId, { query: { enabled: false, queryKey: ['export', reunionId] } });
 
@@ -38,6 +80,73 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const [transferMode, setTransferMode] = useState<"registration" | "payment">("registration");
   const [targetEmail, setTargetEmail] = useState("");
   const [targetRegistrationId, setTargetRegistrationId] = useState("");
+
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof managedRegistrationSchema>>({
+    resolver: zodResolver(managedRegistrationSchema),
+    defaultValues: {
+      memberFirstName: "",
+      memberLastName: "",
+      branchName: "",
+      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined }],
+      selectedFeeIds: [],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "attendees",
+  });
+
+  const firstName = form.watch("memberFirstName");
+  const lastName = form.watch("memberLastName");
+  const watchAttendees = form.watch("attendees");
+  const [lastSyncedName, setLastSyncedName] = useState("");
+
+  useEffect(() => {
+    if (fields.length > 0) {
+      const currentName = watchAttendees[0]?.name || "";
+      const newFullName = [firstName, lastName].filter(Boolean).join(" ");
+      
+      if (!currentName || currentName === lastSyncedName) {
+        form.setValue("attendees.0.name", newFullName, { shouldValidate: !!newFullName });
+        setLastSyncedName(newFullName);
+      }
+    }
+  }, [firstName, lastName, fields.length]);
+
+  const onSubmitManaged = (values: z.infer<typeof managedRegistrationSchema>) => {
+    createManagedRegistration.mutate({
+      reunionId,
+      data: {
+        memberFirstName: values.memberFirstName,
+        memberLastName: values.memberLastName,
+        branchName: values.branchName,
+        attendees: values.attendees.map(a => ({
+          name: a.name,
+          shirtSize: a.shirtSize,
+          dietaryRestrictions: a.dietaryRestrictions || undefined,
+          age: a.age,
+        })),
+        selectedFeeIds: values.selectedFeeIds && values.selectedFeeIds.length > 0 ? values.selectedFeeIds : undefined,
+      }
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
+        queryClient.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
+        queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunionId) });
+        toast({ title: "Registration created" });
+        setRegisterDialogOpen(false);
+        form.reset();
+        setLastSyncedName("");
+      }
+    });
+  };
+
+  const optionalFees = useMemo(() => {
+    return reunion?.fees?.filter(f => f.isOptional) || [];
+  }, [reunion?.fees]);
 
   const filteredRegistrations = useMemo(() => {
     if (!registrations) return [];
@@ -127,9 +236,14 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       <div className="flex flex-col gap-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <h1 className="font-serif text-3xl font-bold">Registrations</h1>
-          <Button onClick={handleExport} variant="outline" className="rounded-full" disabled={isExporting || !registrations?.length}>
-            <Download className="w-4 h-4 mr-2" /> Export CSV
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => setRegisterDialogOpen(true)} className="rounded-full shadow-lg hover:-translate-y-0.5 transition-transform">
+              <Plus className="w-4 h-4 mr-2" /> Register Member
+            </Button>
+            <Button onClick={handleExport} variant="outline" className="rounded-full" disabled={isExporting || !registrations?.length}>
+              <Download className="w-4 h-4 mr-2" /> Export CSV
+            </Button>
+          </div>
         </div>
 
         <div className="bg-card border shadow-sm rounded-3xl p-6">
@@ -182,11 +296,18 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                     return (
                     <tr key={reg.id} className={`hover:bg-muted/30 transition-colors ${isCancelled ? 'opacity-60 bg-muted/10' : ''}`}>
                       <td className="px-4 py-4">
-                        <div className="font-medium text-foreground">
+                        <div className="font-medium text-foreground flex items-center gap-2">
                           {reg.userName || "Unknown"}
-                          <span className="text-xs text-muted-foreground font-mono ml-2 bg-muted px-1 rounded">#{reg.id}</span>
+                          <span className="text-xs text-muted-foreground font-mono bg-muted px-1 rounded">#{reg.id}</span>
                         </div>
-                        <div className="text-muted-foreground text-xs">{reg.userEmail}</div>
+                        <div className="text-muted-foreground text-xs flex items-center gap-2 mt-1">
+                          <span className="truncate max-w-[150px]">{reg.userEmail}</span>
+                          {reg.registrantIsManaged && (
+                            <span className="inline-block bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                              Registered by organizer
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 font-medium">{reg.branchName}</td>
                       <td className="px-4 py-4">
@@ -254,6 +375,245 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         </div>
       </div>
 
+      <Dialog open={registerDialogOpen} onOpenChange={setRegisterDialogOpen}>
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Register a Family Member</DialogTitle>
+            <DialogDescription asChild>
+              <div>
+                Create a registration for someone who isn't signing up themselves. 
+                <br className="mb-2"/>
+                <span className="inline-block bg-primary/10 text-primary px-2 py-1 rounded-md text-xs font-medium mt-2">
+                  This registration is managed by organizers and uses a shared contact email. The member won't get their own login.
+                </span>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitManaged)} className="space-y-6 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="memberFirstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John" className="rounded-xl" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="memberLastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" className="rounded-xl" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="branchName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Family Branch</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Select a branch..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {reunion?.branches.sort((a, b) => a.sortOrder - b.sortOrder).map(branch => (
+                          <SelectItem key={branch.id} value={branch.name}>{branch.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h3 className="font-serif text-lg font-bold">Attendees</h3>
+                </div>
+
+                {fields.map((field, index) => (
+                  <div key={field.id} className="bg-muted/30 border p-4 rounded-2xl relative">
+                    {fields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                    
+                    <h4 className="font-bold text-xs uppercase tracking-widest text-muted-foreground mb-3">Person {index + 1}</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.name`}
+                        render={({ field: inputField }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Full Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Jane Doe" className="rounded-xl" {...inputField} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.shirtSize`}
+                        render={({ field: inputField }) => (
+                          <FormItem>
+                            <FormLabel>T-Shirt Size</FormLabel>
+                            <Select onValueChange={inputField.onChange} defaultValue={inputField.value}>
+                              <FormControl>
+                                <SelectTrigger className="rounded-xl">
+                                  <SelectValue placeholder="Size" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {SHIRT_SIZES.map(size => (
+                                  <SelectItem key={size} value={size}>{size}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.age`}
+                        render={({ field: inputField }) => (
+                          <FormItem>
+                            <FormLabel>Age (Optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={120}
+                                placeholder="e.g. 34"
+                                className="rounded-xl"
+                                {...inputField}
+                                value={inputField.value ?? ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`attendees.${index}.dietaryRestrictions`}
+                        render={({ field: inputField }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Dietary Info (Optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Vegetarian, Peanut allergy" className="rounded-xl" {...inputField} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined })}
+                  className="w-full py-4 border-dashed rounded-2xl text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="mr-2 w-4 h-4" /> Add Another Person
+                </Button>
+              </div>
+
+              {optionalFees.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h3 className="font-serif text-lg font-bold">Optional Fees</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {optionalFees.map(fee => (
+                      <FormField
+                        key={fee.id}
+                        control={form.control}
+                        name="selectedFeeIds"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={fee.id}
+                              className="flex flex-row items-start space-x-3 space-y-0 p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(fee.id)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...(field.value || []), fee.id])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (value) => value !== fee.id
+                                          )
+                                        )
+                                  }}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none flex-1">
+                                <FormLabel className="font-medium cursor-pointer">
+                                  {fee.label}
+                                </FormLabel>
+                              </div>
+                            </FormItem>
+                          )
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {createManagedRegistration.isError && (
+                <div className="p-3 bg-destructive/10 text-destructive text-sm font-medium rounded-xl">
+                  {(createManagedRegistration.error as any)?.error || "Failed to create registration. Please try again."}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button type="button" variant="ghost" onClick={() => setRegisterDialogOpen(false)} className="rounded-xl">Cancel</Button>
+                <Button type="submit" disabled={createManagedRegistration.isPending} className="rounded-xl">
+                  {createManagedRegistration.isPending ? "Creating..." : "Create Registration"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Cancel Dialog */}
       <Dialog open={!!cancelReg} onOpenChange={(open) => !open && setCancelReg(null)}>
         <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-md">
@@ -261,8 +621,10 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             <DialogTitle className="font-serif text-2xl text-destructive flex items-center gap-2">
               <AlertTriangle className="w-6 h-6" /> Cancel Registration
             </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel the registration for <strong>{cancelReg?.userName || cancelReg?.userEmail}</strong>? This action cannot be undone.
+            <DialogDescription asChild>
+              <div>
+                Are you sure you want to cancel the registration for <strong>{cancelReg?.userName || cancelReg?.userEmail}</strong>? This action cannot be undone.
+              </div>
             </DialogDescription>
           </DialogHeader>
 
@@ -309,8 +671,10 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">Transfer Registration</DialogTitle>
-            <DialogDescription>
-              Transferring <strong>{transferReg?.userName || transferReg?.userEmail}</strong>'s registration.
+            <DialogDescription asChild>
+              <div>
+                Transferring <strong>{transferReg?.userName || transferReg?.userEmail}</strong>'s registration.
+              </div>
             </DialogDescription>
           </DialogHeader>
           

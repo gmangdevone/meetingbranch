@@ -29,6 +29,7 @@ export * from './feeChargeType';
 export * from './feeInput';
 export * from './groupCount';
 export * from './healthStatus';
+export * from './managedRegistrationInput';
 export * from './paymentStatus';
 export * from './platformSettings';
 export * from './registration';

@@ -34,6 +34,8 @@ import {
   CreateBranchBody,
   UpdateBranchBody,
   ListReunionRegistrationsResponse,
+  CreateManagedRegistrationBody,
+  CreateManagedRegistrationResponse,
   UpdateRegistrationPaymentBody,
   GetReunionReportsResponse,
   ListReunionOrganizersResponse,
@@ -650,6 +652,7 @@ router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermis
           THEN ${usersTable.firstName} || ' ' || COALESCE(${usersTable.lastName}, '')
           ELSE NULL END
       `,
+      registrantIsManaged: usersTable.isManaged,
     })
     .from(registrationsTable)
     .leftJoin(usersTable, eq(registrationsTable.userId, usersTable.id))
@@ -670,11 +673,107 @@ router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermis
         attendees,
         selectedFeeIds: selectedFees.map((f) => f.feeId),
         userEmail: r.userEmail ?? "",
+        registrantIsManaged: r.registrantIsManaged ?? false,
       };
     }),
   );
 
   res.json(ListReunionRegistrationsResponse.parse(withAttendees));
+});
+
+// POST /reunions/:reunionId/registrations — organizer registers a family
+// member who can't do it themselves. Creates a "managed" account (no Clerk
+// identity, shared default contact email derived from the reunion name) and
+// the registration in one transaction. Deliberately allowed even while
+// registrations are closed — the organizer is acting on purpose.
+router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
+  const body = CreateManagedRegistrationBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+  const reunion = req.managedReunion!;
+  const { memberFirstName, memberLastName, branchName, attendees, selectedFeeIds } = body.data;
+
+  // Same validations as self-service registration: branch + optional fees.
+  const branches = await db
+    .select({ name: reunionBranchesTable.name })
+    .from(reunionBranchesTable)
+    .where(eq(reunionBranchesTable.reunionId, reunion.id));
+  if (branches.length > 0 && !branches.some((b) => b.name === branchName)) {
+    res.status(400).json({ error: "Selected branch is not part of this reunion." });
+    return;
+  }
+  const fees = await db
+    .select()
+    .from(reunionFeesTable)
+    .where(eq(reunionFeesTable.reunionId, reunion.id));
+  const optionalFeeIds = new Set(fees.filter((f) => f.isOptional).map((f) => f.id));
+  const chosenFeeIds = [...new Set(selectedFeeIds ?? [])];
+  if (!chosenFeeIds.every((id) => optionalFeeIds.has(id))) {
+    res.status(400).json({ error: "One or more selected fees are not available for this reunion." });
+    return;
+  }
+
+  // Shared default contact email derived from the reunion's family name.
+  const slug =
+    reunion.name.toLowerCase().replace(/[^a-z0-9]+/g, "") || "family";
+  const defaultEmail = `${slug}@famjam.cg`;
+  const managedUserId = `managed_${crypto.randomUUID()}`;
+
+  const created = await db.transaction(async (tx) => {
+    await tx.insert(usersTable).values({
+      id: managedUserId,
+      email: defaultEmail,
+      firstName: memberFirstName.trim(),
+      lastName: memberLastName?.trim() || null,
+      isManaged: true,
+    });
+    const [registration] = await tx
+      .insert(registrationsTable)
+      .values({
+        reunionId: reunion.id,
+        userId: managedUserId,
+        branchName,
+        attendeeCount: attendees.length,
+      })
+      .returning();
+    await tx.insert(attendeesTable).values(
+      attendees.map((a) => ({
+        registrationId: registration.id,
+        name: a.name,
+        shirtSize: a.shirtSize,
+        dietaryRestrictions: a.dietaryRestrictions ?? null,
+        age: a.age ?? null,
+      })),
+    );
+    if (chosenFeeIds.length > 0) {
+      await tx.insert(registrationFeesTable).values(
+        chosenFeeIds.map((feeId) => ({ registrationId: registration.id, feeId })),
+      );
+    }
+    return registration;
+  });
+
+  const [attendeeRows, feeRows] = await Promise.all([
+    db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, created.id)),
+    db
+      .select({ feeId: registrationFeesTable.feeId })
+      .from(registrationFeesTable)
+      .where(eq(registrationFeesTable.registrationId, created.id)),
+  ]);
+  const memberName = [memberFirstName.trim(), memberLastName?.trim()].filter(Boolean).join(" ");
+
+  res.status(201).json(
+    CreateManagedRegistrationResponse.parse({
+      ...created,
+      userEmail: defaultEmail,
+      userName: memberName,
+      registrantIsManaged: true,
+      attendees: attendeeRows,
+      selectedFeeIds: feeRows.map((f) => f.feeId),
+    }),
+  );
 });
 
 router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
@@ -1181,6 +1280,7 @@ async function adminRegistrationShape(reg: typeof registrationsTable.$inferSelec
         email: usersTable.email,
         firstName: usersTable.firstName,
         lastName: usersTable.lastName,
+        isManaged: usersTable.isManaged,
       })
       .from(usersTable)
       .where(eq(usersTable.id, reg.userId)),
@@ -1191,6 +1291,7 @@ async function adminRegistrationShape(reg: typeof registrationsTable.$inferSelec
     selectedFeeIds: selectedFees.map((f) => f.feeId),
     userEmail: user?.email ?? "",
     userName: user?.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : null,
+    registrantIsManaged: user?.isManaged ?? false,
   };
 }
 

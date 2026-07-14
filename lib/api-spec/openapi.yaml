@@ -533,6 +533,31 @@ paths:
                   $ref: "#/components/schemas/AdminRegistration"
         "403":
           description: Forbidden
+    post:
+      operationId: createManagedRegistration
+      tags: [manage]
+      summary: Register a family member on their behalf (organizer-created managed account)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManagedRegistrationInput"
+      responses:
+        "201":
+          description: Created registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRegistration"
+        "400":
+          description: Invalid input
+        "403":
+          description: Forbidden
 
   /reunions/{reunionId}/registrations/export:
     get:
@@ -1683,6 +1708,28 @@ components:
         age:
           type: ["integer", "null"]
 
+    ManagedRegistrationInput:
+      type: object
+      required: [memberFirstName, branchName, attendees]
+      properties:
+        memberFirstName:
+          type: string
+          minLength: 1
+        memberLastName:
+          type: string
+        branchName:
+          type: string
+          minLength: 1
+        attendees:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttendeeInput"
+          minItems: 1
+        selectedFeeIds:
+          type: array
+          items:
+            type: integer
+
     RegistrationInput:
       type: object
       required: [reunionId, branchName, attendees]
@@ -1749,7 +1796,7 @@ components:
     AdminRegistration:
       type: object
       required:
-        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, userEmail, status]
+        [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, userEmail, status, registrantIsManaged]
       properties:
         id:
           type: integer
@@ -1761,6 +1808,9 @@ components:
           type: string
         userName:
           type: ["string", "null"]
+        registrantIsManaged:
+          type: boolean
+          description: "True when this registration was created by an organizer on behalf of a member without their own account"
         branchName:
           type: string
         attendeeCount:

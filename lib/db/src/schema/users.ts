@@ -8,6 +8,9 @@ export const usersTable = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   isAdmin: boolean("is_admin").notNull().default(false),
+  // True for accounts created by an organizer on behalf of a family member
+  // (no Clerk identity — they can never sign in themselves).
+  isManaged: boolean("is_managed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

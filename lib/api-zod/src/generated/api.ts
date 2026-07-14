@@ -638,6 +638,7 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "userId": zod.string(),
   "userEmail": zod.string(),
   "userName": zod.string().nullish(),
+  "registrantIsManaged": zod.boolean().describe('True when this registration was created by an organizer on behalf of a member without their own account'),
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
@@ -655,6 +656,59 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
 export const ListReunionRegistrationsResponse = zod.array(ListReunionRegistrationsResponseItem)
+
+
+/**
+ * @summary Register a family member on their behalf (organizer-created managed account)
+ */
+export const CreateManagedRegistrationParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+export const createManagedRegistrationBodyAttendeesItemAgeMin = 0;
+
+
+
+
+export const CreateManagedRegistrationBody = zod.object({
+  "memberFirstName": zod.string().min(1),
+  "memberLastName": zod.string().optional(),
+  "branchName": zod.string().min(1),
+  "attendees": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().optional(),
+  "age": zod.number().min(createManagedRegistrationBodyAttendeesItemAgeMin).nullish()
+})).min(1),
+  "selectedFeeIds": zod.array(zod.number()).optional()
+})
+
+export const CreateManagedRegistrationResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "userId": zod.string(),
+  "userEmail": zod.string(),
+  "userName": zod.string().nullish(),
+  "registrantIsManaged": zod.boolean().describe('True when this registration was created by an organizer on behalf of a member without their own account'),
+  "branchName": zod.string(),
+  "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "attendees": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish()
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
+})
 
 
 /**
@@ -685,6 +739,7 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "userId": zod.string(),
   "userEmail": zod.string(),
   "userName": zod.string().nullish(),
+  "registrantIsManaged": zod.boolean().describe('True when this registration was created by an organizer on behalf of a member without their own account'),
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
@@ -721,6 +776,7 @@ export const CancelRegistrationResponse = zod.object({
   "userId": zod.string(),
   "userEmail": zod.string(),
   "userName": zod.string().nullish(),
+  "registrantIsManaged": zod.boolean().describe('True when this registration was created by an organizer on behalf of a member without their own account'),
   "branchName": zod.string(),
   "attendeeCount": zod.number(),
   "paymentStatus": zod.enum(['pending', 'paid', 'waived']),

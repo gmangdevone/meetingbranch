@@ -36,6 +36,7 @@ import type {
   ErrorResponse,
   FeeInput,
   HealthStatus,
+  ManagedRegistrationInput,
   PlatformSettings,
   Registration,
   RegistrationInput,
@@ -1875,6 +1876,78 @@ export function useListReunionRegistrations<TData = Awaited<ReturnType<typeof li
 
 
 
+
+export const getCreateManagedRegistrationUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/registrations`
+}
+
+/**
+ * @summary Register a family member on their behalf (organizer-created managed account)
+ */
+export const createManagedRegistration = async (reunionId: number,
+    managedRegistrationInput: ManagedRegistrationInput, options?: RequestInit): Promise<AdminRegistration> => {
+
+  return customFetch<AdminRegistration>(getCreateManagedRegistrationUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(managedRegistrationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateManagedRegistrationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManagedRegistration>>, TError,{reunionId: number;data: BodyType<ManagedRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createManagedRegistration>>, TError,{reunionId: number;data: BodyType<ManagedRegistrationInput>}, TContext> => {
+
+const mutationKey = ['createManagedRegistration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createManagedRegistration>>, {reunionId: number;data: BodyType<ManagedRegistrationInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createManagedRegistration(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateManagedRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof createManagedRegistration>>>
+    export type CreateManagedRegistrationMutationBody = BodyType<ManagedRegistrationInput>
+    export type CreateManagedRegistrationMutationError = ErrorType<void>
+
+    /**
+ * @summary Register a family member on their behalf (organizer-created managed account)
+ */
+export const useCreateManagedRegistration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createManagedRegistration>>, TError,{reunionId: number;data: BodyType<ManagedRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createManagedRegistration>>,
+        TError,
+        {reunionId: number;data: BodyType<ManagedRegistrationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateManagedRegistrationMutationOptions(options));
+    }
 
 export const getExportReunionRegistrationsUrl = (reunionId: number,) => {
 

@@ -17,6 +17,8 @@ export interface AdminRegistration {
   userEmail: string;
   /** @nullable */
   userName?: string | null;
+  /** True when this registration was created by an organizer on behalf of a member without their own account */
+  registrantIsManaged: boolean;
   branchName: string;
   attendeeCount: number;
   paymentStatus: PaymentStatus;

@@ -394,6 +394,17 @@ export interface Attendee {
   age?: number | null;
 }
 
+export interface ManagedRegistrationInput {
+  /** @minLength 1 */
+  memberFirstName: string;
+  memberLastName?: string;
+  /** @minLength 1 */
+  branchName: string;
+  /** @minItems 1 */
+  attendees: AttendeeInput[];
+  selectedFeeIds?: number[];
+}
+
 export interface RegistrationInput {
   reunionId: number;
   /** @minLength 1 */
@@ -434,6 +445,8 @@ export interface AdminRegistration {
   userEmail: string;
   /** @nullable */
   userName?: string | null;
+  /** True when this registration was created by an organizer on behalf of a member without their own account */
+  registrantIsManaged: boolean;
   branchName: string;
   attendeeCount: number;
   paymentStatus: PaymentStatus;
