@@ -20,9 +20,12 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccessStatus,
   AddOrganizerInput,
+  AdminPlatformSettings,
   AdminRegistration,
   AdminReport,
+  AdminSettingsUpdateInput,
   AdminSetupResult,
   AdminSetupStatus,
   AdminUser,
@@ -226,6 +229,83 @@ export function useGetSettings<TData = Awaited<ReturnType<typeof getSettings>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyAccessUrl = () => {
+
+
+
+
+  return `/api/me/access`
+}
+
+/**
+ * @summary Whether the signed-in user may use the app under the current lockdown settings
+ */
+export const getMyAccess = async ( options?: RequestInit): Promise<AccessStatus> => {
+
+  return customFetch<AccessStatus>(getGetMyAccessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyAccessQueryKey = () => {
+    return [
+    `/api/me/access`
+    ] as const;
+    }
+
+
+export const getGetMyAccessQueryOptions = <TData = Awaited<ReturnType<typeof getMyAccess>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyAccessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyAccess>>> = ({ signal }) => getMyAccess({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getMyAccess>>>
+export type GetMyAccessQueryError = ErrorType<void>
+
+
+/**
+ * @summary Whether the signed-in user may use the app under the current lockdown settings
+ */
+
+export function useGetMyAccess<TData = Awaited<ReturnType<typeof getMyAccess>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyAccessQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -3138,6 +3218,83 @@ export function useAdminSetup<TData = Awaited<ReturnType<typeof adminSetup>>, TE
 
 
 
+export const getAdminGetSettingsUrl = () => {
+
+
+
+
+  return `/api/admin/settings`
+}
+
+/**
+ * @summary Current platform settings including the tester allowlist
+ */
+export const adminGetSettings = async ( options?: RequestInit): Promise<AdminPlatformSettings> => {
+
+  return customFetch<AdminPlatformSettings>(getAdminGetSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdminGetSettingsQueryKey = () => {
+    return [
+    `/api/admin/settings`
+    ] as const;
+    }
+
+
+export const getAdminGetSettingsQueryOptions = <TData = Awaited<ReturnType<typeof adminGetSettings>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAdminGetSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof adminGetSettings>>> = ({ signal }) => adminGetSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof adminGetSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AdminGetSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof adminGetSettings>>>
+export type AdminGetSettingsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Current platform settings including the tester allowlist
+ */
+
+export function useAdminGetSettings<TData = Awaited<ReturnType<typeof adminGetSettings>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof adminGetSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAdminGetSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getAdminUpdateSettingsUrl = () => {
 
 
@@ -3147,16 +3304,16 @@ export const getAdminUpdateSettingsUrl = () => {
 }
 
 /**
- * @summary Enable or disable reunion creation platform-wide
+ * @summary Update platform settings (reunion creation, sign-in lockdown, tester allowlist)
  */
-export const adminUpdateSettings = async (platformSettings: PlatformSettings, options?: RequestInit): Promise<PlatformSettings> => {
+export const adminUpdateSettings = async (adminSettingsUpdateInput: AdminSettingsUpdateInput, options?: RequestInit): Promise<AdminPlatformSettings> => {
 
-  return customFetch<PlatformSettings>(getAdminUpdateSettingsUrl(),
+  return customFetch<AdminPlatformSettings>(getAdminUpdateSettingsUrl(),
   {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(platformSettings)
+    body: JSON.stringify(adminSettingsUpdateInput)
   }
 );}
 
@@ -3165,8 +3322,8 @@ export const adminUpdateSettings = async (platformSettings: PlatformSettings, op
 
 
 export const getAdminUpdateSettingsMutationOptions = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettings>>, TError,{data: BodyType<PlatformSettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettings>>, TError,{data: BodyType<PlatformSettings>}, TContext> => {
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettings>>, TError,{data: BodyType<AdminSettingsUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettings>>, TError,{data: BodyType<AdminSettingsUpdateInput>}, TContext> => {
 
 const mutationKey = ['adminUpdateSettings'];
 const {mutation: mutationOptions, request: requestOptions} = options ?
@@ -3178,7 +3335,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateSettings>>, {data: BodyType<PlatformSettings>}> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminUpdateSettings>>, {data: BodyType<AdminSettingsUpdateInput>}> = (props) => {
           const {data} = props ?? {};
 
           return  adminUpdateSettings(data,requestOptions)
@@ -3192,18 +3349,18 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type AdminUpdateSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof adminUpdateSettings>>>
-    export type AdminUpdateSettingsMutationBody = BodyType<PlatformSettings>
+    export type AdminUpdateSettingsMutationBody = BodyType<AdminSettingsUpdateInput>
     export type AdminUpdateSettingsMutationError = ErrorType<void>
 
     /**
- * @summary Enable or disable reunion creation platform-wide
+ * @summary Update platform settings (reunion creation, sign-in lockdown, tester allowlist)
  */
 export const useAdminUpdateSettings = <TError = ErrorType<void>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettings>>, TError,{data: BodyType<PlatformSettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminUpdateSettings>>, TError,{data: BodyType<AdminSettingsUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof adminUpdateSettings>>,
         TError,
-        {data: BodyType<PlatformSettings>},
+        {data: BodyType<AdminSettingsUpdateInput>},
         TContext
       > => {
       return useMutation(getAdminUpdateSettingsMutationOptions(options));

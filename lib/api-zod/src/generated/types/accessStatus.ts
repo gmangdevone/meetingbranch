@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PlatformSettings {
-  reunionCreationEnabled: boolean;
+export interface AccessStatus {
+  /** Whether the signed-in user may use the app right now */
+  allowed: boolean;
   signInsLocked: boolean;
 }

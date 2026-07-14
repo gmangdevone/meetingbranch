@@ -26,6 +26,7 @@ const state = vi.hoisted(() => {
       users: [] as Row[],
       reunions: [] as Row[],
       reunion_organizers: [] as Row[],
+      app_settings: [] as Row[],
     } as Record<string, Row[]>,
     seq: 0,
   };

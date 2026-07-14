@@ -19,6 +19,7 @@ export interface Reunion {
   paymentHandle: string;
   /** @nullable */
   paymentUrl?: string | null;
+  registrationsOpen: boolean;
   organizerId?: string;
   createdAt: Date;
   branches: ReunionBranch[];

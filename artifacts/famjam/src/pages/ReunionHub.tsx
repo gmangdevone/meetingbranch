@@ -118,15 +118,21 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           <div className="bg-card border shadow-sm rounded-3xl p-8">
             <h2 className="font-serif text-2xl font-bold mb-4">Welcome to the Hub</h2>
             <p className="text-muted-foreground text-lg mb-8">
-              This is the central location for everything related to {reunion.name}. Be sure to register your household so we have a final headcount for food and activities!
+              This is the central location for everything related to {reunion.name}. {reunion.registrationsOpen ? "Be sure to register your household so we have a final headcount for food and activities!" : "Registration is currently closed."}
             </p>
             
-            <Link href={`/r/${reunion.code}/register`} className="block w-full">
-              <Button className="w-full rounded-2xl py-8 text-xl font-bold shadow-md hover:-translate-y-1 transition-all group">
-                <Edit3 className="mr-3 w-6 h-6 group-hover:rotate-12 transition-transform" />
-                Register My Household
+            {reunion.registrationsOpen ? (
+              <Link href={`/r/${reunion.code}/register`} className="block w-full">
+                <Button className="w-full rounded-2xl py-8 text-xl font-bold shadow-md hover:-translate-y-1 transition-all group">
+                  <Edit3 className="mr-3 w-6 h-6 group-hover:rotate-12 transition-transform" />
+                  Register My Household
+                </Button>
+              </Link>
+            ) : (
+              <Button disabled className="w-full rounded-2xl py-8 text-xl font-bold bg-muted text-muted-foreground">
+                Registration Closed
               </Button>
-            </Link>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

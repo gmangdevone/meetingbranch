@@ -27,6 +27,7 @@ const state = vi.hoisted(() => {
       users: [] as Row[],
       reunions: [] as Row[],
       reunion_organizers: [] as Row[],
+      app_settings: [] as Row[],
     } as Record<string, Row[]>,
     // Auto-increment counter for integer identity columns.
     seq: 0,

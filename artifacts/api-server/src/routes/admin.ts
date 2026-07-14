@@ -19,6 +19,7 @@ import { attachAuth, requireAdmin } from "../middlewares/requireAdmin";
 import { requireAuth } from "../middlewares/requireAuth";
 import { getAuth } from "@clerk/express";
 import { getOrCreateSettings } from "../lib/settings";
+import { invalidateSettingsCache } from "../lib/access";
 
 const router: IRouter = Router();
 
@@ -94,19 +95,47 @@ router.use(attachAuth, requireAdmin);
 // ──────────────────────────────────────────────────────────────
 // Platform settings — reunion creation toggle
 // ──────────────────────────────────────────────────────────────
+router.get("/admin/settings", async (_req, res): Promise<void> => {
+  const settings = await getOrCreateSettings();
+  res.json({
+    reunionCreationEnabled: settings.reunionCreationEnabled,
+    signInsLocked: settings.signInsLocked,
+    testerEmails: settings.testerEmails,
+  });
+});
+
 router.patch("/admin/settings", async (req, res): Promise<void> => {
   const body = AdminUpdateSettingsBody.safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
     return;
   }
+  const { reunionCreationEnabled, signInsLocked, testerEmails } = body.data;
   const current = await getOrCreateSettings();
   const [saved] = await db
     .update(appSettingsTable)
-    .set({ reunionCreationEnabled: body.data.reunionCreationEnabled, updatedAt: new Date() })
+    .set({
+      ...(reunionCreationEnabled === undefined ? {} : { reunionCreationEnabled }),
+      ...(signInsLocked === undefined ? {} : { signInsLocked }),
+      ...(testerEmails === undefined
+        ? {}
+        : {
+            testerEmails: [
+              ...new Set(
+                testerEmails.map((e) => e.trim().toLowerCase()).filter(Boolean),
+              ),
+            ],
+          }),
+      updatedAt: new Date(),
+    })
     .where(eq(appSettingsTable.id, current.id))
     .returning();
-  res.json({ reunionCreationEnabled: saved.reunionCreationEnabled });
+  invalidateSettingsCache();
+  res.json({
+    reunionCreationEnabled: saved.reunionCreationEnabled,
+    signInsLocked: saved.signInsLocked,
+    testerEmails: saved.testerEmails,
+  });
 });
 
 // ──────────────────────────────────────────────────────────────

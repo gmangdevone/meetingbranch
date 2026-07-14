@@ -393,6 +393,7 @@ function seed(roles: string[]) {
         endDate: "2026-08-03",
         paymentHandle: "@t",
         paymentUrl: null,
+        registrationsOpen: true,
         organizerId: OWNER,
         createdAt: new Date("2026-01-01").toISOString(),
       },

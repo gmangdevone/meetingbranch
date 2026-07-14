@@ -16,4 +16,5 @@ export interface ReunionUpdateInput {
   /** @minLength 1 */
   paymentHandle: string;
   paymentUrl?: string;
+  registrationsOpen?: boolean;
 }

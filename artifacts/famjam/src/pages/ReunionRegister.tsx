@@ -137,6 +137,23 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
     );
   }
 
+  if (!reunion.registrationsOpen) {
+    return (
+      <div className="max-w-xl mx-auto py-20 text-center">
+        <div className="bg-primary/10 text-primary w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Heart className="w-8 h-8" />
+        </div>
+        <h1 className="font-serif text-4xl font-bold mb-4">Registration is Closed</h1>
+        <p className="text-lg text-muted-foreground mb-8">
+          The organizer has closed registration for {reunion.name}. If you think this is a mistake or you still need to register, please reach out to them directly.
+        </p>
+        <Button onClick={() => setLocation(`/r/${reunion.code}`)} variant="outline" className="rounded-full">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto py-8">
       <Button 

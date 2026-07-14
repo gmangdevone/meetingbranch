@@ -82,6 +82,12 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: "That reunion no longer exists." });
     return;
   }
+  if (!reunion.registrationsOpen) {
+    res.status(403).json({
+      error: "Registration is currently closed for this reunion. Check back later or contact your organizer.",
+    });
+    return;
+  }
 
   // Load this reunion's fees; only its OWN optional fees may be selected.
   const fees = await db

@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './accessStatus';
 export * from './addOrganizerInput';
+export * from './adminPlatformSettings';
 export * from './adminRegistration';
 export * from './adminReport';
+export * from './adminSettingsUpdateInput';
 export * from './adminSetupResult';
 export * from './adminSetupStatus';
 export * from './adminUser';

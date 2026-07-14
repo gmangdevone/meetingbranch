@@ -15,6 +15,26 @@ export interface ErrorResponse {
 
 export interface PlatformSettings {
   reunionCreationEnabled: boolean;
+  signInsLocked: boolean;
+}
+
+export interface AdminPlatformSettings {
+  reunionCreationEnabled: boolean;
+  signInsLocked: boolean;
+  testerEmails: string[];
+}
+
+export interface AdminSettingsUpdateInput {
+  reunionCreationEnabled?: boolean;
+  signInsLocked?: boolean;
+  /** @items.minLength 3 */
+  testerEmails?: string[];
+}
+
+export interface AccessStatus {
+  /** Whether the signed-in user may use the app right now */
+  allowed: boolean;
+  signInsLocked: boolean;
 }
 
 export type ShirtSize = typeof ShirtSize[keyof typeof ShirtSize];
@@ -220,6 +240,7 @@ export interface Reunion {
   paymentHandle: string;
   /** @nullable */
   paymentUrl?: string | null;
+  registrationsOpen: boolean;
   organizerId?: string;
   createdAt: string;
   branches: ReunionBranch[];
@@ -341,6 +362,7 @@ export interface ReunionUpdateInput {
   /** @minLength 1 */
   paymentHandle: string;
   paymentUrl?: string;
+  registrationsOpen?: boolean;
 }
 
 export interface BranchInput {

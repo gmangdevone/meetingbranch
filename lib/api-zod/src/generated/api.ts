@@ -20,7 +20,17 @@ export const HealthCheckResponse = zod.object({
  * @summary Public platform settings (e.g. whether reunion creation is enabled)
  */
 export const GetSettingsResponse = zod.object({
-  "reunionCreationEnabled": zod.boolean()
+  "reunionCreationEnabled": zod.boolean(),
+  "signInsLocked": zod.boolean()
+})
+
+
+/**
+ * @summary Whether the signed-in user may use the app under the current lockdown settings
+ */
+export const GetMyAccessResponse = zod.object({
+  "allowed": zod.boolean().describe('Whether the signed-in user may use the app right now'),
+  "signInsLocked": zod.boolean()
 })
 
 
@@ -55,6 +65,7 @@ export const CreateReunionResponse = zod.object({
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
+  "registrationsOpen": zod.boolean(),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -89,6 +100,7 @@ export const ListMyReunionsResponseItem = zod.object({
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
+  "registrationsOpen": zod.boolean(),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -136,6 +148,7 @@ export const GetReunionByCodeResponse = zod.object({
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
+  "registrationsOpen": zod.boolean(),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -174,6 +187,7 @@ export const GetReunionResponse = zod.object({
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
+  "registrationsOpen": zod.boolean(),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -223,7 +237,8 @@ export const UpdateReunionBody = zod.object({
   "startDate": zod.string().min(1),
   "endDate": zod.string().min(1),
   "paymentHandle": zod.string().min(1),
-  "paymentUrl": zod.string().optional()
+  "paymentUrl": zod.string().optional(),
+  "registrationsOpen": zod.boolean().optional()
 })
 
 export const UpdateReunionResponse = zod.object({
@@ -234,6 +249,7 @@ export const UpdateReunionResponse = zod.object({
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
+  "registrationsOpen": zod.boolean(),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -1122,14 +1138,32 @@ export const AdminSetupResponse = zod.object({
 
 
 /**
- * @summary Enable or disable reunion creation platform-wide
+ * @summary Current platform settings including the tester allowlist
  */
+export const AdminGetSettingsResponse = zod.object({
+  "reunionCreationEnabled": zod.boolean(),
+  "signInsLocked": zod.boolean(),
+  "testerEmails": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Update platform settings (reunion creation, sign-in lockdown, tester allowlist)
+ */
+export const adminUpdateSettingsBodyTesterEmailsItemMin = 3;
+
+
+
 export const AdminUpdateSettingsBody = zod.object({
-  "reunionCreationEnabled": zod.boolean()
+  "reunionCreationEnabled": zod.boolean().optional(),
+  "signInsLocked": zod.boolean().optional(),
+  "testerEmails": zod.array(zod.string().min(adminUpdateSettingsBodyTesterEmailsItemMin)).optional()
 })
 
 export const AdminUpdateSettingsResponse = zod.object({
-  "reunionCreationEnabled": zod.boolean()
+  "reunionCreationEnabled": zod.boolean(),
+  "signInsLocked": zod.boolean(),
+  "testerEmails": zod.array(zod.string())
 })
 
 
@@ -1145,6 +1179,7 @@ export const AdminListReunionsResponseItem = zod.object({
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
+  "registrationsOpen": zod.boolean(),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({

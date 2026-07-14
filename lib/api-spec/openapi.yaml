@@ -49,6 +49,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/PlatformSettings"
 
+  /me/access:
+    get:
+      operationId: getMyAccess
+      tags: [settings]
+      summary: Whether the signed-in user may use the app under the current lockdown settings
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Access status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessStatus"
+        "401":
+          description: Unauthorized
+
   # ── Reunion lifecycle & public reads ────────────────────────────────────────
   /reunions:
     post:
@@ -1026,10 +1043,25 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /admin/settings:
+    get:
+      operationId: adminGetSettings
+      tags: [admin]
+      summary: Current platform settings including the tester allowlist
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPlatformSettings"
+        "403":
+          description: Forbidden
     patch:
       operationId: adminUpdateSettings
       tags: [admin]
-      summary: Enable or disable reunion creation platform-wide
+      summary: Update platform settings (reunion creation, sign-in lockdown, tester allowlist)
       security:
         - clerkAuth: []
       requestBody:
@@ -1037,14 +1069,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PlatformSettings"
+              $ref: "#/components/schemas/AdminSettingsUpdateInput"
       responses:
         "200":
           description: Updated settings
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlatformSettings"
+                $ref: "#/components/schemas/AdminPlatformSettings"
         "403":
           description: Forbidden
 
@@ -1178,9 +1210,47 @@ components:
 
     PlatformSettings:
       type: object
-      required: [reunionCreationEnabled]
+      required: [reunionCreationEnabled, signInsLocked]
       properties:
         reunionCreationEnabled:
+          type: boolean
+        signInsLocked:
+          type: boolean
+
+    AdminPlatformSettings:
+      type: object
+      required: [reunionCreationEnabled, signInsLocked, testerEmails]
+      properties:
+        reunionCreationEnabled:
+          type: boolean
+        signInsLocked:
+          type: boolean
+        testerEmails:
+          type: array
+          items:
+            type: string
+
+    AdminSettingsUpdateInput:
+      type: object
+      properties:
+        reunionCreationEnabled:
+          type: boolean
+        signInsLocked:
+          type: boolean
+        testerEmails:
+          type: array
+          items:
+            type: string
+            minLength: 3
+
+    AccessStatus:
+      type: object
+      required: [allowed, signInsLocked]
+      properties:
+        allowed:
+          type: boolean
+          description: "Whether the signed-in user may use the app right now"
+        signInsLocked:
           type: boolean
 
     ShirtSize:
@@ -1335,7 +1405,7 @@ components:
     Reunion:
       type: object
       required:
-        [id, code, name, startDate, endDate, paymentHandle, createdAt, branches, fees]
+        [id, code, name, startDate, endDate, paymentHandle, registrationsOpen, createdAt, branches, fees]
       properties:
         id:
           type: integer
@@ -1353,6 +1423,8 @@ components:
           type: string
         paymentUrl:
           type: ["string", "null"]
+        registrationsOpen:
+          type: boolean
         organizerId:
           type: string
         createdAt:
@@ -1565,6 +1637,8 @@ components:
           minLength: 1
         paymentUrl:
           type: string
+        registrationsOpen:
+          type: boolean
 
     BranchInput:
       type: object

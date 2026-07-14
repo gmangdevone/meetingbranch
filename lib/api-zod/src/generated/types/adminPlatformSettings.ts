@@ -6,7 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PlatformSettings {
+export interface AdminPlatformSettings {
   reunionCreationEnabled: boolean;
   signInsLocked: boolean;
+  testerEmails: string[];
 }

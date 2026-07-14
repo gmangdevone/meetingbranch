@@ -26,6 +26,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form";
 import { Checkbox } from "../../components/ui/checkbox";
+import { Switch } from "../../components/ui/switch";
 import { useToast } from "../../hooks/use-toast";
 import { describeFee } from "../../lib/fees";
 import { ROLE_OPTIONS, ROLE_LABELS } from "../../lib/roles";
@@ -36,6 +37,7 @@ const formSchema = z.object({
   endDate: z.string().min(1, "Required"),
   paymentHandle: z.string().min(1, "Required"),
   paymentUrl: z.string().optional(),
+  registrationsOpen: z.boolean().default(true),
 });
 
 export function OrganizerSettings({ params }: { params: { reunionId: string } }) {
@@ -57,6 +59,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       endDate: "",
       paymentHandle: "",
       paymentUrl: "",
+      registrationsOpen: true,
     },
   });
 
@@ -68,6 +71,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         endDate: summary.reunion.endDate,
         paymentHandle: summary.reunion.paymentHandle,
         paymentUrl: summary.reunion.paymentUrl || "",
+        registrationsOpen: summary.reunion.registrationsOpen,
       });
     }
   }, [summary, form]);
@@ -81,6 +85,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         endDate: values.endDate,
         paymentHandle: values.paymentHandle,
         paymentUrl: values.paymentUrl || undefined,
+        registrationsOpen: values.registrationsOpen,
       }
     }, {
       onSuccess: () => {
@@ -137,6 +142,32 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                       <Input type="date" className="rounded-xl bg-muted/50" {...field} />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="pt-4 border-t space-y-4">
+              <h3 className="font-serif text-xl font-bold">Registration Status</h3>
+              <FormField
+                control={form.control}
+                name="registrationsOpen"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="font-bold text-base">Registrations Open</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        {field.value 
+                          ? "Families can currently register and select fees." 
+                          : "Registration is closed. New families cannot register, but existing ones keep their spot."}
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />

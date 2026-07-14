@@ -9,6 +9,7 @@ import {
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
+import { enforceLockdown } from "./middlewares/lockdown";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -48,6 +49,6 @@ app.use(
   })),
 );
 
-app.use("/api", router);
+app.use("/api", enforceLockdown, router);
 
 export default app;

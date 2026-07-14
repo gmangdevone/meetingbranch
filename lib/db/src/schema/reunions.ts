@@ -13,6 +13,8 @@ export const reunionsTable = pgTable("reunions", {
   endDate: text("end_date").notNull(),
   paymentHandle: text("payment_handle").notNull(),
   paymentUrl: text("payment_url"),
+  // When false, new registrations are rejected (organizers can toggle anytime).
+  registrationsOpen: boolean("registrations_open").notNull().default(true),
   organizerId: text("organizer_id")
     .notNull()
     .references(() => usersTable.id),

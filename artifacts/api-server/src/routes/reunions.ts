@@ -345,7 +345,7 @@ router.put(
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, paymentHandle, paymentUrl } = body.data;
+  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen } = body.data;
   await db
     .update(reunionsTable)
     .set({
@@ -354,6 +354,7 @@ router.put(
       endDate,
       paymentHandle,
       paymentUrl: paymentUrl ?? null,
+      ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
     })
     .where(eq(reunionsTable.id, req.managedReunion!.id));
   const full = await getReunionWithBranches(req.managedReunion!.id);

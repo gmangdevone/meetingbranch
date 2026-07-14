@@ -1,9 +1,10 @@
-import { useGetSettings, useAdminUpdateSettings, useAdminListReunions, getAdminListReunionsQueryKey, useAdminListUsers, useAdminToggleAdminFlag, getAdminListUsersQueryKey, getGetSettingsQueryKey } from "@workspace/api-client-react";
+import { useAdminGetSettings, getAdminGetSettingsQueryKey, useAdminUpdateSettings, useAdminListReunions, getAdminListReunionsQueryKey, useAdminListUsers, useAdminToggleAdminFlag, getAdminListUsersQueryKey, getGetSettingsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Shield, Settings as SettingsIcon, Users, CalendarDays, Power, ArrowRight, ShieldCheck } from "lucide-react";
+import { Shield, Settings as SettingsIcon, Users, CalendarDays, Power, ArrowRight, ShieldCheck, Mail, X, Plus } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
+import { Input } from "../../components/ui/input";
 import { format } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { useState } from "react";
@@ -19,10 +20,14 @@ export function AdminArea() {
     query: { retry: false, queryKey: getAdminListReunionsQueryKey() }
   });
 
-  const { data: settings } = useGetSettings();
+  const { data: adminSettings } = useAdminGetSettings({
+    query: { enabled: !!adminReunions, queryKey: getAdminGetSettingsQueryKey() }
+  });
   const updateSettingsMutation = useAdminUpdateSettings();
   const toggleAdminMutation = useAdminToggleAdminFlag();
   const { data: users } = useAdminListUsers({ query: { enabled: !!adminReunions, queryKey: getAdminListUsersQueryKey() } });
+
+  const [newTesterEmail, setNewTesterEmail] = useState("");
 
   const handleClaimAdmin = async () => {
     setClaiming(true);
@@ -46,8 +51,48 @@ export function AdminArea() {
   const handleToggleCreation = (enabled: boolean) => {
     updateSettingsMutation.mutate({ data: { reunionCreationEnabled: enabled } }, {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getAdminGetSettingsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
         toast({ title: enabled ? "Creation Enabled" : "Creation Disabled" });
+      }
+    });
+  };
+
+  const handleToggleLockdown = (locked: boolean) => {
+    if (locked && !confirm("WARNING: This will block all regular users from accessing the app. Only platform admins, organizers, and listed testers will be able to sign in. Are you sure?")) {
+      return;
+    }
+    updateSettingsMutation.mutate({ data: { signInsLocked: locked } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getAdminGetSettingsQueryKey() });
+        toast({ title: locked ? "Platform Locked Down" : "Lockdown Lifted" });
+      }
+    });
+  };
+
+  const handleAddTester = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminSettings || !newTesterEmail.trim()) return;
+    const email = newTesterEmail.trim().toLowerCase();
+    if (adminSettings.testerEmails.includes(email)) {
+      setNewTesterEmail("");
+      return;
+    }
+    const newEmails = [...adminSettings.testerEmails, email];
+    updateSettingsMutation.mutate({ data: { testerEmails: newEmails } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getAdminGetSettingsQueryKey() });
+        setNewTesterEmail("");
+      }
+    });
+  };
+
+  const handleRemoveTester = (email: string) => {
+    if (!adminSettings) return;
+    const newEmails = adminSettings.testerEmails.filter(e => e !== email);
+    updateSettingsMutation.mutate({ data: { testerEmails: newEmails } }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getAdminGetSettingsQueryKey() });
       }
     });
   };
@@ -80,7 +125,7 @@ export function AdminArea() {
     );
   }
 
-  if (loadingReunions || !adminReunions || !settings || !users) {
+  if (loadingReunions || !adminReunions || !adminSettings || !users) {
     return <div className="p-8 text-center text-muted-foreground">Loading admin area...</div>;
   }
 
@@ -108,11 +153,64 @@ export function AdminArea() {
                   <div className="text-xs text-muted-foreground">Global toggle for creation</div>
                 </div>
                 <Switch 
-                  checked={settings.reunionCreationEnabled} 
+                  checked={adminSettings.reunionCreationEnabled} 
                   onCheckedChange={handleToggleCreation}
                   disabled={updateSettingsMutation.isPending}
                 />
               </div>
+
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <div className="font-medium text-destructive flex items-center"><Shield className="w-4 h-4 mr-1"/> Sign-In Lockdown</div>
+                  <div className="text-xs text-muted-foreground">Blocks all non-organizer/tester sign-ins</div>
+                </div>
+                <Switch 
+                  checked={adminSettings.signInsLocked} 
+                  onCheckedChange={handleToggleLockdown}
+                  disabled={updateSettingsMutation.isPending}
+                  className="data-[state=checked]:bg-destructive"
+                />
+              </div>
+
+              <div className="pt-2 pb-4 border-b">
+                <div className="font-bold text-sm mb-2 flex items-center"><Mail className="w-4 h-4 mr-1"/> Tester Emails</div>
+                <div className="text-xs text-muted-foreground mb-3">Allowed to sign in during lockdown</div>
+                
+                <form onSubmit={handleAddTester} className="flex gap-2 mb-3">
+                  <Input 
+                    type="email" 
+                    placeholder="tester@example.com" 
+                    value={newTesterEmail}
+                    onChange={(e) => setNewTesterEmail(e.target.value)}
+                    className="h-8 text-sm rounded-lg"
+                    disabled={updateSettingsMutation.isPending}
+                  />
+                  <Button type="submit" size="sm" className="h-8 rounded-lg" disabled={!newTesterEmail.trim() || updateSettingsMutation.isPending}>
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </form>
+                
+                {adminSettings.testerEmails.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic">No testers configured.</div>
+                ) : (
+                  <ul className="space-y-1">
+                    {adminSettings.testerEmails.map(email => (
+                      <li key={email} className="flex items-center justify-between bg-muted/50 px-2 py-1.5 rounded-md text-xs font-mono">
+                        <span className="truncate">{email}</span>
+                        <button 
+                          onClick={() => handleRemoveTester(email)}
+                          disabled={updateSettingsMutation.isPending}
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Remove tester"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
               <div className="pt-2 text-sm text-muted-foreground">
                 <span className="font-bold text-foreground block mb-1">System Stats</span>
                 <ul className="space-y-1">
