@@ -497,6 +497,149 @@ describe("co-organizer area role gating", () => {
   });
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Exhaustive endpoint matrix: every role-guarded route in each area, tested for
+// both the denied (403 without the role) and allowed (no 403 with it) case.
+// The representative-per-area tests above prove areas are mutually exclusive;
+// this proves no individual endpoint slipped past its area's guard.
+// ──────────────────────────────────────────────────────────────────────────────
+type Endpoint = {
+  name: string;
+  send: () => request.Test;
+  /** Handlers that query tables the in-memory db fake doesn't model can't run
+   *  to completion, so we only assert the guard denies them (deniedOnly). The
+   *  guard itself is identical middleware, proven allowed via sibling routes. */
+  deniedOnly?: boolean;
+};
+
+const ENDPOINTS: Record<Area, Endpoint[]> = {
+  registration: [
+    { name: "GET /registrations", send: () => app().get(`/api/reunions/${REUNION_ID}/registrations`) },
+    {
+      name: "POST /registrations",
+      send: () => app().post(`/api/reunions/${REUNION_ID}/registrations`).send({}),
+    },
+    {
+      name: "GET /registrations/export",
+      send: () => app().get(`/api/reunions/${REUNION_ID}/registrations/export`),
+    },
+    {
+      name: "PATCH /registrations/:id/payment",
+      send: () =>
+        app().patch(`/api/reunions/${REUNION_ID}/registrations/1/payment`).send({}),
+    },
+    {
+      name: "POST /registrations/:id/cancel",
+      send: () => app().post(`/api/reunions/${REUNION_ID}/registrations/1/cancel`).send({}),
+    },
+  ],
+  reports: [
+    { name: "GET /reports", send: () => app().get(`/api/reunions/${REUNION_ID}/reports`) },
+  ],
+  announcements: [
+    {
+      name: "POST /announcements",
+      send: () =>
+        app().post(`/api/reunions/${REUNION_ID}/announcements`).send({ title: "T", body: "B" }),
+    },
+    {
+      name: "PUT /announcements/:id",
+      send: () => app().put(`/api/reunions/${REUNION_ID}/announcements/1`).send({}),
+    },
+    {
+      name: "DELETE /announcements/:id",
+      send: () => app().delete(`/api/reunions/${REUNION_ID}/announcements/1`),
+    },
+  ],
+  schedule: [
+    {
+      name: "POST /schedule",
+      send: () => app().post(`/api/reunions/${REUNION_ID}/schedule`).send({ day: "Fri" }),
+    },
+    {
+      name: "PUT /schedule/:id",
+      send: () => app().put(`/api/reunions/${REUNION_ID}/schedule/1`).send({}),
+    },
+    {
+      name: "DELETE /schedule/:id",
+      send: () => app().delete(`/api/reunions/${REUNION_ID}/schedule/1`),
+    },
+  ],
+  branches: [
+    {
+      name: "POST /branches",
+      send: () => app().post(`/api/reunions/${REUNION_ID}/branches`).send({ name: "B" }),
+    },
+    {
+      name: "PUT /branches/:id",
+      send: () => app().put(`/api/reunions/${REUNION_ID}/branches/1`).send({}),
+    },
+    {
+      name: "DELETE /branches/:id",
+      send: () => app().delete(`/api/reunions/${REUNION_ID}/branches/1`),
+    },
+  ],
+  power_user: [
+    {
+      name: "PUT /reunions/:id (settings)",
+      send: () =>
+        app().put(`/api/reunions/${REUNION_ID}`).send({
+          name: "New",
+          startDate: "2026-08-01",
+          endDate: "2026-08-03",
+          paymentHandle: "@t",
+        }),
+    },
+    {
+      name: "POST /fees",
+      send: () => app().post(`/api/reunions/${REUNION_ID}/fees`).send({}),
+    },
+    {
+      name: "PUT /fees/:id",
+      send: () => app().put(`/api/reunions/${REUNION_ID}/fees/1`).send({}),
+    },
+    {
+      name: "DELETE /fees/:id",
+      send: () => app().delete(`/api/reunions/${REUNION_ID}/fees/1`),
+    },
+    {
+      name: "GET /sponsorship",
+      send: () => app().get(`/api/reunions/${REUNION_ID}/sponsorship`),
+      deniedOnly: true,
+    },
+    {
+      name: "POST /sponsorship/allocations",
+      send: () => app().post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`).send({}),
+      deniedOnly: true,
+    },
+  ],
+};
+
+describe.each(ALL_AREAS)('every "%s" endpoint enforces its role guard', (area) => {
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  for (const ep of ENDPOINTS[area]) {
+    it(`${ep.name}: 403 for a co-organizer without "${area}"`, async () => {
+      // Holds every OTHER role, so this is specifically the missing-role case.
+      seed(ALL_AREAS.filter((a) => a !== area));
+      authAs(CO);
+      const res = await ep.send();
+      expect(res.status).toBe(403);
+    });
+
+    if (!ep.deniedOnly) {
+      it(`${ep.name}: not blocked for a co-organizer with "${area}"`, async () => {
+        seed([area]);
+        authAs(CO);
+        const res = await ep.send();
+        expect(res.status).not.toBe(403);
+      });
+    }
+  }
+});
+
 describe("owner and platform admin bypass all role checks", () => {
   beforeEach(() => {
     state.auth = null;
