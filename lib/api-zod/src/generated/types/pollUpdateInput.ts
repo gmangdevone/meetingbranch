@@ -16,4 +16,5 @@ export interface PollUpdateInput {
   maxVotesPerMember?: number;
   isOpen?: boolean;
   resultsRevealed?: boolean;
+  liveResults?: boolean;
 }

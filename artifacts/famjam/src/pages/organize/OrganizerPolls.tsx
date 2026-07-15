@@ -9,7 +9,7 @@ import {
   useDeletePollOption,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Eye, EyeOff, Lock, LockOpen, Users, X } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Lock, LockOpen, Users, X, Radio } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -76,7 +76,7 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
     );
   };
 
-  const setFlag = (pollId: number, data: { isOpen?: boolean; resultsRevealed?: boolean }) => {
+  const setFlag = (pollId: number, data: { isOpen?: boolean; resultsRevealed?: boolean; liveResults?: boolean }) => {
     updatePoll.mutate({ reunionId, pollId, data }, { onSuccess: invalidate });
   };
 
@@ -131,6 +131,11 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                       <span className={`px-2 py-1 rounded-md font-bold uppercase tracking-wider ${poll.resultsRevealed ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                         {poll.resultsRevealed ? "Results visible to family" : "Results hidden"}
                       </span>
+                      {poll.liveResults && (
+                        <span className="px-2 py-1 rounded-md font-bold uppercase tracking-wider bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 flex items-center gap-1">
+                          <Radio className="w-3 h-3" /> Live
+                        </span>
+                      )}
                       <span className="text-muted-foreground flex items-center gap-1">
                         <Users className="w-3 h-3" /> {totalVoters} voted · up to {poll.maxVotesPerMember} pick{poll.maxVotesPerMember === 1 ? "" : "s"} each
                       </span>
@@ -144,6 +149,15 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                     <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => setFlag(poll.id, { resultsRevealed: !poll.resultsRevealed })}>
                       {poll.resultsRevealed ? <EyeOff className="w-3 h-3 mr-1" /> : <Eye className="w-3 h-3 mr-1" />}
                       {poll.resultsRevealed ? "Hide results" : "Reveal results"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`rounded-lg text-xs ${poll.liveResults ? "border-red-300 text-red-600 hover:text-red-700 dark:border-red-800 dark:text-red-400" : ""}`}
+                      onClick={() => setFlag(poll.id, { liveResults: !poll.liveResults })}
+                    >
+                      <Radio className="w-3 h-3 mr-1" />
+                      {poll.liveResults ? "Stop live results" : "Go live to family"}
                     </Button>
                     <Button variant="outline" size="sm" className="rounded-lg text-xs text-destructive border-transparent hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setDeleteTarget({ id: poll.id, question: poll.question })}>
                       <Trash2 className="w-3 h-3 mr-1" /> Delete

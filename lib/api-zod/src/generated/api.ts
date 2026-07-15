@@ -839,6 +839,7 @@ export const ListMemberPollsResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
@@ -887,6 +888,7 @@ export const CreatePollResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
@@ -912,6 +914,7 @@ export const ListManagePollsResponseItem = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
@@ -948,7 +951,8 @@ export const UpdatePollBody = zod.object({
   "question": zod.string().min(1).optional(),
   "maxVotesPerMember": zod.number().min(1).max(updatePollBodyMaxVotesPerMemberMax).optional(),
   "isOpen": zod.boolean().optional(),
-  "resultsRevealed": zod.boolean().optional()
+  "resultsRevealed": zod.boolean().optional(),
+  "liveResults": zod.boolean().optional()
 })
 
 export const UpdatePollResponse = zod.object({
@@ -958,6 +962,7 @@ export const UpdatePollResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
@@ -1034,6 +1039,7 @@ export const CastPollVotesResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),

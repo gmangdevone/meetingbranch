@@ -428,6 +428,7 @@ export interface PollUpdateInput {
   maxVotesPerMember?: number;
   isOpen?: boolean;
   resultsRevealed?: boolean;
+  liveResults?: boolean;
 }
 
 export interface PollOptionInput {
@@ -449,6 +450,7 @@ export interface Poll {
   maxVotesPerMember: number;
   isOpen: boolean;
   resultsRevealed: boolean;
+  liveResults: boolean;
   createdAt: string;
   options: PollOption[];
 }

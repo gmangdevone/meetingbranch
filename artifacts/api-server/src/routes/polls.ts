@@ -202,7 +202,7 @@ router.patch("/reunions/:reunionId/polls/:pollId", ...manage, async (req, res): 
     res.status(404).json({ error: "Poll not found" });
     return;
   }
-  const { question, maxVotesPerMember, isOpen, resultsRevealed } = body.data;
+  const { question, maxVotesPerMember, isOpen, resultsRevealed, liveResults } = body.data;
   await db
     .update(pollsTable)
     .set({
@@ -210,6 +210,7 @@ router.patch("/reunions/:reunionId/polls/:pollId", ...manage, async (req, res): 
       ...(maxVotesPerMember === undefined ? {} : { maxVotesPerMember }),
       ...(isOpen === undefined ? {} : { isOpen }),
       ...(resultsRevealed === undefined ? {} : { resultsRevealed }),
+      ...(liveResults === undefined ? {} : { liveResults }),
     })
     .where(eq(pollsTable.id, pollId));
   const full = await getPollWithOptions(reunionId, pollId);
@@ -276,11 +277,12 @@ router.delete(
 // ── Member view + voting ──────────────────────────────────────────────────────
 
 function memberResults(
-  poll: { resultsRevealed: boolean },
+  poll: { resultsRevealed: boolean; liveResults: boolean },
   options: { id: number; label: string }[],
   votes: { optionId: number }[],
 ) {
-  if (!poll.resultsRevealed) return undefined;
+  // Members see counts when results are revealed, or streamed live if enabled.
+  if (!poll.resultsRevealed && !poll.liveResults) return undefined;
   return options.map((o) => ({
     optionId: o.id,
     label: o.label,

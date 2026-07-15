@@ -28,3 +28,6 @@ CREATE TABLE IF NOT EXISTS poll_votes (
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT poll_votes_option_user_unique UNIQUE (option_id, user_id)
 );
+
+-- Added later: per-poll toggle streaming live counts to family members.
+ALTER TABLE "polls" ADD COLUMN IF NOT EXISTS "live_results" boolean NOT NULL DEFAULT false;

@@ -20,6 +20,8 @@ export const pollsTable = pgTable("polls", {
   isOpen: boolean("is_open").notNull().default(true),
   // When true, summarized results are shown to family members.
   resultsRevealed: boolean("results_revealed").notNull().default(false),
+  // When true, family members see current counts updating live while voting is open.
+  liveResults: boolean("live_results").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

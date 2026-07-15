@@ -2018,6 +2018,8 @@ components:
           type: boolean
         resultsRevealed:
           type: boolean
+        liveResults:
+          type: boolean
 
     PollOptionInput:
       type: object
@@ -2042,7 +2044,7 @@ components:
 
     Poll:
       type: object
-      required: [id, reunionId, question, maxVotesPerMember, isOpen, resultsRevealed, createdAt, options]
+      required: [id, reunionId, question, maxVotesPerMember, isOpen, resultsRevealed, liveResults, createdAt, options]
       properties:
         id:
           type: integer
@@ -2055,6 +2057,8 @@ components:
         isOpen:
           type: boolean
         resultsRevealed:
+          type: boolean
+        liveResults:
           type: boolean
         createdAt:
           type: string

@@ -27,6 +27,11 @@ export function ReunionPolls({ params }: { params: { code: string } }) {
     query: {
       enabled: !!reunionId && !!isSignedIn,
       queryKey: getListMemberPollsQueryKey(reunionId ?? 0),
+      // Stream live counts: refetch every 3s while any visible poll has live
+      // results enabled; pause when the tab is in the background.
+      refetchInterval: (query) =>
+        query.state.data?.polls?.some((p) => p.poll.liveResults) ? 3000 : false,
+      refetchIntervalInBackground: false,
     },
   });
 
@@ -170,6 +175,15 @@ export function ReunionPolls({ params }: { params: { code: string } }) {
                   )}
                   {!results && (
                     <div className="text-xs text-muted-foreground italic">Results will appear here once the organizers reveal them.</div>
+                  )}
+                  {results && poll.liveResults && !poll.resultsRevealed && (
+                    <div className="text-xs font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                      </span>
+                      Live results — updating as votes come in
+                    </div>
                   )}
                 </div>
               );
