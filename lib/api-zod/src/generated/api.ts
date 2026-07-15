@@ -1164,6 +1164,25 @@ export const CreateSponsorshipContributionResponse = zod.object({
 
 
 /**
+ * @summary List the calling user's own contributions to a reunion's sponsorship fund
+ */
+export const GetMyContributionsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const GetMyContributionsResponse = zod.object({
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number().nullish(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary List the organizers (owner + co-organizers) of a reunion
  */
 export const ListReunionOrganizersParams = zod.object({

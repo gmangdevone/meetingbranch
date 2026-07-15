@@ -931,6 +931,27 @@ paths:
         "404":
           description: Reunion not found
 
+  /reunions/{reunionId}/sponsorship/my-contributions:
+    get:
+      operationId: getMyContributions
+      tags: [reunions]
+      summary: List the calling user's own contributions to a reunion's sponsorship fund
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: The caller's contribution history for this reunion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyContributionsResponse"
+        "401":
+          description: Unauthenticated
+        "404":
+          description: Reunion not found
+
   /reunions/{reunionId}/organizers:
     get:
       operationId: listReunionOrganizers
@@ -1586,6 +1607,15 @@ components:
         targetRegistrationId:
           type: integer
           description: "kind=payment: registration (same reunion) that receives the paid status."
+
+    MyContributionsResponse:
+      type: object
+      required: [contributions]
+      properties:
+        contributions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SponsorshipContribution"
 
     SponsorshipContributionInput:
       type: object

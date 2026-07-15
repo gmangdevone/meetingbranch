@@ -36,6 +36,7 @@ export * from './managedRegistrationInput';
 export * from './managePoll';
 export * from './memberPoll';
 export * from './memberPollList';
+export * from './myContributionsResponse';
 export * from './paymentStatus';
 export * from './platformSettings';
 export * from './poll';

@@ -938,6 +938,121 @@ describe("member contribution to sponsorship fund", () => {
   });
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GET /reunions/:reunionId/sponsorship/my-contributions
+// Any signed-in member sees only their own rows; other contributors' rows are
+// invisible to them; fund totals are not included.
+// ──────────────────────────────────────────────────────────────────────────────
+describe("GET /sponsorship/my-contributions — member contribution history", () => {
+  const MEMBER = OUTSIDER;
+  const OTHER = CO;
+
+  function seedWithContributions() {
+    seed([]);
+    // MEMBER contributed twice; OTHER contributed once.
+    state.rows.sponsorship_contributions = [
+      {
+        id: 901,
+        reunionId: REUNION_ID,
+        contributorUserId: MEMBER,
+        contributorName: "Aunt X",
+        amount: 50,
+        source: "direct",
+        createdAt: new Date("2026-03-01").toISOString(),
+      },
+      {
+        id: 902,
+        reunionId: REUNION_ID,
+        contributorUserId: MEMBER,
+        contributorName: null,
+        amount: 75,
+        source: "direct",
+        createdAt: new Date("2026-03-02").toISOString(),
+      },
+      {
+        id: 903,
+        reunionId: REUNION_ID,
+        contributorUserId: OTHER,
+        contributorName: "Uncle Y",
+        amount: 200,
+        source: "direct",
+        createdAt: new Date("2026-03-03").toISOString(),
+      },
+    ];
+  }
+
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  it("returns only the calling user's own contributions (not other contributors')", async () => {
+    seedWithContributions();
+    authAs(MEMBER);
+    const res = await app().get(
+      `/api/reunions/${REUNION_ID}/sponsorship/my-contributions`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.contributions).toHaveLength(2);
+    for (const c of res.body.contributions) {
+      expect(c.contributorUserId ?? MEMBER).toBe(MEMBER);
+    }
+    const ids = res.body.contributions.map((c: { id: number }) => c.id).sort();
+    expect(ids).toEqual([901, 902]);
+  });
+
+  it("does not expose fund totals or other contributors in the response", async () => {
+    seedWithContributions();
+    authAs(MEMBER);
+    const res = await app().get(
+      `/api/reunions/${REUNION_ID}/sponsorship/my-contributions`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body).not.toHaveProperty("balance");
+    expect(res.body).not.toHaveProperty("totalContributed");
+    expect(res.body).not.toHaveProperty("totalAllocated");
+    expect(res.body).not.toHaveProperty("allocations");
+  });
+
+  it("returns an empty list when the user has not contributed yet", async () => {
+    seed([]);
+    authAs(MEMBER);
+    const res = await app().get(
+      `/api/reunions/${REUNION_ID}/sponsorship/my-contributions`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.contributions).toEqual([]);
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    seed([]);
+    state.auth = { userId: null, sessionClaims: null };
+    const res = await app().get(
+      `/api/reunions/${REUNION_ID}/sponsorship/my-contributions`,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 404 when the reunion does not exist", async () => {
+    seed([]);
+    authAs(MEMBER);
+    const res = await app().get(
+      `/api/reunions/99999/sponsorship/my-contributions`,
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("allows a co-organizer to see only their own contributions (not all contributions)", async () => {
+    seedWithContributions();
+    authAs(OTHER);
+    const res = await app().get(
+      `/api/reunions/${REUNION_ID}/sponsorship/my-contributions`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.contributions).toHaveLength(1);
+    expect(res.body.contributions[0].id).toBe(903);
+  });
+});
+
 describe("organizer management is owner-only (Power User cannot)", () => {
   beforeEach(() => {
     state.auth = null;

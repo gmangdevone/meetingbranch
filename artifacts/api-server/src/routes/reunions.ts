@@ -47,6 +47,7 @@ import {
   CancelRegistrationBody,
   CreateSponsorshipAllocationBody,
   CreateSponsorshipContributionBody,
+  GetMyContributionsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
@@ -1565,6 +1566,41 @@ router.post(
     }
 
     res.status(201).json(await buildSponsorshipFund(req.managedReunion!.id));
+  },
+);
+
+// GET /reunions/:reunionId/sponsorship/my-contributions — any signed-in member
+// can view their own contribution history. Fund totals stay private to
+// organizers/power users.
+router.get(
+  "/reunions/:reunionId/sponsorship/my-contributions",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const reunionId = Number(req.params.reunionId);
+    if (!Number.isInteger(reunionId)) {
+      res.status(400).json({ error: "Invalid reunion id" });
+      return;
+    }
+    const [reunion] = await db
+      .select({ id: reunionsTable.id })
+      .from(reunionsTable)
+      .where(eq(reunionsTable.id, reunionId));
+    if (!reunion) {
+      res.status(404).json({ error: "Reunion not found" });
+      return;
+    }
+    const userId = (req as any).userId as string;
+    const contributions = await db
+      .select()
+      .from(sponsorshipContributionsTable)
+      .where(
+        and(
+          eq(sponsorshipContributionsTable.reunionId, reunionId),
+          eq(sponsorshipContributionsTable.contributorUserId, userId),
+        ),
+      )
+      .orderBy(desc(sponsorshipContributionsTable.createdAt));
+    res.json(GetMyContributionsResponse.parse({ contributions }));
   },
 );
 

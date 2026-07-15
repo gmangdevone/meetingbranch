@@ -44,6 +44,7 @@ import type {
   ManagedRegistrationInput,
   MemberPoll,
   MemberPollList,
+  MyContributionsResponse,
   PlatformSettings,
   Poll,
   PollInput,
@@ -3076,6 +3077,83 @@ export const useCreateSponsorshipContribution = <TError = ErrorType<ErrorRespons
       > => {
       return useMutation(getCreateSponsorshipContributionMutationOptions(options));
     }
+
+export const getGetMyContributionsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/sponsorship/my-contributions`
+}
+
+/**
+ * @summary List the calling user's own contributions to a reunion's sponsorship fund
+ */
+export const getMyContributions = async (reunionId: number, options?: RequestInit): Promise<MyContributionsResponse> => {
+
+  return customFetch<MyContributionsResponse>(getGetMyContributionsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyContributionsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/sponsorship/my-contributions`
+    ] as const;
+    }
+
+
+export const getGetMyContributionsQueryOptions = <TData = Awaited<ReturnType<typeof getMyContributions>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyContributionsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyContributions>>> = ({ signal }) => getMyContributions(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyContributions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyContributionsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyContributions>>>
+export type GetMyContributionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the calling user's own contributions to a reunion's sponsorship fund
+ */
+
+export function useGetMyContributions<TData = Awaited<ReturnType<typeof getMyContributions>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyContributions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyContributionsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListReunionOrganizersUrl = (reunionId: number,) => {
 

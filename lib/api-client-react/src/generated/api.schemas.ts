@@ -111,13 +111,6 @@ export interface TransferRegistrationInput {
   targetRegistrationId?: number;
 }
 
-export interface SponsorshipContributionInput {
-  /** @minimum 1 */
-  amount: number;
-  /** @nullable */
-  contributorName?: string | null;
-}
-
 export type SponsorshipContributionSource = typeof SponsorshipContributionSource[keyof typeof SponsorshipContributionSource];
 
 
@@ -136,6 +129,17 @@ export interface SponsorshipContribution {
   amount: number;
   source: SponsorshipContributionSource;
   createdAt: string;
+}
+
+export interface MyContributionsResponse {
+  contributions: SponsorshipContribution[];
+}
+
+export interface SponsorshipContributionInput {
+  /** @minimum 1 */
+  amount: number;
+  /** @nullable */
+  contributorName?: string | null;
 }
 
 export type SponsorshipAllocationInputFundedFrom = typeof SponsorshipAllocationInputFundedFrom[keyof typeof SponsorshipAllocationInputFundedFrom];
