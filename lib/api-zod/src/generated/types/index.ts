@@ -10,6 +10,7 @@ export * from './accessStatus';
 export * from './addOrganizerInput';
 export * from './adminPlatformSettings';
 export * from './adminRegistration';
+export * from './adminRemoveUserInput';
 export * from './adminReport';
 export * from './adminSettingsUpdateInput';
 export * from './adminSetupResult';

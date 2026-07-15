@@ -24,6 +24,7 @@ import type {
   AddOrganizerInput,
   AdminPlatformSettings,
   AdminRegistration,
+  AdminRemoveUserInput,
   AdminReport,
   AdminSettingsUpdateInput,
   AdminSetupResult,
@@ -3663,5 +3664,77 @@ export const useAdminToggleAdminFlag = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getAdminToggleAdminFlagMutationOptions(options));
+    }
+
+export const getAdminRemoveUserUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/users/${id}/remove`
+}
+
+/**
+ * @summary Remove a user account (blocked while they own a reunion; cannot remove yourself)
+ */
+export const adminRemoveUser = async (id: string,
+    adminRemoveUserInput: AdminRemoveUserInput, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getAdminRemoveUserUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminRemoveUserInput)
+  }
+);}
+
+
+
+
+
+export const getAdminRemoveUserMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRemoveUser>>, TError,{id: string;data: BodyType<AdminRemoveUserInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminRemoveUser>>, TError,{id: string;data: BodyType<AdminRemoveUserInput>}, TContext> => {
+
+const mutationKey = ['adminRemoveUser'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminRemoveUser>>, {id: string;data: BodyType<AdminRemoveUserInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adminRemoveUser(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminRemoveUserMutationResult = NonNullable<Awaited<ReturnType<typeof adminRemoveUser>>>
+    export type AdminRemoveUserMutationBody = BodyType<AdminRemoveUserInput>
+    export type AdminRemoveUserMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Remove a user account (blocked while they own a reunion; cannot remove yourself)
+ */
+export const useAdminRemoveUser = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminRemoveUser>>, TError,{id: string;data: BodyType<AdminRemoveUserInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminRemoveUser>>,
+        TError,
+        {id: string;data: BodyType<AdminRemoveUserInput>},
+        TContext
+      > => {
+      return useMutation(getAdminRemoveUserMutationOptions(options));
     }
 

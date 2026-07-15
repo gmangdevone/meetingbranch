@@ -555,6 +555,11 @@ export interface AdminUser {
   createdAt: string;
 }
 
+export interface AdminRemoveUserInput {
+  /** When true, the user's registrations (with attendees and optional-fee selections) are deleted too. When false, registrations are kept on record but the user account is removed. */
+  deleteRegistrations: boolean;
+}
+
 export interface ToggleAdminInput {
   isAdmin: boolean;
 }

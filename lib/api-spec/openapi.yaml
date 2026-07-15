@@ -1174,6 +1174,45 @@ paths:
         "404":
           description: Not found
 
+  /admin/users/{id}/remove:
+    post:
+      operationId: adminRemoveUser
+      tags: [admin]
+      summary: Remove a user account (blocked while they own a reunion; cannot remove yourself)
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRemoveUserInput"
+      responses:
+        "204":
+          description: User removed
+        "400":
+          description: Validation error or attempted self-removal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+        "409":
+          description: User still owns a reunion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   securitySchemes:
     clerkAuth:
@@ -2016,6 +2055,17 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    AdminRemoveUserInput:
+      type: object
+      required: [deleteRegistrations]
+      properties:
+        deleteRegistrations:
+          type: boolean
+          description: >
+            When true, the user's registrations (with attendees and optional-fee
+            selections) are deleted too. When false, registrations are kept on
+            record but the user account is removed.
 
     ToggleAdminInput:
       type: object

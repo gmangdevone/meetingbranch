@@ -1,7 +1,8 @@
-import { useAdminGetSettings, getAdminGetSettingsQueryKey, useAdminUpdateSettings, useAdminListReunions, getAdminListReunionsQueryKey, useAdminListUsers, useAdminToggleAdminFlag, getAdminListUsersQueryKey, getGetSettingsQueryKey } from "@workspace/api-client-react";
+import { useAdminGetSettings, getAdminGetSettingsQueryKey, useAdminUpdateSettings, useAdminListReunions, getAdminListReunionsQueryKey, useAdminListUsers, useAdminToggleAdminFlag, useAdminRemoveUser, getAdminListUsersQueryKey, getGetSettingsQueryKey, type AdminUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Shield, Settings as SettingsIcon, Users, CalendarDays, Power, ArrowRight, ShieldCheck, Mail, X, Plus } from "lucide-react";
+import { Shield, Settings as SettingsIcon, Users, CalendarDays, Power, ArrowRight, ShieldCheck, Mail, X, Plus, Trash2 } from "lucide-react";
+import { useAuth } from "@clerk/react";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
 import { Input } from "../../components/ui/input";
@@ -25,9 +26,39 @@ export function AdminArea() {
   });
   const updateSettingsMutation = useAdminUpdateSettings();
   const toggleAdminMutation = useAdminToggleAdminFlag();
+  const removeUserMutation = useAdminRemoveUser();
   const { data: users } = useAdminListUsers({ query: { enabled: !!adminReunions, queryKey: getAdminListUsersQueryKey() } });
+  const { userId: myUserId } = useAuth();
 
   const [newTesterEmail, setNewTesterEmail] = useState("");
+  const [removeTarget, setRemoveTarget] = useState<AdminUser | null>(null);
+  const [deleteRegistrations, setDeleteRegistrations] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  const openRemoveDialog = (user: AdminUser) => {
+    setRemoveTarget(user);
+    setDeleteRegistrations(false);
+    setRemoveError(null);
+  };
+
+  const handleConfirmRemove = () => {
+    if (!removeTarget) return;
+    setRemoveError(null);
+    removeUserMutation.mutate({ id: removeTarget.id, data: { deleteRegistrations } }, {
+      onSuccess: () => {
+        setRemoveTarget(null);
+        queryClient.invalidateQueries({ queryKey: getAdminListUsersQueryKey() });
+      },
+      onError: async (err: unknown) => {
+        const anyErr = err as { data?: { error?: string }; message?: string };
+        setRemoveError(
+          anyErr?.data?.error ||
+          anyErr?.message ||
+          "Failed to remove the user. Please try again.",
+        );
+      },
+    });
+  };
 
   const handleClaimAdmin = async () => {
     setClaiming(true);
@@ -271,6 +302,7 @@ export function AdminArea() {
                       <th className="px-4 py-3">User</th>
                       <th className="px-4 py-3">Stats</th>
                       <th className="px-4 py-3">Admin</th>
+                      <th className="px-4 py-3 text-right">Remove</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -290,6 +322,19 @@ export function AdminArea() {
                             onCheckedChange={() => handleToggleAdmin(u.id, u.isAdmin)} 
                           />
                         </td>
+                        <td className="px-4 py-3 text-right">
+                          {u.id !== myUserId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => openRemoveDialog(u)}
+                              title="Remove user"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -299,6 +344,80 @@ export function AdminArea() {
           </section>
         </div>
       </div>
+
+      {removeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="bg-card border shadow-lg rounded-3xl w-full max-w-md p-6">
+            <h3 className="font-serif text-xl font-bold mb-2 flex items-center">
+              <Trash2 className="w-5 h-5 mr-2 text-destructive" /> Remove user?
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              This removes <span className="font-medium text-foreground">{removeTarget.email || `${removeTarget.firstName ?? ""} ${removeTarget.lastName ?? ""}`.trim() || removeTarget.id}</span> from
+              the platform: their account disappears from this list and any co-organizer roles they hold are revoked.
+              This does not block them from signing in again later — they would reappear as a fresh account.
+            </p>
+
+            {removeTarget.registrationCount > 0 && (
+              <div className="border rounded-xl p-3 mb-4">
+                <div className="text-sm font-medium mb-2">
+                  They have {removeTarget.registrationCount} registration{removeTarget.registrationCount === 1 ? "" : "s"} ({removeTarget.attendeeCount} attendee{removeTarget.attendeeCount === 1 ? "" : "s"}). What should happen to them?
+                </div>
+                <label className="flex items-start gap-2 text-sm py-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="registrations-choice"
+                    className="mt-1"
+                    checked={!deleteRegistrations}
+                    onChange={() => setDeleteRegistrations(false)}
+                  />
+                  <span>
+                    <span className="font-medium">Keep registrations</span>
+                    <span className="block text-xs text-muted-foreground">They stay on record for headcounts and reports, with no linked account.</span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-2 text-sm py-1 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="registrations-choice"
+                    className="mt-1"
+                    checked={deleteRegistrations}
+                    onChange={() => setDeleteRegistrations(true)}
+                  />
+                  <span>
+                    <span className="font-medium text-destructive">Delete registrations too</span>
+                    <span className="block text-xs text-muted-foreground">Removes their registrations with all attendees and fee selections. Cannot be undone.</span>
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {removeError && (
+              <div className="bg-destructive/10 text-destructive text-sm rounded-xl px-3 py-2 mb-4">
+                {removeError}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => setRemoveTarget(null)}
+                disabled={removeUserMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="rounded-xl"
+                onClick={handleConfirmRemove}
+                disabled={removeUserMutation.isPending}
+              >
+                {removeUserMutation.isPending ? "Removing..." : "Remove user"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

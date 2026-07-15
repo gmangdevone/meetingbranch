@@ -3,17 +3,23 @@ import { eq, desc, asc, sql } from "drizzle-orm";
 import {
   db,
   registrationsTable,
+  attendeesTable,
   usersTable,
   reunionsTable,
   reunionBranchesTable,
   reunionFeesTable,
+  reunionOrganizersTable,
+  sponsorshipContributionsTable,
   appSettingsTable,
 } from "@workspace/db";
+import { inArray } from "drizzle-orm";
 import {
   AdminUpdateSettingsBody,
   AdminListReunionsResponse,
   AdminToggleAdminFlagParams,
   AdminToggleAdminFlagBody,
+  AdminRemoveUserParams,
+  AdminRemoveUserBody,
 } from "@workspace/api-zod";
 import { attachAuth, requireAdmin } from "../middlewares/requireAdmin";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -239,6 +245,86 @@ router.patch("/admin/users/:id/admin", async (req, res): Promise<void> => {
     registrationCount: stats?.registrationCount ?? 0,
     attendeeCount: stats?.attendeeCount ?? 0,
   });
+});
+
+// Remove a user account. Blocked while they still own a reunion (transfer or
+// delete it first) and for self-removal (the platform can never lose its last
+// admin by accident). Optionally deletes their registrations; otherwise the
+// registrations stay on record with no linked account.
+router.post("/admin/users/:id/remove", async (req, res): Promise<void> => {
+  const params = AdminRemoveUserParams.safeParse(req.params);
+  const body = AdminRemoveUserBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+  const targetId = params.data.id;
+  const { deleteRegistrations } = body.data;
+
+  if (targetId === req.userId) {
+    res.status(400).json({
+      error: "You cannot remove your own account. Ask another administrator.",
+    });
+    return;
+  }
+
+  const [target] = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(eq(usersTable.id, targetId));
+  if (!target) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const [owned] = await db
+    .select({ id: reunionsTable.id })
+    .from(reunionsTable)
+    .where(eq(reunionsTable.organizerId, targetId))
+    .limit(1);
+  if (owned) {
+    res.status(409).json({
+      error:
+        "This user still owns a reunion. Transfer ownership or delete the reunion before removing the account.",
+    });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    // Revoke co-organizer roles (FK to users would otherwise block deletion).
+    await tx
+      .delete(reunionOrganizersTable)
+      .where(eq(reunionOrganizersTable.userId, targetId));
+
+    if (deleteRegistrations) {
+      const regs = await tx
+        .select({ id: registrationsTable.id })
+        .from(registrationsTable)
+        .where(eq(registrationsTable.userId, targetId));
+      const regIds = regs.map((r) => r.id);
+      if (regIds.length > 0) {
+        // attendees has no FK cascade — delete explicitly. registration_fees
+        // and sponsorship rows cascade / set-null via their FKs.
+        await tx
+          .delete(attendeesTable)
+          .where(inArray(attendeesTable.registrationId, regIds));
+        await tx
+          .delete(registrationsTable)
+          .where(inArray(registrationsTable.id, regIds));
+      }
+    }
+
+    // Sponsorship contributions keep their amount and display name for fund
+    // accounting, but drop the reference to the removed account.
+    await tx
+      .update(sponsorshipContributionsTable)
+      .set({ contributorUserId: null })
+      .where(eq(sponsorshipContributionsTable.contributorUserId, targetId));
+
+    await tx.delete(usersTable).where(eq(usersTable.id, targetId));
+  });
+
+  res.status(204).end();
 });
 
 export default router;

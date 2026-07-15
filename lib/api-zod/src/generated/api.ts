@@ -1307,3 +1307,17 @@ export const AdminToggleAdminFlagResponse = zod.object({
 })
 
 
+/**
+ * @summary Remove a user account (blocked while they own a reunion; cannot remove yourself)
+ */
+export const AdminRemoveUserParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdminRemoveUserBody = zod.object({
+  "deleteRegistrations": zod.boolean().describe('When true, the user\'s registrations (with attendees and optional-fee selections) are deleted too. When false, registrations are kept on record but the user account is removed.\n')
+})
+
+export const AdminRemoveUserResponse = zod.void()
+
+
