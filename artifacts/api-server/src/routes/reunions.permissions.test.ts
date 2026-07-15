@@ -826,6 +826,26 @@ describe("sponsorship fund works end-to-end for authorized organizers", () => {
     expect(state.rows.sponsorship_allocations).toHaveLength(0);
   });
 
+  it("rejects a zero-dollar allocation", async () => {
+    seedSponsorship(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`)
+      .send({ registrationId: REG_ID, amount: 0, fundedFrom: "fund" });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_allocations).toHaveLength(0);
+  });
+
+  it("rejects a negative allocation amount", async () => {
+    seedSponsorship(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`)
+      .send({ registrationId: REG_ID, amount: -10, fundedFrom: "fund" });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_allocations).toHaveLength(0);
+  });
+
   it("allows a direct sponsorship without touching the fund balance", async () => {
     seedSponsorship(["power_user"]);
     authAs(CO);
