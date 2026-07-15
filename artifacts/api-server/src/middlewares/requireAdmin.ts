@@ -2,6 +2,7 @@ import { getAuth } from "@clerk/express";
 import type { Request, Response, NextFunction } from "express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { upsertUserFromClerk } from "../lib/users";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -37,7 +38,20 @@ export async function attachAuth(
         .select({ isAdmin: usersTable.isAdmin })
         .from(usersTable)
         .where(eq(usersTable.id, userId));
-      req.isAdmin = user?.isAdmin ?? false;
+      if (!user) {
+        // First request from a brand-new sign-in: provision the local user row
+        // (with email/name from Clerk) so the account is visible in the admin
+        // Users list even before it registers or creates a reunion.
+        try {
+          await upsertUserFromClerk(userId, req.log);
+        } catch (err) {
+          // Provisioning is best-effort — never block the request on it.
+          req.log?.warn({ err, userId }, "First-sign-in user provisioning failed");
+        }
+        req.isAdmin = false;
+      } else {
+        req.isAdmin = user.isAdmin ?? false;
+      }
     }
   } else {
     req.isAdmin = false;
