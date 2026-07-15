@@ -38,6 +38,7 @@ vi.mock("@workspace/api-client-react", () => {
     useTransferRegistration: noopMutation,
     useCreateManagedRegistration: noopMutation,
     useSetAttendeeCheckIn: noopMutation,
+    getGetSponsorshipFundQueryKey: (id: number) => ["sponsorshipFund", id],
     useExportReunionRegistrations: () => ({ refetch: vi.fn(), isFetching: false }),
     getGetReunionSummaryQueryKey: (id: number) => ["reunionSummary", id],
     // Reports
