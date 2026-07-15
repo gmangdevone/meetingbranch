@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart } from "lucide-react";
+import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
@@ -155,6 +155,17 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-muted-foreground mb-4">Read updates and important news from the organizers.</p>
               <span className="mt-auto font-bold text-amber-700 dark:text-amber-500 flex items-center">
                 Read News <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </Link>
+
+            <Link href={`/r/${reunion.code}/polls`} className="bg-primary/5 border border-primary/20 rounded-3xl p-8 flex flex-col items-start hover:bg-primary/10 transition-colors group md:col-span-2">
+              <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <Vote className="w-6 h-6" />
+              </div>
+              <h3 className="font-serif text-2xl font-bold mb-2">Family Vote</h3>
+              <p className="text-muted-foreground mb-4">Weigh in on family decisions — polls open to checked-in members.</p>
+              <span className="mt-auto font-bold text-primary flex items-center">
+                See Polls <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </Link>
           </div>

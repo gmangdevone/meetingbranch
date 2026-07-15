@@ -651,7 +651,8 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -705,7 +706,8 @@ export const CreateManagedRegistrationResponse = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -752,7 +754,8 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -789,9 +792,264 @@ export const CancelRegistrationResponse = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
+})
+
+
+/**
+ * @summary Check an attendee in or out at the event
+ */
+export const SetAttendeeCheckInParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "attendeeId": zod.coerce.number()
+})
+
+export const SetAttendeeCheckInBody = zod.object({
+  "checkedIn": zod.boolean()
+})
+
+export const SetAttendeeCheckInResponse = zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+})
+
+
+/**
+ * @summary List polls visible to a signed-in family member, with their votes and eligibility
+ */
+export const ListMemberPollsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListMemberPollsResponse = zod.object({
+  "eligible": zod.boolean().describe('Whether the viewer is checked in and allowed to vote in this reunion.'),
+  "polls": zod.array(zod.object({
+  "poll": zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "question": zod.string(),
+  "maxVotesPerMember": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "createdAt": zod.string(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+}),
+  "myOptionIds": zod.array(zod.number()),
+  "canVote": zod.boolean().describe('True when the poll is open and the viewer is checked in.'),
+  "results": zod.array(zod.object({
+  "optionId": zod.number(),
+  "label": zod.string(),
+  "voteCount": zod.number(),
+  "voters": zod.array(zod.string()).optional().describe('Voter display names. Only present in the organizer view.')
+})).optional().describe('Summarized results; only present when the organizer has revealed them.')
+}))
+})
+
+
+/**
+ * @summary Create a poll with its initial options
+ */
+export const CreatePollParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+export const createPollBodyMaxVotesPerMemberMax = 20;
+
+
+export const createPollBodyOptionsMin = 2;
+
+
+
+export const CreatePollBody = zod.object({
+  "question": zod.string().min(1),
+  "maxVotesPerMember": zod.number().min(1).max(createPollBodyMaxVotesPerMemberMax),
+  "options": zod.array(zod.string().min(1)).min(createPollBodyOptionsMin)
+})
+
+export const CreatePollResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "question": zod.string(),
+  "maxVotesPerMember": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "createdAt": zod.string(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+})
+
+
+/**
+ * @summary List all polls with vote counts and voter names (organizer view)
+ */
+export const ListManagePollsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListManagePollsResponseItem = zod.object({
+  "poll": zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "question": zod.string(),
+  "maxVotesPerMember": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "createdAt": zod.string(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+}),
+  "totalVoters": zod.number().describe('Number of distinct members who have voted on this poll.'),
+  "results": zod.array(zod.object({
+  "optionId": zod.number(),
+  "label": zod.string(),
+  "voteCount": zod.number(),
+  "voters": zod.array(zod.string()).optional().describe('Voter display names. Only present in the organizer view.')
+}))
+})
+export const ListManagePollsResponse = zod.array(ListManagePollsResponseItem)
+
+
+/**
+ * @summary Update a poll (question, vote limit, open/close, reveal results)
+ */
+export const UpdatePollParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "pollId": zod.coerce.number()
+})
+
+
+export const updatePollBodyMaxVotesPerMemberMax = 20;
+
+
+
+export const UpdatePollBody = zod.object({
+  "question": zod.string().min(1).optional(),
+  "maxVotesPerMember": zod.number().min(1).max(updatePollBodyMaxVotesPerMemberMax).optional(),
+  "isOpen": zod.boolean().optional(),
+  "resultsRevealed": zod.boolean().optional()
+})
+
+export const UpdatePollResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "question": zod.string(),
+  "maxVotesPerMember": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "createdAt": zod.string(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+})
+
+
+/**
+ * @summary Delete a poll and all of its votes
+ */
+export const DeletePollParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "pollId": zod.coerce.number()
+})
+
+export const DeletePollResponse = zod.void()
+
+
+/**
+ * @summary Add an option to an existing poll
+ */
+export const AddPollOptionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "pollId": zod.coerce.number()
+})
+
+
+
+
+export const AddPollOptionBody = zod.object({
+  "label": zod.string().min(1)
+})
+
+export const AddPollOptionResponse = zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+})
+
+
+/**
+ * @summary Remove a poll option (and any votes for it)
+ */
+export const DeletePollOptionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "pollId": zod.coerce.number(),
+  "optionId": zod.coerce.number()
+})
+
+export const DeletePollOptionResponse = zod.void()
+
+
+/**
+ * @summary Cast or change the signed-in member's votes on an open poll
+ */
+export const CastPollVotesParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "pollId": zod.coerce.number()
+})
+
+export const CastPollVotesBody = zod.object({
+  "optionIds": zod.array(zod.number()).describe('The full set of options the member is voting for (replaces previous votes).')
+})
+
+export const CastPollVotesResponse = zod.object({
+  "poll": zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "question": zod.string(),
+  "maxVotesPerMember": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "createdAt": zod.string(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+}),
+  "myOptionIds": zod.array(zod.number()),
+  "canVote": zod.boolean().describe('True when the poll is open and the viewer is checked in.'),
+  "results": zod.array(zod.object({
+  "optionId": zod.number(),
+  "label": zod.string(),
+  "voteCount": zod.number(),
+  "voters": zod.array(zod.string()).optional().describe('Voter display names. Only present in the organizer view.')
+})).optional().describe('Summarized results; only present when the organizer has revealed them.')
 })
 
 
@@ -1069,7 +1327,8 @@ export const CreateRegistrationResponse = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -1096,7 +1355,8 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -1128,7 +1388,8 @@ export const GetRegistrationResponse = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -1169,7 +1430,8 @@ export const TransferRegistrationResponse = zod.object({
   "name": zod.string(),
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
-  "age": zod.number().nullish()
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })

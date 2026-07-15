@@ -60,6 +60,9 @@ export const attendeesTable = pgTable("attendees", {
   dietaryRestrictions: text("dietary_restrictions"),
   // Age at registration; nullable (legacy rows + optional). Used for age-tiered fees.
   age: integer("age"),
+  // Set when an organizer checks the attendee in at the event (food/seating counts,
+  // and gates voting eligibility for the household's account). Null = not checked in.
+  checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
 });
 
 /**

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetReunion, getGetReunionQueryKey } from "@workspace/api-client-react";
 import type { ReunionRole } from "@workspace/api-client-react";
-import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart } from "lucide-react";
+import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart, Vote } from "lucide-react";
 import { Skeleton } from "../../components/ui/skeleton";
 import { FULL_ACCESS_VIEWER, viewerHasRole, viewerHasAnyRole } from "../../lib/roles";
 
@@ -57,6 +57,7 @@ export function OrganizerLayout({
     { href: `${baseUrl}/announcements`, label: "Announcements", icon: Bell, role: "announcements" },
     { href: `${baseUrl}/schedule`, label: "Schedule", icon: CalendarDays, role: "schedule" },
     { href: `${baseUrl}/branches`, label: "Branches", icon: List, role: "branches" },
+    { href: `${baseUrl}/polls`, label: "Polls", icon: Vote },
     { href: `${baseUrl}/sponsorship`, label: "Sponsorship", icon: Heart, role: "power_user" },
     { href: `${baseUrl}/settings`, label: "Settings", icon: Settings, role: "power_user" },
   ];

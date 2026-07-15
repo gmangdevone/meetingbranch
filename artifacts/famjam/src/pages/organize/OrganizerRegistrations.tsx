@@ -11,13 +11,14 @@ import {
   getGetSponsorshipFundQueryKey,
   useGetReunion,
   getGetReunionQueryKey,
-  useCreateManagedRegistration
+  useCreateManagedRegistration,
+  useSetAttendeeCheckIn
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -69,6 +70,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const cancelMutation = useCancelRegistration();
   const transferMutation = useTransferRegistration();
   const createManagedRegistration = useCreateManagedRegistration();
+  const setCheckIn = useSetAttendeeCheckIn();
 
   const { refetch: fetchExport, isFetching: isExporting } = useExportReunionRegistrations(reunionId, { query: { enabled: false, queryKey: ['export', reunionId] } });
 
@@ -82,6 +84,23 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const [targetRegistrationId, setTargetRegistrationId] = useState("");
 
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const [checkInRegId, setCheckInRegId] = useState<number | null>(null);
+  // Live row for the check-in dialog so checkbox states update as data refetches.
+  const checkInReg = useMemo(
+    () => registrations?.find((r) => r.id === checkInRegId) ?? null,
+    [registrations, checkInRegId],
+  );
+
+  const handleToggleCheckIn = (attendeeId: number, checkedIn: boolean) => {
+    setCheckIn.mutate(
+      { reunionId, attendeeId, data: { checkedIn } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
+        },
+      },
+    );
+  };
 
   const form = useForm<z.infer<typeof managedRegistrationSchema>>({
     resolver: zodResolver(managedRegistrationSchema),
@@ -281,15 +300,16 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <th className="px-4 py-3">Branch</th>
                   <th className="px-4 py-3">Attendees</th>
                   <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Check-in</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3 rounded-tr-xl">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {isLoading ? (
-                  <tr><td colSpan={6} className="text-center py-8">Loading...</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8">Loading...</td></tr>
                 ) : filteredRegistrations.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
                 ) : (
                   filteredRegistrations.map((reg) => {
                     const isCancelled = reg.status === 'cancelled';
@@ -320,6 +340,23 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-muted-foreground text-xs">
                         {format(new Date(reg.createdAt), 'MMM d, yyyy')}
+                      </td>
+                      <td className="px-4 py-4">
+                        {!isCancelled && (() => {
+                          const checkedIn = reg.attendees.filter((a) => a.checkedInAt).length;
+                          const total = reg.attendees.length;
+                          const allIn = total > 0 && checkedIn === total;
+                          return (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={`h-8 px-2 text-xs rounded-lg ${allIn ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/40' : checkedIn > 0 ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 hover:text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-900/40' : ''}`}
+                              onClick={() => setCheckInRegId(reg.id)}
+                            >
+                              <ClipboardCheck className="w-3 h-3 mr-1" /> {checkedIn}/{total}
+                            </Button>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-4">
                         {isCancelled ? (
@@ -611,6 +648,64 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-in Dialog */}
+      <Dialog open={!!checkInReg} onOpenChange={(open) => !open && setCheckInRegId(null)}>
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl flex items-center gap-2">
+              <ClipboardCheck className="w-6 h-6 text-primary" /> Check In Attendees
+            </DialogTitle>
+            <DialogDescription>
+              {checkInReg?.userName || checkInReg?.userEmail} — mark who has arrived. Checked-in households can vote in family polls.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 mt-2">
+            {checkInReg?.attendees.map((a) => {
+              const isIn = !!a.checkedInAt;
+              return (
+                <label
+                  key={a.id}
+                  className={`flex items-center justify-between gap-3 border rounded-xl p-3 cursor-pointer transition-colors ${isIn ? 'border-green-300 bg-green-50 dark:bg-green-900/10 dark:border-green-900/40' : 'hover:bg-muted/30'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={isIn}
+                      disabled={setCheckIn.isPending}
+                      onCheckedChange={(checked) => handleToggleCheckIn(a.id, checked === true)}
+                    />
+                    <div>
+                      <div className="font-medium">{a.name}</div>
+                      {isIn && a.checkedInAt && (
+                        <div className="text-xs text-muted-foreground">
+                          Checked in {format(new Date(a.checkedInAt), 'MMM d, h:mm a')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <div className="flex justify-between items-center gap-3 pt-4 border-t mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs"
+              disabled={setCheckIn.isPending || !checkInReg}
+              onClick={() => {
+                const anyNotIn = checkInReg?.attendees.some((a) => !a.checkedInAt);
+                checkInReg?.attendees
+                  .filter((a) => (anyNotIn ? !a.checkedInAt : true))
+                  .forEach((a) => handleToggleCheckIn(a.id, !!anyNotIn));
+              }}
+            >
+              {checkInReg?.attendees.some((a) => !a.checkedInAt) ? 'Check in everyone' : 'Undo all check-ins'}
+            </Button>
+            <Button className="rounded-xl" onClick={() => setCheckInRegId(null)}>Done</Button>
+          </div>
         </DialogContent>
       </Dialog>
 

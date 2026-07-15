@@ -392,6 +392,100 @@ export interface Attendee {
   dietaryRestrictions?: string | null;
   /** @nullable */
   age?: number | null;
+  /**
+     * When the attendee was checked in at the event; null if not checked in.
+     * @nullable
+     */
+  checkedInAt?: string | null;
+}
+
+export interface CheckInInput {
+  checkedIn: boolean;
+}
+
+export interface PollInput {
+  /** @minLength 1 */
+  question: string;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  maxVotesPerMember: number;
+  /**
+     * @minItems 2
+     * @items.minLength 1
+     */
+  options: string[];
+}
+
+export interface PollUpdateInput {
+  /** @minLength 1 */
+  question?: string;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  maxVotesPerMember?: number;
+  isOpen?: boolean;
+  resultsRevealed?: boolean;
+}
+
+export interface PollOptionInput {
+  /** @minLength 1 */
+  label: string;
+}
+
+export interface PollOption {
+  id: number;
+  pollId: number;
+  label: string;
+  position: number;
+}
+
+export interface Poll {
+  id: number;
+  reunionId: number;
+  question: string;
+  maxVotesPerMember: number;
+  isOpen: boolean;
+  resultsRevealed: boolean;
+  createdAt: string;
+  options: PollOption[];
+}
+
+export interface PollOptionResult {
+  optionId: number;
+  label: string;
+  voteCount: number;
+  /** Voter display names. Only present in the organizer view. */
+  voters?: string[];
+}
+
+export interface MemberPoll {
+  poll: Poll;
+  myOptionIds: number[];
+  /** True when the poll is open and the viewer is checked in. */
+  canVote: boolean;
+  /** Summarized results; only present when the organizer has revealed them. */
+  results?: PollOptionResult[];
+}
+
+export interface MemberPollList {
+  /** Whether the viewer is checked in and allowed to vote in this reunion. */
+  eligible: boolean;
+  polls: MemberPoll[];
+}
+
+export interface ManagePoll {
+  poll: Poll;
+  /** Number of distinct members who have voted on this poll. */
+  totalVoters: number;
+  results: PollOptionResult[];
+}
+
+export interface CastVotesInput {
+  /** The full set of options the member is voting for (replaces previous votes). */
+  optionIds: number[];
 }
 
 export interface ManagedRegistrationInput {

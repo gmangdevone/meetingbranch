@@ -32,13 +32,24 @@ import type {
   AdminUser,
   Announcement,
   AnnouncementInput,
+  Attendee,
   BranchInput,
   CancelRegistrationInput,
+  CastVotesInput,
+  CheckInInput,
   ErrorResponse,
   FeeInput,
   HealthStatus,
+  ManagePoll,
   ManagedRegistrationInput,
+  MemberPoll,
+  MemberPollList,
   PlatformSettings,
+  Poll,
+  PollInput,
+  PollOption,
+  PollOptionInput,
+  PollUpdateInput,
   Registration,
   RegistrationInput,
   RegistrationSummary,
@@ -2173,6 +2184,676 @@ export const useCancelRegistration = <TError = ErrorType<ErrorResponse | void>,
         TContext
       > => {
       return useMutation(getCancelRegistrationMutationOptions(options));
+    }
+
+export const getSetAttendeeCheckInUrl = (reunionId: number,
+    attendeeId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/attendees/${attendeeId}/check-in`
+}
+
+/**
+ * @summary Check an attendee in or out at the event
+ */
+export const setAttendeeCheckIn = async (reunionId: number,
+    attendeeId: number,
+    checkInInput: CheckInInput, options?: RequestInit): Promise<Attendee> => {
+
+  return customFetch<Attendee>(getSetAttendeeCheckInUrl(reunionId,attendeeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(checkInInput)
+  }
+);}
+
+
+
+
+
+export const getSetAttendeeCheckInMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAttendeeCheckIn>>, TError,{reunionId: number;attendeeId: number;data: BodyType<CheckInInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAttendeeCheckIn>>, TError,{reunionId: number;attendeeId: number;data: BodyType<CheckInInput>}, TContext> => {
+
+const mutationKey = ['setAttendeeCheckIn'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAttendeeCheckIn>>, {reunionId: number;attendeeId: number;data: BodyType<CheckInInput>}> = (props) => {
+          const {reunionId,attendeeId,data} = props ?? {};
+
+          return  setAttendeeCheckIn(reunionId,attendeeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAttendeeCheckInMutationResult = NonNullable<Awaited<ReturnType<typeof setAttendeeCheckIn>>>
+    export type SetAttendeeCheckInMutationBody = BodyType<CheckInInput>
+    export type SetAttendeeCheckInMutationError = ErrorType<void>
+
+    /**
+ * @summary Check an attendee in or out at the event
+ */
+export const useSetAttendeeCheckIn = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAttendeeCheckIn>>, TError,{reunionId: number;attendeeId: number;data: BodyType<CheckInInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAttendeeCheckIn>>,
+        TError,
+        {reunionId: number;attendeeId: number;data: BodyType<CheckInInput>},
+        TContext
+      > => {
+      return useMutation(getSetAttendeeCheckInMutationOptions(options));
+    }
+
+export const getListMemberPollsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls`
+}
+
+/**
+ * @summary List polls visible to a signed-in family member, with their votes and eligibility
+ */
+export const listMemberPolls = async (reunionId: number, options?: RequestInit): Promise<MemberPollList> => {
+
+  return customFetch<MemberPollList>(getListMemberPollsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMemberPollsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/polls`
+    ] as const;
+    }
+
+
+export const getListMemberPollsQueryOptions = <TData = Awaited<ReturnType<typeof listMemberPolls>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMemberPolls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMemberPollsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMemberPolls>>> = ({ signal }) => listMemberPolls(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMemberPolls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMemberPollsQueryResult = NonNullable<Awaited<ReturnType<typeof listMemberPolls>>>
+export type ListMemberPollsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List polls visible to a signed-in family member, with their votes and eligibility
+ */
+
+export function useListMemberPolls<TData = Awaited<ReturnType<typeof listMemberPolls>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMemberPolls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMemberPollsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePollUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls`
+}
+
+/**
+ * @summary Create a poll with its initial options
+ */
+export const createPoll = async (reunionId: number,
+    pollInput: PollInput, options?: RequestInit): Promise<Poll> => {
+
+  return customFetch<Poll>(getCreatePollUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pollInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePollMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPoll>>, TError,{reunionId: number;data: BodyType<PollInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPoll>>, TError,{reunionId: number;data: BodyType<PollInput>}, TContext> => {
+
+const mutationKey = ['createPoll'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPoll>>, {reunionId: number;data: BodyType<PollInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createPoll(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePollMutationResult = NonNullable<Awaited<ReturnType<typeof createPoll>>>
+    export type CreatePollMutationBody = BodyType<PollInput>
+    export type CreatePollMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a poll with its initial options
+ */
+export const useCreatePoll = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPoll>>, TError,{reunionId: number;data: BodyType<PollInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPoll>>,
+        TError,
+        {reunionId: number;data: BodyType<PollInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePollMutationOptions(options));
+    }
+
+export const getListManagePollsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/manage`
+}
+
+/**
+ * @summary List all polls with vote counts and voter names (organizer view)
+ */
+export const listManagePolls = async (reunionId: number, options?: RequestInit): Promise<ManagePoll[]> => {
+
+  return customFetch<ManagePoll[]>(getListManagePollsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListManagePollsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/polls/manage`
+    ] as const;
+    }
+
+
+export const getListManagePollsQueryOptions = <TData = Awaited<ReturnType<typeof listManagePolls>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManagePolls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListManagePollsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listManagePolls>>> = ({ signal }) => listManagePolls(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listManagePolls>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListManagePollsQueryResult = NonNullable<Awaited<ReturnType<typeof listManagePolls>>>
+export type ListManagePollsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List all polls with vote counts and voter names (organizer view)
+ */
+
+export function useListManagePolls<TData = Awaited<ReturnType<typeof listManagePolls>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManagePolls>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListManagePollsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePollUrl = (reunionId: number,
+    pollId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/${pollId}`
+}
+
+/**
+ * @summary Update a poll (question, vote limit, open/close, reveal results)
+ */
+export const updatePoll = async (reunionId: number,
+    pollId: number,
+    pollUpdateInput: PollUpdateInput, options?: RequestInit): Promise<Poll> => {
+
+  return customFetch<Poll>(getUpdatePollUrl(reunionId,pollId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pollUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePollMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePoll>>, TError,{reunionId: number;pollId: number;data: BodyType<PollUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePoll>>, TError,{reunionId: number;pollId: number;data: BodyType<PollUpdateInput>}, TContext> => {
+
+const mutationKey = ['updatePoll'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePoll>>, {reunionId: number;pollId: number;data: BodyType<PollUpdateInput>}> = (props) => {
+          const {reunionId,pollId,data} = props ?? {};
+
+          return  updatePoll(reunionId,pollId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePollMutationResult = NonNullable<Awaited<ReturnType<typeof updatePoll>>>
+    export type UpdatePollMutationBody = BodyType<PollUpdateInput>
+    export type UpdatePollMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a poll (question, vote limit, open/close, reveal results)
+ */
+export const useUpdatePoll = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePoll>>, TError,{reunionId: number;pollId: number;data: BodyType<PollUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePoll>>,
+        TError,
+        {reunionId: number;pollId: number;data: BodyType<PollUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePollMutationOptions(options));
+    }
+
+export const getDeletePollUrl = (reunionId: number,
+    pollId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/${pollId}`
+}
+
+/**
+ * @summary Delete a poll and all of its votes
+ */
+export const deletePoll = async (reunionId: number,
+    pollId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeletePollUrl(reunionId,pollId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePollMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePoll>>, TError,{reunionId: number;pollId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePoll>>, TError,{reunionId: number;pollId: number}, TContext> => {
+
+const mutationKey = ['deletePoll'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePoll>>, {reunionId: number;pollId: number}> = (props) => {
+          const {reunionId,pollId} = props ?? {};
+
+          return  deletePoll(reunionId,pollId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePollMutationResult = NonNullable<Awaited<ReturnType<typeof deletePoll>>>
+
+    export type DeletePollMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a poll and all of its votes
+ */
+export const useDeletePoll = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePoll>>, TError,{reunionId: number;pollId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePoll>>,
+        TError,
+        {reunionId: number;pollId: number},
+        TContext
+      > => {
+      return useMutation(getDeletePollMutationOptions(options));
+    }
+
+export const getAddPollOptionUrl = (reunionId: number,
+    pollId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/${pollId}/options`
+}
+
+/**
+ * @summary Add an option to an existing poll
+ */
+export const addPollOption = async (reunionId: number,
+    pollId: number,
+    pollOptionInput: PollOptionInput, options?: RequestInit): Promise<PollOption> => {
+
+  return customFetch<PollOption>(getAddPollOptionUrl(reunionId,pollId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pollOptionInput)
+  }
+);}
+
+
+
+
+
+export const getAddPollOptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addPollOption>>, TError,{reunionId: number;pollId: number;data: BodyType<PollOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addPollOption>>, TError,{reunionId: number;pollId: number;data: BodyType<PollOptionInput>}, TContext> => {
+
+const mutationKey = ['addPollOption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addPollOption>>, {reunionId: number;pollId: number;data: BodyType<PollOptionInput>}> = (props) => {
+          const {reunionId,pollId,data} = props ?? {};
+
+          return  addPollOption(reunionId,pollId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddPollOptionMutationResult = NonNullable<Awaited<ReturnType<typeof addPollOption>>>
+    export type AddPollOptionMutationBody = BodyType<PollOptionInput>
+    export type AddPollOptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Add an option to an existing poll
+ */
+export const useAddPollOption = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addPollOption>>, TError,{reunionId: number;pollId: number;data: BodyType<PollOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addPollOption>>,
+        TError,
+        {reunionId: number;pollId: number;data: BodyType<PollOptionInput>},
+        TContext
+      > => {
+      return useMutation(getAddPollOptionMutationOptions(options));
+    }
+
+export const getDeletePollOptionUrl = (reunionId: number,
+    pollId: number,
+    optionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/${pollId}/options/${optionId}`
+}
+
+/**
+ * @summary Remove a poll option (and any votes for it)
+ */
+export const deletePollOption = async (reunionId: number,
+    pollId: number,
+    optionId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeletePollOptionUrl(reunionId,pollId,optionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePollOptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePollOption>>, TError,{reunionId: number;pollId: number;optionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePollOption>>, TError,{reunionId: number;pollId: number;optionId: number}, TContext> => {
+
+const mutationKey = ['deletePollOption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePollOption>>, {reunionId: number;pollId: number;optionId: number}> = (props) => {
+          const {reunionId,pollId,optionId} = props ?? {};
+
+          return  deletePollOption(reunionId,pollId,optionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePollOptionMutationResult = NonNullable<Awaited<ReturnType<typeof deletePollOption>>>
+
+    export type DeletePollOptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a poll option (and any votes for it)
+ */
+export const useDeletePollOption = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePollOption>>, TError,{reunionId: number;pollId: number;optionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePollOption>>,
+        TError,
+        {reunionId: number;pollId: number;optionId: number},
+        TContext
+      > => {
+      return useMutation(getDeletePollOptionMutationOptions(options));
+    }
+
+export const getCastPollVotesUrl = (reunionId: number,
+    pollId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/${pollId}/votes`
+}
+
+/**
+ * @summary Cast or change the signed-in member's votes on an open poll
+ */
+export const castPollVotes = async (reunionId: number,
+    pollId: number,
+    castVotesInput: CastVotesInput, options?: RequestInit): Promise<MemberPoll> => {
+
+  return customFetch<MemberPoll>(getCastPollVotesUrl(reunionId,pollId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(castVotesInput)
+  }
+);}
+
+
+
+
+
+export const getCastPollVotesMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof castPollVotes>>, TError,{reunionId: number;pollId: number;data: BodyType<CastVotesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof castPollVotes>>, TError,{reunionId: number;pollId: number;data: BodyType<CastVotesInput>}, TContext> => {
+
+const mutationKey = ['castPollVotes'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof castPollVotes>>, {reunionId: number;pollId: number;data: BodyType<CastVotesInput>}> = (props) => {
+          const {reunionId,pollId,data} = props ?? {};
+
+          return  castPollVotes(reunionId,pollId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CastPollVotesMutationResult = NonNullable<Awaited<ReturnType<typeof castPollVotes>>>
+    export type CastPollVotesMutationBody = BodyType<CastVotesInput>
+    export type CastPollVotesMutationError = ErrorType<void>
+
+    /**
+ * @summary Cast or change the signed-in member's votes on an open poll
+ */
+export const useCastPollVotes = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof castPollVotes>>, TError,{reunionId: number;pollId: number;data: BodyType<CastVotesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof castPollVotes>>,
+        TError,
+        {reunionId: number;pollId: number;data: BodyType<CastVotesInput>},
+        TContext
+      > => {
+      return useMutation(getCastPollVotesMutationOptions(options));
     }
 
 export const getGetSponsorshipFundUrl = (reunionId: number,) => {

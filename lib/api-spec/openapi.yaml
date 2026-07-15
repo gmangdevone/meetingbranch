@@ -640,6 +640,216 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/attendees/{attendeeId}/check-in:
+    patch:
+      operationId: setAttendeeCheckIn
+      tags: [manage]
+      summary: Check an attendee in or out at the event
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/AttendeeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckInInput"
+      responses:
+        "200":
+          description: Updated attendee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Attendee"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/polls:
+    get:
+      operationId: listMemberPolls
+      tags: [reunions]
+      summary: List polls visible to a signed-in family member, with their votes and eligibility
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Member view of the reunion's polls
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPollList"
+    post:
+      operationId: createPoll
+      tags: [manage]
+      summary: Create a poll with its initial options
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollInput"
+      responses:
+        "201":
+          description: Created poll
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/polls/manage:
+    get:
+      operationId: listManagePolls
+      tags: [manage]
+      summary: List all polls with vote counts and voter names (organizer view)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Organizer view of all polls
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ManagePoll"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/polls/{pollId}:
+    patch:
+      operationId: updatePoll
+      tags: [manage]
+      summary: Update a poll (question, vote limit, open/close, reveal results)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/PollId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollUpdateInput"
+      responses:
+        "200":
+          description: Updated poll
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Poll"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deletePoll
+      tags: [manage]
+      summary: Delete a poll and all of its votes
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/PollId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/polls/{pollId}/options:
+    post:
+      operationId: addPollOption
+      tags: [manage]
+      summary: Add an option to an existing poll
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/PollId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollOptionInput"
+      responses:
+        "201":
+          description: Created option
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PollOption"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/polls/{pollId}/options/{optionId}:
+    delete:
+      operationId: deletePollOption
+      tags: [manage]
+      summary: Remove a poll option (and any votes for it)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/PollId"
+        - $ref: "#/components/parameters/PollOptionId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/polls/{pollId}/votes:
+    put:
+      operationId: castPollVotes
+      tags: [reunions]
+      summary: Cast or change the signed-in member's votes on an open poll
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/PollId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CastVotesInput"
+      responses:
+        "200":
+          description: Updated member view of the poll
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPoll"
+        "400":
+          description: Invalid votes (too many selections, unknown option, or poll closed)
+        "403":
+          description: Not eligible to vote (not checked in)
+        "404":
+          description: Not found
+
   /reunions/{reunionId}/sponsorship:
     get:
       operationId: getSponsorshipFund
@@ -1256,6 +1466,24 @@ components:
       required: true
       schema:
         type: integer
+    AttendeeId:
+      name: attendeeId
+      in: path
+      required: true
+      schema:
+        type: integer
+    PollId:
+      name: pollId
+      in: path
+      required: true
+      schema:
+        type: integer
+    PollOptionId:
+      name: optionId
+      in: path
+      required: true
+      schema:
+        type: integer
 
   schemas:
     HealthStatus:
@@ -1746,6 +1974,164 @@ components:
           type: ["string", "null"]
         age:
           type: ["integer", "null"]
+        checkedInAt:
+          type: ["string", "null"]
+          description: When the attendee was checked in at the event; null if not checked in.
+
+    CheckInInput:
+      type: object
+      required: [checkedIn]
+      properties:
+        checkedIn:
+          type: boolean
+
+    PollInput:
+      type: object
+      required: [question, maxVotesPerMember, options]
+      properties:
+        question:
+          type: string
+          minLength: 1
+        maxVotesPerMember:
+          type: integer
+          minimum: 1
+          maximum: 20
+        options:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 2
+
+    PollUpdateInput:
+      type: object
+      properties:
+        question:
+          type: string
+          minLength: 1
+        maxVotesPerMember:
+          type: integer
+          minimum: 1
+          maximum: 20
+        isOpen:
+          type: boolean
+        resultsRevealed:
+          type: boolean
+
+    PollOptionInput:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+
+    PollOption:
+      type: object
+      required: [id, pollId, label, position]
+      properties:
+        id:
+          type: integer
+        pollId:
+          type: integer
+        label:
+          type: string
+        position:
+          type: integer
+
+    Poll:
+      type: object
+      required: [id, reunionId, question, maxVotesPerMember, isOpen, resultsRevealed, createdAt, options]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        question:
+          type: string
+        maxVotesPerMember:
+          type: integer
+        isOpen:
+          type: boolean
+        resultsRevealed:
+          type: boolean
+        createdAt:
+          type: string
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/PollOption"
+
+    PollOptionResult:
+      type: object
+      required: [optionId, label, voteCount]
+      properties:
+        optionId:
+          type: integer
+        label:
+          type: string
+        voteCount:
+          type: integer
+        voters:
+          type: array
+          items:
+            type: string
+          description: Voter display names. Only present in the organizer view.
+
+    MemberPoll:
+      type: object
+      required: [poll, myOptionIds, canVote]
+      properties:
+        poll:
+          $ref: "#/components/schemas/Poll"
+        myOptionIds:
+          type: array
+          items:
+            type: integer
+        canVote:
+          type: boolean
+          description: True when the poll is open and the viewer is checked in.
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PollOptionResult"
+          description: Summarized results; only present when the organizer has revealed them.
+
+    MemberPollList:
+      type: object
+      required: [eligible, polls]
+      properties:
+        eligible:
+          type: boolean
+          description: Whether the viewer is checked in and allowed to vote in this reunion.
+        polls:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberPoll"
+
+    ManagePoll:
+      type: object
+      required: [poll, totalVoters, results]
+      properties:
+        poll:
+          $ref: "#/components/schemas/Poll"
+        totalVoters:
+          type: integer
+          description: Number of distinct members who have voted on this poll.
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PollOptionResult"
+
+    CastVotesInput:
+      type: object
+      required: [optionIds]
+      properties:
+        optionIds:
+          type: array
+          items:
+            type: integer
+          description: The full set of options the member is voting for (replaces previous votes).
 
     ManagedRegistrationInput:
       type: object
