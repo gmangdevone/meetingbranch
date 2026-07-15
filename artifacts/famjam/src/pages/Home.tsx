@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@clerk/react";
+import { useGetSettings } from "@workspace/api-client-react";
 import { CalendarDays, Users, Plus, Key, ArrowRight } from "lucide-react";
 import famjamHero from "@assets/generated_images/famjam-hero.jpg";
 
 export function Home() {
   const { isSignedIn } = useAuth();
+  const { data: settings, isLoading: loadingSettings } = useGetSettings();
+  const canCreateReunion = settings?.reunionCreationEnabled ?? false;
 
   return (
     <div className="flex flex-col gap-12 pb-12">
@@ -28,7 +31,8 @@ export function Home() {
       </section>
 
       {/* Action Links */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-30 -mt-20 mx-4 md:mx-12">
+      <section className={`grid grid-cols-1 ${canCreateReunion ? "md:grid-cols-2" : "max-w-2xl w-full mx-auto"} gap-6 relative z-30 -mt-20 px-4 md:px-12 transition-opacity ${loadingSettings ? "opacity-0" : "opacity-100"}`}>
+        {canCreateReunion && (
         <Link href="/create" className="bg-card border shadow-xl rounded-3xl p-8 flex flex-col items-center text-center group hover:border-primary/50 transition-all hover:-translate-y-1">
           <div className="bg-primary/10 text-primary w-16 h-16 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all">
             <Plus className="w-8 h-8" />
@@ -41,6 +45,7 @@ export function Home() {
             Get Started <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </span>
         </Link>
+        )}
 
         <Link href="/join" className="bg-card border shadow-xl rounded-3xl p-8 flex flex-col items-center text-center group hover:border-secondary/50 transition-all hover:-translate-y-1">
           <div className="bg-secondary/10 text-secondary w-16 h-16 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-secondary group-hover:text-secondary-foreground transition-all">

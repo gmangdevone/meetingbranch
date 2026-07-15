@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Home, User, LogOut, Shield, Plus, Key, ChevronDown } from "lucide-react";
 import { useAuth, useUser, useClerk } from "@clerk/react";
-import { useAdminListReunions, getAdminListReunionsQueryKey } from "@workspace/api-client-react";
+import { useAdminListReunions, getAdminListReunionsQueryKey, useGetSettings } from "@workspace/api-client-react";
 import { useEffect, useRef, useState } from "react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -43,6 +43,9 @@ export function Nav() {
   
   const isAdmin = !isError && !!adminReunions;
 
+  const { data: settings } = useGetSettings();
+  const canCreateReunion = settings?.reunionCreationEnabled ?? false;
+
   const isActive = (href: string) => location === href;
 
   return (
@@ -66,9 +69,11 @@ export function Nav() {
               <Link href="/dashboard" className={`font-medium transition-colors hover:text-primary ${isActive('/dashboard') ? "text-primary" : "text-foreground/70"}`}>
                 Dashboard
               </Link>
-              <Link href="/create" className={`font-medium transition-colors hover:text-primary ${isActive('/create') ? "text-primary" : "text-foreground/70"}`}>
-                Create
-              </Link>
+              {canCreateReunion && (
+                <Link href="/create" className={`font-medium transition-colors hover:text-primary ${isActive('/create') ? "text-primary" : "text-foreground/70"}`}>
+                  Create
+                </Link>
+              )}
             </>
           )}
 
@@ -129,7 +134,7 @@ export function Nav() {
             { href: "/join", label: "Join", icon: Key },
             ...(isSignedIn ? [
               { href: "/dashboard", label: "Dash", icon: Home },
-              { href: "/create", label: "Create", icon: Plus }
+              ...(canCreateReunion ? [{ href: "/create", label: "Create", icon: Plus }] : [])
             ] : [
               { href: "/sign-in", label: "Sign In", icon: LogOut } // Using LogOut icon as placeholder for sign in
             ])

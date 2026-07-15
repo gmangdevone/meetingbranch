@@ -1,4 +1,8 @@
+import { useGetSettings } from "@workspace/api-client-react";
+
 export function FAQ() {
+  const { data: settings } = useGetSettings();
+  const canCreateReunion = settings?.reunionCreationEnabled ?? false;
   return (
     <div className="max-w-3xl mx-auto py-12">
       <div className="text-center mb-12">
@@ -28,8 +32,17 @@ export function FAQ() {
         <div className="bg-card border shadow-sm rounded-3xl p-8">
           <h3 className="font-bold text-xl mb-3 text-primary">Can I organize my own family reunion?</h3>
           <p className="text-muted-foreground leading-relaxed">
-            Yes! FamJam is built for any family to use. Just create an account, click "Create a Reunion", 
-            and fill in your dates and details. You'll instantly get a shareable code to send to your relatives.
+            {settings === undefined ? null : canCreateReunion ? (
+              <>
+                Yes! FamJam is built for any family to use. Just create an account, click "Create a Reunion",
+                and fill in your dates and details. You'll instantly get a shareable code to send to your relatives.
+              </>
+            ) : (
+              <>
+                Creating new reunions is currently by invitation. If you'd like to organize your own family
+                reunion on FamJam, reach out to your platform administrator to get set up.
+              </>
+            )}
           </p>
         </div>
 

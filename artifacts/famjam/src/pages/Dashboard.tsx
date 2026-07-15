@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { useListMyReunions, useListMyRegistrations, useTransferRegistration, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
+import { useListMyReunions, useListMyRegistrations, useTransferRegistration, getListMyRegistrationsQueryKey, useGetSettings } from "@workspace/api-client-react";
 import { CalendarDays, Settings, Users, ArrowRight, Plus, Key, Send } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "../components/ui/skeleton";
@@ -16,6 +16,8 @@ export function Dashboard() {
   const queryClient = useQueryClient();
   const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
   const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
+  const { data: settings, isLoading: loadingSettings } = useGetSettings();
+  const canCreateReunion = settings?.reunionCreationEnabled ?? false;
 
   const [transferReg, setTransferReg] = useState<any>(null);
   const [transferMode, setTransferMode] = useState<"registration" | "payment">("registration");
@@ -50,7 +52,8 @@ export function Dashboard() {
         <p className="text-lg text-muted-foreground">Manage your upcoming family gatherings.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 ${canCreateReunion ? "md:grid-cols-2" : ""} gap-6 transition-opacity ${loadingSettings ? "opacity-0" : "opacity-100"}`}>
+        {canCreateReunion && (
         <Link href="/create" className="bg-primary/10 border border-primary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-primary/15 transition-all group">
           <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
             <Plus className="w-6 h-6" />
@@ -60,6 +63,7 @@ export function Dashboard() {
             <p className="text-muted-foreground text-sm">Start organizing a new family event.</p>
           </div>
         </Link>
+        )}
         <Link href="/join" className="bg-secondary/10 border border-secondary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-secondary/15 transition-all group">
           <div className="bg-secondary text-secondary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
             <Key className="w-6 h-6" />
@@ -148,7 +152,9 @@ export function Dashboard() {
             </div>
             <h3 className="font-bold text-lg mb-2">No organized reunions</h3>
             <p className="text-muted-foreground mb-6 max-w-sm mx-auto">You aren't organizing any reunions yet.</p>
-            <Link href="/create" className="text-primary font-bold hover:underline">Create a Reunion</Link>
+            {canCreateReunion && (
+              <Link href="/create" className="text-primary font-bold hover:underline">Create a Reunion</Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
