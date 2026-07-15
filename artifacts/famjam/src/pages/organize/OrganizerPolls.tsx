@@ -21,7 +21,14 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   const queryClient = useQueryClient();
 
   const { data: polls, isLoading } = useListManagePolls(reunionId, {
-    query: { enabled: !isNaN(reunionId), queryKey: getListManagePollsQueryKey(reunionId) },
+    query: {
+      enabled: !isNaN(reunionId),
+      queryKey: getListManagePollsQueryKey(reunionId),
+      // Live results: refetch every 3s while the page is mounted, but pause
+      // when the tab is in the background to avoid wasted requests.
+      refetchInterval: 3000,
+      refetchIntervalInBackground: false,
+    },
   });
 
   const createPoll = useCreatePoll();

@@ -34,6 +34,10 @@ vi.mock("@workspace/api-client-react", () => {
     useListReunionRegistrations: emptyList,
     getListReunionRegistrationsQueryKey: (id: number) => ["registrations", id],
     useUpdateRegistrationPayment: noopMutation,
+    useCancelRegistration: noopMutation,
+    useTransferRegistration: noopMutation,
+    useCreateManagedRegistration: noopMutation,
+    useSetAttendeeCheckIn: noopMutation,
     useExportReunionRegistrations: () => ({ refetch: vi.fn(), isFetching: false }),
     getGetReunionSummaryQueryKey: (id: number) => ["reunionSummary", id],
     // Reports
