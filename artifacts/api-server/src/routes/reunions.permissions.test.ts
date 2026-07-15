@@ -68,12 +68,40 @@ vi.mock("@workspace/db", () => {
       "amountUnderThreshold",
       "sortOrder",
     ],
-    registrations: ["id", "reunionId", "userId", "branchName", "attendeeCount", "paymentStatus"],
+    registrations: [
+      "id",
+      "reunionId",
+      "userId",
+      "branchName",
+      "attendeeCount",
+      "paymentStatus",
+      "status",
+    ],
     registration_fees: ["id", "registrationId", "feeId"],
     attendees: ["id", "registrationId"],
     announcements: ["id", "reunionId", "title", "body", "pinned", "createdAt"],
     schedule_items: ["id", "reunionId", "day", "sortOrder"],
     app_settings: ["id"],
+    sponsorship_contributions: [
+      "id",
+      "reunionId",
+      "contributorUserId",
+      "contributorName",
+      "amount",
+      "source",
+      "createdAt",
+    ],
+    sponsorship_allocations: [
+      "id",
+      "reunionId",
+      "registrationId",
+      "amount",
+      "fundedFrom",
+      "sponsorName",
+      "note",
+      "createdBy",
+      "createdAt",
+    ],
   } as const;
 
   function makeToken(name: string, fields: readonly string[]) {
@@ -152,7 +180,7 @@ vi.mock("@workspace/db", () => {
   class SelectBuilder {
     _proj?: Record<string, unknown>;
     _table = "";
-    _joins: Array<{ table: string; on: unknown }> = [];
+    _joins: Array<{ table: string; on: unknown; left?: boolean }> = [];
     _where: unknown;
     _orderBy: any[] = [];
     _limit?: number;
@@ -171,6 +199,10 @@ vi.mock("@workspace/db", () => {
     }
     innerJoin(token: any, on: unknown) {
       this._joins.push({ table: token.__table, on });
+      return this;
+    }
+    leftJoin(token: any, on: unknown) {
+      this._joins.push({ table: token.__table, on, left: true });
       return this;
     }
     where(expr: unknown) {
@@ -193,10 +225,16 @@ vi.mock("@workspace/db", () => {
       for (const j of this._joins) {
         const next: Array<Record<string, Record<string, unknown>>> = [];
         for (const s of scoped) {
+          let matched = false;
           for (const r2 of state.rows[j.table] ?? []) {
             const merged = { ...s, [j.table]: r2 };
-            if (evalExpr(j.on, merged)) next.push(merged);
+            if (evalExpr(j.on, merged)) {
+              next.push(merged);
+              matched = true;
+            }
           }
+          // LEFT JOIN keeps the row with the joined table absent (nulls).
+          if (!matched && j.left) next.push({ ...s });
         }
         scoped = next;
       }
@@ -212,9 +250,28 @@ vi.mock("@workspace/db", () => {
         });
       }
       if (this._limit !== undefined) scoped = scoped.slice(0, this._limit);
-      // Aggregate selects always return a single summary row.
+      // Aggregate selects always return a single summary row, computed over
+      // the (filtered) scoped rows: count(*) and sum(col) are supported.
       if (this._isAggregate) {
-        return Promise.resolve([project(this._proj, {}, this._table)]);
+        const out: Record<string, unknown> = {};
+        for (const [alias, token] of Object.entries(this._proj!)) {
+          if (token && typeof token === "object" && (token as any).kind === "sql") {
+            const text = (token as any).strings.join("");
+            if (text.includes("sum(")) {
+              const col = (token as any).values[0];
+              out[alias] = scoped.reduce(
+                (s, row) => s + (Number(resolve(col, row)) || 0),
+                0,
+              );
+            } else {
+              out[alias] = scoped.length;
+            }
+          } else if (typeof token === "string" && token.includes(".")) {
+            const [t, f] = token.split(".");
+            out[alias] = scoped[0]?.[t]?.[f];
+          }
+        }
+        return Promise.resolve([out]);
       }
       return Promise.resolve(scoped.map((s) => project(this._proj, s, this._table)));
     }
@@ -324,6 +381,8 @@ vi.mock("@workspace/db", () => {
     update: (token: any) => new UpdateBuilder(token),
     delete: (token: any) => new DeleteBuilder(token),
     transaction: async (fn: (tx: any) => Promise<unknown>) => fn(db),
+    // Raw SQL (e.g. SELECT ... FOR UPDATE row locks) is a no-op in the fake.
+    execute: async () => [],
   };
 
   const tokens: Record<string, unknown> = { db };
@@ -339,6 +398,8 @@ vi.mock("@workspace/db", () => {
     announcementsTable: "announcements",
     scheduleItemsTable: "schedule_items",
     appSettingsTable: "app_settings",
+    sponsorshipContributionsTable: "sponsorship_contributions",
+    sponsorshipAllocationsTable: "sponsorship_allocations",
   };
   for (const [exportName, tableName] of Object.entries(tableExports)) {
     tokens[exportName] = makeToken(tableName, tables[tableName as keyof typeof tables]);
@@ -409,6 +470,8 @@ function seed(roles: string[]) {
     announcements: [],
     schedule_items: [],
     app_settings: [],
+    sponsorship_contributions: [],
+    sponsorship_allocations: [],
   };
   state.seq = 1000;
 }
@@ -506,10 +569,6 @@ describe("co-organizer area role gating", () => {
 type Endpoint = {
   name: string;
   send: () => request.Test;
-  /** Handlers that query tables the in-memory db fake doesn't model can't run
-   *  to completion, so we only assert the guard denies them (deniedOnly). The
-   *  guard itself is identical middleware, proven allowed via sibling routes. */
-  deniedOnly?: boolean;
 };
 
 const ENDPOINTS: Record<Area, Endpoint[]> = {
@@ -605,12 +664,10 @@ const ENDPOINTS: Record<Area, Endpoint[]> = {
     {
       name: "GET /sponsorship",
       send: () => app().get(`/api/reunions/${REUNION_ID}/sponsorship`),
-      deniedOnly: true,
     },
     {
       name: "POST /sponsorship/allocations",
       send: () => app().post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`).send({}),
-      deniedOnly: true,
     },
   ],
 };
@@ -629,14 +686,12 @@ describe.each(ALL_AREAS)('every "%s" endpoint enforces its role guard', (area) =
       expect(res.status).toBe(403);
     });
 
-    if (!ep.deniedOnly) {
-      it(`${ep.name}: not blocked for a co-organizer with "${area}"`, async () => {
-        seed([area]);
-        authAs(CO);
-        const res = await ep.send();
-        expect(res.status).not.toBe(403);
-      });
-    }
+    it(`${ep.name}: not blocked for a co-organizer with "${area}"`, async () => {
+      seed([area]);
+      authAs(CO);
+      const res = await ep.send();
+      expect(res.status).not.toBe(403);
+    });
   }
 });
 
@@ -671,6 +726,123 @@ describe("owner and platform admin bypass all role checks", () => {
     expect(res.body.viewer.roles.sort()).toEqual(
       ["announcements", "branches", "power_user", "registration", "reports", "schedule"],
     );
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Sponsorship fund: authorized viewers can actually read the fund and apply
+// allocations end-to-end (not just pass the guard).
+// ──────────────────────────────────────────────────────────────────────────────
+describe("sponsorship fund works end-to-end for authorized organizers", () => {
+  const REG_ID = 501;
+
+  /** Seed a fund contribution of 100 and one active registration by OUTSIDER. */
+  function seedSponsorship(roles: string[]) {
+    seed(roles);
+    state.rows.registrations = [
+      {
+        id: REG_ID,
+        reunionId: REUNION_ID,
+        userId: OUTSIDER,
+        branchName: "Branch A",
+        attendeeCount: 3,
+        paymentStatus: "unpaid",
+        status: "active",
+      },
+    ];
+    state.rows.sponsorship_contributions = [
+      {
+        id: 900,
+        reunionId: REUNION_ID,
+        contributorUserId: OUTSIDER,
+        contributorName: "Aunt X",
+        amount: 100,
+        source: "direct",
+        createdAt: new Date("2026-02-01").toISOString(),
+      },
+    ];
+  }
+
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  const viewers: Array<[string, string, string[]]> = [
+    ["a power_user co-organizer", CO, ["power_user"]],
+    ["the owner", OWNER, []],
+    ["a platform admin", ADMIN, []],
+  ];
+
+  for (const [label, userId, roles] of viewers) {
+    it(`lets ${label} read the fund balance and ledger`, async () => {
+      seedSponsorship(roles);
+      authAs(userId);
+      const res = await app().get(`/api/reunions/${REUNION_ID}/sponsorship`);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        balance: 100,
+        totalContributed: 100,
+        totalAllocated: 0,
+      });
+      expect(res.body.contributions).toHaveLength(1);
+      expect(res.body.allocations).toEqual([]);
+    });
+
+    it(`lets ${label} create a fund allocation`, async () => {
+      seedSponsorship(roles);
+      authAs(userId);
+      const res = await app()
+        .post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`)
+        .send({ registrationId: REG_ID, amount: 40, fundedFrom: "fund" });
+      expect(res.status).toBe(201);
+      expect(res.body).toMatchObject({
+        balance: 60,
+        totalContributed: 100,
+        totalAllocated: 40,
+      });
+      expect(res.body.allocations).toHaveLength(1);
+      expect(res.body.allocations[0]).toMatchObject({
+        registrationId: REG_ID,
+        amount: 40,
+        fundedFrom: "fund",
+        branchName: "Branch A",
+        registrantEmail: "out@example.com",
+      });
+      expect(state.rows.sponsorship_allocations).toHaveLength(1);
+      expect(state.rows.sponsorship_allocations[0]).toMatchObject({
+        reunionId: REUNION_ID,
+        createdBy: userId,
+      });
+    });
+  }
+
+  it("rejects a fund allocation that exceeds the balance", async () => {
+    seedSponsorship(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`)
+      .send({ registrationId: REG_ID, amount: 150, fundedFrom: "fund" });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_allocations).toHaveLength(0);
+  });
+
+  it("allows a direct sponsorship without touching the fund balance", async () => {
+    seedSponsorship(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/allocations`)
+      .send({
+        registrationId: REG_ID,
+        amount: 500,
+        fundedFrom: "direct",
+        sponsorName: "Uncle Y",
+      });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ balance: 100, totalAllocated: 0 });
+    expect(res.body.allocations[0]).toMatchObject({
+      fundedFrom: "direct",
+      sponsorName: "Uncle Y",
+    });
   });
 });
 
