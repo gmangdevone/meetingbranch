@@ -1491,7 +1491,12 @@ router.post(
   async (req, res): Promise<void> => {
     const body = CreateSponsorshipAllocationBody.safeParse(req.body);
     if (!body.success) {
-      res.status(400).json({ error: "Invalid input" });
+      // Surface a human-readable message for the most common field error.
+      const amountIssue = body.error.issues.find((i) => i.path[0] === "amount");
+      const message = amountIssue
+        ? "Amount must be at least $1"
+        : "Invalid input";
+      res.status(400).json({ error: message });
       return;
     }
     const { registrationId, amount, fundedFrom, sponsorName, note } = body.data;

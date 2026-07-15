@@ -36,10 +36,16 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
   const [fundedFrom, setFundedFrom] = useState<"fund"|"direct">("fund");
   const [sponsorName, setSponsorName] = useState("");
   const [note, setNote] = useState("");
+  const [amountError, setAmountError] = useState<string | null>(null);
 
   const handleAllocate = () => {
     const numAmount = parseInt(amount, 10);
-    if (!regId || isNaN(numAmount) || numAmount <= 0) return;
+    if (!regId) return;
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setAmountError("Amount must be at least $1");
+      return;
+    }
+    setAmountError(null);
     
     allocateMutation.mutate({
       reunionId,
@@ -60,6 +66,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
         setSponsorName("");
         setNote("");
         setFundedFrom("fund");
+        setAmountError(null);
       }
     });
   };
@@ -107,7 +114,16 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                 
                 <div className="space-y-2">
                   <Label>Amount ($)</Label>
-                  <Input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl" />
+                  <Input
+                    type="number"
+                    min="1"
+                    value={amount}
+                    onChange={(e) => { setAmount(e.target.value); setAmountError(null); }}
+                    className={`rounded-xl${amountError ? " border-destructive focus-visible:ring-destructive" : ""}`}
+                  />
+                  {amountError && (
+                    <p className="text-sm text-destructive font-medium">{amountError}</p>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -144,7 +160,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                 
                 {allocateMutation.isError && (
                   <div className="p-3 bg-destructive/10 text-destructive text-sm font-medium rounded-xl">
-                    {(allocateMutation.error as any)?.error || "Failed to allocate funds."}
+                    {(allocateMutation.error as any)?.data?.error || "Failed to allocate funds."}
                   </div>
                 )}
               </div>
