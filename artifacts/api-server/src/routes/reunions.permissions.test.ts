@@ -846,6 +846,89 @@ describe("sponsorship fund works end-to-end for authorized organizers", () => {
   });
 });
 
+// ──────────────────────────────────────────────────────────────────────────────
+// POST /reunions/:reunionId/sponsorship/contributions
+// Any signed-in member (even a non-organizer) can chip in to the fund.
+// ──────────────────────────────────────────────────────────────────────────────
+describe("member contribution to sponsorship fund", () => {
+  beforeEach(() => {
+    state.auth = null;
+    seed([]);
+  });
+
+  it("returns 201 with the created row when a signed-in non-organizer chips in", async () => {
+    authAs(OUTSIDER);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ amount: 50, contributorName: "Aunt X" });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      reunionId: REUNION_ID,
+      contributorUserId: OUTSIDER,
+      contributorName: "Aunt X",
+      amount: 50,
+      source: "direct",
+    });
+    // Row must be persisted in the in-memory DB.
+    expect(state.rows.sponsorship_contributions).toHaveLength(1);
+    expect(state.rows.sponsorship_contributions[0]).toMatchObject({
+      reunionId: REUNION_ID,
+      contributorUserId: OUTSIDER,
+      amount: 50,
+      source: "direct",
+    });
+  });
+
+  it("accepts a contribution without a contributorName (anonymous chip-in)", async () => {
+    authAs(OUTSIDER);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ amount: 25 });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      amount: 25,
+      source: "direct",
+    });
+    expect(state.rows.sponsorship_contributions).toHaveLength(1);
+  });
+
+  it("returns 404 when the reunion does not exist", async () => {
+    authAs(OUTSIDER);
+    const res = await app()
+      .post(`/api/reunions/99999/sponsorship/contributions`)
+      .send({ amount: 50 });
+    expect(res.status).toBe(404);
+    expect(state.rows.sponsorship_contributions).toHaveLength(0);
+  });
+
+  it("returns 400 when the body is invalid (missing amount)", async () => {
+    authAs(OUTSIDER);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ contributorName: "No amount here" });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_contributions).toHaveLength(0);
+  });
+
+  it("returns 400 when amount is not a positive number", async () => {
+    authAs(OUTSIDER);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ amount: -10 });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_contributions).toHaveLength(0);
+  });
+
+  it("returns 401 when no user is signed in", async () => {
+    state.auth = { userId: null, sessionClaims: null };
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ amount: 50 });
+    expect(res.status).toBe(401);
+    expect(state.rows.sponsorship_contributions).toHaveLength(0);
+  });
+});
+
 describe("organizer management is owner-only (Power User cannot)", () => {
   beforeEach(() => {
     state.auth = null;
