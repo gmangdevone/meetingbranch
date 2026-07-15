@@ -54,6 +54,7 @@ This route is a one-time bootstrap: it promotes the first signed-in user to admi
 - Email sends are non-blocking fire-and-forget; the registration is saved even if email fails
 - Admin flag (`is_admin`) on the users table gates the admin dashboard (Task #2)
 - `generatedAlwaysAsIdentity()` primary keys are excluded from Drizzle insert schemas automatically; do not call `.omit({ id: true })` on those schemas
+- Validation: `api-test` runs `pnpm --filter @workspace/api-server run test` on task completion. The user-removal integration test (`artifacts/api-server/src/routes/admin.remove-user.integration.test.ts`) exercises the real dev database and is gated by `describe.skipIf(!process.env.DATABASE_URL)` — in environments without a database it skips cleanly instead of failing
 
 ## Product
 
