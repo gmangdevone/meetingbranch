@@ -910,11 +910,20 @@ describe("member contribution to sponsorship fund", () => {
     expect(state.rows.sponsorship_contributions).toHaveLength(0);
   });
 
-  it("returns 400 when amount is not a positive number", async () => {
+  it("returns 400 when amount is negative", async () => {
     authAs(OUTSIDER);
     const res = await app()
       .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
       .send({ amount: -10 });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_contributions).toHaveLength(0);
+  });
+
+  it("returns 400 when amount is zero", async () => {
+    authAs(OUTSIDER);
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ amount: 0 });
     expect(res.status).toBe(400);
     expect(state.rows.sponsorship_contributions).toHaveLength(0);
   });
