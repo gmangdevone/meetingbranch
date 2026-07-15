@@ -1,14 +1,36 @@
 import { Link, useLocation } from "wouter";
-import { Home, User, Edit3, LogOut, Shield, Plus, Key } from "lucide-react";
-import { useAuth, useClerk } from "@clerk/react";
+import { Home, User, LogOut, Shield, Plus, Key, ChevronDown } from "lucide-react";
+import { useAuth, useUser, useClerk } from "@clerk/react";
 import { useAdminListReunions, getAdminListReunionsQueryKey } from "@workspace/api-client-react";
+import { useEffect, useRef, useState } from "react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export function Nav() {
   const [location] = useLocation();
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
   const { signOut } = useClerk();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  const displayName =
+    user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.primaryEmailAddress?.emailAddress ||
+    "Account";
+
+  useEffect(() => {
+    if (!menuOpen && !mobileMenuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) setMobileMenuOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen, mobileMenuOpen]);
   
   const { data: adminReunions, isError } = useAdminListReunions({
     query: {
@@ -61,13 +83,33 @@ export function Nav() {
           </Link>
 
           {isSignedIn ? (
-            <button
-              onClick={() => signOut({ redirectUrl: basePath || "/" })}
-              className="ml-4 flex items-center gap-2 text-sm font-medium px-4 py-2 bg-muted/50 rounded-full text-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign Out
-            </button>
+            <div className="relative ml-4" ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="flex items-center gap-2 text-sm font-medium px-4 py-2 bg-muted/50 rounded-full text-foreground/80 hover:bg-muted transition-colors"
+              >
+                <User className="w-4 h-4" />
+                {displayName}
+                <ChevronDown className={`w-4 h-4 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl border bg-background shadow-lg py-2 z-50" role="menu">
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      signOut({ redirectUrl: basePath || "/" });
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <Link
               href="/sign-in"
@@ -86,7 +128,7 @@ export function Nav() {
             { href: "/", label: "Home", icon: Home },
             { href: "/join", label: "Join", icon: Key },
             ...(isSignedIn ? [
-              { href: "/dashboard", label: "Dash", icon: User },
+              { href: "/dashboard", label: "Dash", icon: Home },
               { href: "/create", label: "Create", icon: Plus }
             ] : [
               { href: "/sign-in", label: "Sign In", icon: LogOut } // Using LogOut icon as placeholder for sign in
@@ -107,6 +149,41 @@ export function Nav() {
               </Link>
             );
           })}
+          {isSignedIn && (
+            <div className="relative" ref={mobileMenuRef}>
+              <button
+                onClick={() => setMobileMenuOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={mobileMenuOpen}
+                className={`flex flex-col items-center p-2 rounded-xl transition-all ${
+                  mobileMenuOpen ? "text-primary" : "text-foreground/50 hover:text-foreground/80"
+                }`}
+              >
+                <User className="w-6 h-6" />
+                <span className="text-[10px] font-bold mt-1 max-w-16 truncate">
+                  {user?.firstName || "Account"}
+                </span>
+              </button>
+              {mobileMenuOpen && (
+                <div className="absolute bottom-full right-0 mb-2 w-52 rounded-2xl border bg-background shadow-lg py-2 z-50" role="menu">
+                  <div className="px-4 py-2 text-sm font-medium text-foreground/80 border-b truncate">
+                    {displayName}
+                  </div>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut({ redirectUrl: basePath || "/" });
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>
