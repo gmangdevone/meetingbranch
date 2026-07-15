@@ -46,3 +46,6 @@ channel = "stable-25_05"
 
 [userenv.shared]
 BREVO_FROM_EMAIL = "lgoudy@coppergram.com"
+
+[userenv.production]
+ADMIN_USER_ID = "user_3GVMxh9BCkCxcFQuhAOx15CpjCp"
