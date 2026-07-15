@@ -17,3 +17,11 @@ The API surface is contract-first. To add/change an endpoint:
 **Why:** hooks/validators are generated, not hand-written — hand-editing generated files is wiped on next codegen. A GET operation generates both a query hook AND a plain async fetch fn; use the fetch fn inside `useMutation` when the GET has a side effect (e.g. the first-run admin setup route).
 
 **How to apply:** any time the client needs a new call or a response shape changes, start at the spec, not the generated files.
+
+# Timestamp fields must declare `format: date-time`
+
+Any `createdAt`/`*At` field in openapi.yaml declared as bare `type: string` generates `zod.string()`, and server-side response `.parse()` then throws 500 on Drizzle's Date objects. With `format: date-time`, orval emits `zod.coerce.date()` which accepts Dates.
+
+**Why:** a bare-string poll `createdAt` broke poll creation in both dev and prod with "Expected string, received date".
+
+**How to apply:** every timestamp property in the spec needs `format: date-time` (nullable ones too).

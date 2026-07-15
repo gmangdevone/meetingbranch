@@ -20,5 +20,5 @@ export interface Attendee {
      * When the attendee was checked in at the event; null if not checked in.
      * @nullable
      */
-  checkedInAt?: string | null;
+  checkedInAt?: Date | null;
 }

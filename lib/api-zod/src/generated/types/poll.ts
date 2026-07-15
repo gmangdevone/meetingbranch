@@ -14,6 +14,6 @@ export interface Poll {
   maxVotesPerMember: number;
   isOpen: boolean;
   resultsRevealed: boolean;
-  createdAt: string;
+  createdAt: Date;
   options: PollOption[];
 }

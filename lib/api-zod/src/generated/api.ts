@@ -652,7 +652,7 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -707,7 +707,7 @@ export const CreateManagedRegistrationResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -755,7 +755,7 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -793,7 +793,7 @@ export const CancelRegistrationResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -818,7 +818,7 @@ export const SetAttendeeCheckInResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })
 
 
@@ -839,7 +839,7 @@ export const ListMemberPollsResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
-  "createdAt": zod.string(),
+  "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "pollId": zod.number(),
@@ -887,7 +887,7 @@ export const CreatePollResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
-  "createdAt": zod.string(),
+  "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "pollId": zod.number(),
@@ -912,7 +912,7 @@ export const ListManagePollsResponseItem = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
-  "createdAt": zod.string(),
+  "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "pollId": zod.number(),
@@ -958,7 +958,7 @@ export const UpdatePollResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
-  "createdAt": zod.string(),
+  "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "pollId": zod.number(),
@@ -1034,7 +1034,7 @@ export const CastPollVotesResponse = zod.object({
   "maxVotesPerMember": zod.number(),
   "isOpen": zod.boolean(),
   "resultsRevealed": zod.boolean(),
-  "createdAt": zod.string(),
+  "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
   "id": zod.number(),
   "pollId": zod.number(),
@@ -1328,7 +1328,7 @@ export const CreateRegistrationResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -1356,7 +1356,7 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -1389,7 +1389,7 @@ export const GetRegistrationResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
@@ -1431,7 +1431,7 @@ export const TransferRegistrationResponse = zod.object({
   "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
-  "checkedInAt": zod.string().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
 })),
   "selectedFeeIds": zod.array(zod.number()).optional()
 })
