@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote } from "lucide-react";
+import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
@@ -27,6 +27,13 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       enabled: !!code,
       retry: false
     , queryKey: getGetReunionByCodeQueryKey(code) }
+  });
+
+  const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
+    query: { 
+      enabled: isSignedIn && !!reunion?.id,
+      queryKey: getGetMyContributionsQueryKey(reunion?.id ?? 0)
+    }
   });
 
   const handleContribute = () => {
@@ -169,6 +176,54 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               </span>
             </Link>
           </div>
+
+          {isSignedIn && (
+            <div className="bg-card border shadow-sm rounded-3xl p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-rose-100 text-rose-500 w-10 h-10 rounded-full flex items-center justify-center shrink-0">
+                  <History className="w-5 h-5" />
+                </div>
+                <h2 className="font-serif text-2xl font-bold">My Contributions</h2>
+              </div>
+
+              {!myContributionsData ? (
+                <div className="space-y-3">
+                  <div className="h-12 bg-muted rounded-2xl animate-pulse" />
+                  <div className="h-12 bg-muted rounded-2xl animate-pulse" />
+                </div>
+              ) : myContributionsData.contributions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Heart className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">You haven't contributed to the fund yet.</p>
+                  <p className="text-sm mt-1">Use the "Chip in to Fund" button to make your first contribution.</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {myContributionsData.contributions.map((contribution) => (
+                    <div key={contribution.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {contribution.contributorName ?? "Anonymous"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {format(new Date(contribution.createdAt), "MMM d, yyyy")}
+                        </p>
+                      </div>
+                      <span className="font-bold text-rose-600 text-lg">
+                        ${contribution.amount}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center pt-4 mt-1">
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Total</span>
+                    <span className="font-bold text-xl text-rose-600">
+                      ${myContributionsData.contributions.reduce((sum, c) => sum + c.amount, 0)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-1">
