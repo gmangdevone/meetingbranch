@@ -134,7 +134,8 @@ export function Nav() {
             { href: "/join", label: "Join", icon: Key },
             ...(isSignedIn ? [
               { href: "/dashboard", label: "Dash", icon: Home },
-              ...(canCreateReunion ? [{ href: "/create", label: "Create", icon: Plus }] : [])
+              ...(canCreateReunion ? [{ href: "/create", label: "Create", icon: Plus }] : []),
+              ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: Shield }] : [])
             ] : [
               { href: "/sign-in", label: "Sign In", icon: LogOut } // Using LogOut icon as placeholder for sign in
             ])
