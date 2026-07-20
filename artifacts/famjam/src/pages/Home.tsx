@@ -1,9 +1,24 @@
-import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useAuth } from "@clerk/react";
 import { useGetSettings } from "@workspace/api-client-react";
-import { CalendarDays, Users, Plus, Key, ArrowRight } from "lucide-react";
-import famjamHero from "@assets/generated_images/famjam-hero.jpg";
+import { CalendarDays, Users, Key, ArrowRight, MapPin } from "lucide-react";
+
+// Bunting SVG — signature element, used once on home only
+function BuntingBanner() {
+  return (
+    <svg viewBox="0 0 320 34" width="100%" height="30" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 4 Q160 20 320 4" stroke="#123F62" strokeWidth="2" fill="none" opacity=".5"/>
+      <path d="M3 6 L37 6 L20 30 Z"     fill="#E8A020"/>
+      <path d="M43 6 L77 6 L60 30 Z"    fill="#C24D6A"/>
+      <path d="M83 6 L117 6 L100 30 Z"  fill="#2E7DB0"/>
+      <path d="M123 6 L157 6 L140 30 Z" fill="#E8A020"/>
+      <path d="M163 6 L197 6 L180 30 Z" fill="#C24D6A"/>
+      <path d="M203 6 L237 6 L220 30 Z" fill="#2E7DB0"/>
+      <path d="M243 6 L277 6 L260 30 Z" fill="#E8A020"/>
+      <path d="M283 6 L317 6 L300 30 Z" fill="#C24D6A"/>
+    </svg>
+  );
+}
 
 export function Home() {
   const { isSignedIn } = useAuth();
@@ -11,81 +26,165 @@ export function Home() {
   const canCreateReunion = settings?.reunionCreationEnabled ?? false;
 
   return (
-    <div className="flex flex-col gap-12 pb-12">
-      {/* Hero Section */}
-      <section className="relative rounded-3xl overflow-hidden shadow-xl">
-        <div className="absolute inset-0 bg-black/50 z-10" />
-        {/* We use a fallback if the generated image isn't available */}
-        <div className="w-full h-[50vh] md:h-[60vh] bg-secondary/80 bg-cover bg-center" style={{ backgroundImage: `url(${famjamHero})` }} />
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-6 text-white">
-          <h2 className="font-serif italic text-xl md:text-3xl mb-4 tracking-wide text-primary-foreground/90">
-            Gather your people.
-          </h2>
-          <h1 className="font-serif font-bold text-5xl md:text-7xl lg:text-8xl mb-6 drop-shadow-lg max-w-4xl leading-tight">
-            The effortless way to run a family reunion.
-          </h1>
-          <p className="text-lg md:text-2xl font-medium max-w-2xl bg-black/20 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 shadow-lg">
-            Spin up a hub, share a code, get the headcount.
+    <div className="flex flex-col gap-0 pb-12">
+
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <section
+        className="relative overflow-hidden flex flex-col"
+        style={{
+          background: "var(--fj-brand-gradient)",
+          borderRadius: "0 0 26px 26px",
+          paddingBottom: 32,
+        }}
+      >
+        {/* Bunting */}
+        <div style={{ width: "100%", lineHeight: 0 }}>
+          <BuntingBanner />
+        </div>
+
+        {/* Copy */}
+        <div className="flex flex-col items-center text-center px-6 pt-4 gap-3">
+          <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--fj-accent-soft)" }}>
+            Family Reunion Hub
           </p>
+          <h1
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "clamp(2rem, 8vw, 3.5rem)",
+              fontWeight: 600,
+              color: "#fff",
+              lineHeight: 1.15,
+              letterSpacing: "-0.5px",
+              maxWidth: 520,
+            }}
+          >
+            Gather your people.
+          </h1>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "#9EBDD6", maxWidth: 340, lineHeight: 1.5 }}>
+            Spin up a hub, share a code, get the headcount — all in one place.
+          </p>
+          <div className="flex items-center gap-1 mt-1" style={{ color: "#9EBDD6", fontSize: 13, fontWeight: 700 }}>
+            <MapPin style={{ width: 14, height: 14 }} />
+            <span>Wherever family gathers</span>
+          </div>
         </div>
       </section>
 
-      {/* Action Links */}
-      <section className={`grid grid-cols-1 ${canCreateReunion ? "md:grid-cols-2" : "max-w-2xl w-full mx-auto"} gap-6 relative z-30 -mt-20 px-4 md:px-12 transition-opacity ${loadingSettings ? "opacity-0" : "opacity-100"}`}>
-        {canCreateReunion && (
-        <Link href="/create" className="bg-card border shadow-xl rounded-3xl p-8 flex flex-col items-center text-center group hover:border-primary/50 transition-all hover:-translate-y-1">
-          <div className="bg-primary/10 text-primary w-16 h-16 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-            <Plus className="w-8 h-8" />
+      {/* ── CTA Cards ────────────────────────────────────────────────── */}
+      <div className="px-5 mt-[-16px] flex flex-col gap-3">
+        {/* Join — primary CTA */}
+        <Link
+          href="/join"
+          className="flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98]"
+          style={{
+            background: "var(--fj-accent)",
+            borderRadius: "var(--fj-r-card)",
+            boxShadow: "0 2px 0 var(--fj-accent-shadow)",
+            color: "var(--fj-brand-deep)",
+            fontWeight: 800,
+            fontSize: 16,
+            textDecoration: "none",
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <Key style={{ width: 20, height: 20 }} />
+            <div>
+              <div style={{ fontWeight: 800 }}>Join a Reunion</div>
+              <div style={{ fontWeight: 600, fontSize: 12, opacity: 0.7 }}>Got a 7-character code?</div>
+            </div>
           </div>
-          <h3 className="font-serif text-3xl font-bold text-foreground mb-3">Create a Reunion</h3>
-          <p className="text-muted-foreground mb-6 max-w-xs">
-            Organizing the big event? Set up your itinerary, branches, and payment details in minutes.
-          </p>
-          <span className="mt-auto font-bold text-primary flex items-center">
-            Get Started <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </span>
+          <ArrowRight style={{ width: 18, height: 18 }} />
         </Link>
+
+        {/* Create — secondary CTA (only if enabled) */}
+        {!loadingSettings && canCreateReunion && (
+          <Link
+            href="/create"
+            className="flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98]"
+            style={{
+              background: "var(--fj-surface)",
+              border: "1px solid var(--fj-line)",
+              borderRadius: "var(--fj-r-card)",
+              boxShadow: "var(--fj-shadow-card)",
+              color: "var(--fj-brand)",
+              fontWeight: 800,
+              fontSize: 16,
+              textDecoration: "none",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <CalendarDays style={{ width: 20, height: 20, color: "var(--fj-brand)" }} />
+              <div>
+                <div style={{ fontWeight: 800, color: "var(--fj-ink)" }}>Create a Reunion</div>
+                <div style={{ fontWeight: 600, fontSize: 12, color: "var(--fj-ink-soft)" }}>Start organizing your family event</div>
+              </div>
+            </div>
+            <ArrowRight style={{ width: 18, height: 18, color: "var(--fj-brand)" }} />
+          </Link>
         )}
 
-        <Link href="/join" className="bg-card border shadow-xl rounded-3xl p-8 flex flex-col items-center text-center group hover:border-secondary/50 transition-all hover:-translate-y-1">
-          <div className="bg-secondary/10 text-secondary w-16 h-16 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-secondary group-hover:text-secondary-foreground transition-all">
-            <Key className="w-8 h-8" />
-          </div>
-          <h3 className="font-serif text-3xl font-bold text-foreground mb-3">Join a Reunion</h3>
-          <p className="text-muted-foreground mb-6 max-w-xs">
-            Got a 7-character code from your family? Enter it here to RSVP and see the schedule.
-          </p>
-          <span className="mt-auto font-bold text-secondary flex items-center">
-            Enter Code <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </span>
-        </Link>
-      </section>
+        {/* Dashboard — signed-in shortcut */}
+        {isSignedIn && (
+          <Link
+            href="/dashboard"
+            className="flex items-center justify-between px-5 py-4 transition-all active:scale-[0.98]"
+            style={{
+              background: "var(--fj-surface)",
+              border: "1px solid var(--fj-line)",
+              borderRadius: "var(--fj-r-card)",
+              boxShadow: "var(--fj-shadow-card)",
+              textDecoration: "none",
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <Users style={{ width: 20, height: 20, color: "var(--fj-brand)" }} />
+              <div>
+                <div style={{ fontWeight: 800, color: "var(--fj-ink)" }}>My Reunions</div>
+                <div style={{ fontWeight: 600, fontSize: 12, color: "var(--fj-ink-soft)" }}>View your registrations & events</div>
+              </div>
+            </div>
+            <ArrowRight style={{ width: 18, height: 18, color: "var(--fj-brand)" }} />
+          </Link>
+        )}
+      </div>
 
-      {/* Features */}
-      <section className="py-12 text-center max-w-4xl mx-auto">
-        <h2 className="font-serif text-3xl md:text-4xl font-bold mb-12">Everything you need, nothing you don't.</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
-          <div>
-            <div className="bg-muted w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-              <Users className="w-6 h-6 text-foreground" />
+      {/* ── Quick-feature tiles ───────────────────────────────────────── */}
+      <section className="px-5 mt-8">
+        <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--fj-accent)", marginBottom: 12 }}>
+          Everything you need
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { icon: Users, title: "Household RSVPs", desc: "One person, whole family" },
+            { icon: CalendarDays, title: "Live Itinerary", desc: "Shared schedule in the app" },
+            { icon: Key, title: "Simple Access", desc: "Just share a short code" },
+            { icon: CalendarDays, title: "Fund & Polls", desc: "Sponsorship + live voting" },
+          ].map(({ icon: Icon, title, desc }) => (
+            <div
+              key={title}
+              className="flex flex-col gap-2 p-4"
+              style={{
+                background: "var(--fj-surface)",
+                border: "1px solid var(--fj-line)",
+                borderRadius: "var(--fj-r-tile)",
+                boxShadow: "var(--fj-shadow-card)",
+              }}
+            >
+              <div
+                className="flex items-center justify-center"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: "var(--fj-sky)",
+                }}
+              >
+                <Icon style={{ width: 18, height: 18, color: "var(--fj-brand)" }} />
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "var(--fj-ink)" }}>{title}</div>
+              <div style={{ fontWeight: 600, fontSize: 11, color: "var(--fj-ink-soft)", lineHeight: 1.4 }}>{desc}</div>
             </div>
-            <h3 className="font-bold text-xl mb-2">Household RSVPs</h3>
-            <p className="text-muted-foreground">Let one person register the whole immediate family. Track t-shirt sizes and dietary needs easily.</p>
-          </div>
-          <div>
-            <div className="bg-muted w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-              <CalendarDays className="w-6 h-6 text-foreground" />
-            </div>
-            <h3 className="font-bold text-xl mb-2">Live Itinerary</h3>
-            <p className="text-muted-foreground">No more messy group chats. Everyone sees the exact same schedule and locations in the app.</p>
-          </div>
-          <div>
-            <div className="bg-muted w-12 h-12 rounded-xl flex items-center justify-center mb-4">
-              <Key className="w-6 h-6 text-foreground" />
-            </div>
-            <h3 className="font-bold text-xl mb-2">Simple Access</h3>
-            <p className="text-muted-foreground">Just share a short code. Grandparents can join instantly without navigating complicated invites.</p>
-          </div>
+          ))}
         </div>
       </section>
     </div>

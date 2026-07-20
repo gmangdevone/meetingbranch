@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
-
 @layer theme, base, clerk, components, utilities;
 
 @import 'tailwindcss';
@@ -10,58 +8,102 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── FamJam Design Tokens ─────────────────────────────────────────────────── */
+:root {
+  /* Brand (blue) */
+  --fj-brand:          #1F5D8C;
+  --fj-brand-deep:     #123F62;
+  --fj-brand-bright:   #2E7DB0;
+  --fj-brand-gradient: linear-gradient(135deg, #2E7DB0 0%, #164A70 100%);
+
+  /* Accents */
+  --fj-accent:         #E8A020;
+  --fj-accent-soft:    #F6CF7D;
+  --fj-accent-shadow:  #C9860F;
+  --fj-berry:          #C24D6A;
+  --fj-berry-soft:     #E9B7C2;
+  --fj-berry-shadow:   #9E3A54;
+
+  /* Surfaces */
+  --fj-bg:      #FBF5E9;
+  --fj-surface: #FFFDF6;
+  --fj-ink:     #1E2A33;
+  --fj-ink-soft:#617079;
+  --fj-sky:     #DDE8EF;
+  --fj-line:    #EADFC9;
+
+  /* Radii */
+  --fj-r-pill:  999px;
+  --fj-r-input: 12px;
+  --fj-r-btn:   14px;
+  --fj-r-tile:  16px;
+  --fj-r-card:  18px;
+  --fj-r-frame: 30px;
+
+  /* Elevation */
+  --fj-shadow-card: 0 1px 2px rgba(31,77,63,.05);
+  --fj-shadow-pop:  0 8px 24px rgba(0,0,0,.25);
+}
+
+/* ── Tailwind / shadcn token bridge ──────────────────────────────────────── */
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-background:         var(--background-color);
+  --color-foreground:         var(--foreground-color);
+  --color-card:               var(--card-color);
+  --color-card-foreground:    var(--card-fg-color);
+  --color-popover:            var(--card-color);
+  --color-popover-foreground: var(--card-fg-color);
+  --color-primary:            var(--fj-brand);
+  --color-primary-foreground: #ffffff;
+  --color-secondary:          var(--fj-berry);
+  --color-secondary-foreground: #ffffff;
+  --color-muted:              var(--fj-sky);
+  --color-muted-foreground:   var(--fj-ink-soft);
+  --color-accent:             var(--fj-accent);
+  --color-accent-foreground:  var(--fj-brand-deep);
+  --color-destructive:        hsl(0 84% 60%);
+  --color-destructive-foreground: #ffffff;
+  --color-border:             var(--fj-line);
+  --color-input:              var(--fj-line);
+  --color-ring:               var(--fj-brand);
 
-  --font-sans: "Outfit", sans-serif;
-  --font-serif: "Playfair Display", serif;
+  --font-sans:   'Mulish', system-ui, sans-serif;
+  --font-serif:  'Fraunces', Georgia, serif;
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 10px;
+  --radius-md: var(--fj-r-input);
+  --radius-lg: var(--fj-r-card);
+  --radius-xl: var(--fj-r-frame);
 }
 
 @layer base {
   :root {
-    --background: 35 30% 98%;
-    --foreground: 220 15% 15%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
-    --primary: 15 80% 55%;
+    --background-color: #FBF5E9;
+    --foreground-color: #1E2A33;
+    --card-color:       #FFFDF6;
+    --card-fg-color:    #1E2A33;
+
+    /* legacy shadcn HSL vars (used by @clerk/themes) */
+    --background: 42 60% 95%;
+    --foreground: 208 24% 16%;
+    --card:       48 100% 98%;
+    --card-foreground: 208 24% 16%;
+    --popover:    48 100% 98%;
+    --popover-foreground: 208 24% 16%;
+    --primary:    207 63% 34%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 190 40% 30%;
+    --secondary:  345 52% 54%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 35 15% 90%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 45 90% 60%;
-    --accent-foreground: 220 15% 15%;
+    --muted:      204 34% 85%;
+    --muted-foreground: 202 11% 43%;
+    --accent:     37 84% 52%;
+    --accent-foreground: 210 70% 23%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 35 20% 85%;
-    --input: 35 20% 85%;
-    --ring: 15 80% 55%;
-    --radius: 1rem;
+    --border:     38 41% 85%;
+    --input:      38 41% 85%;
+    --ring:       207 63% 34%;
+    --radius:     1.125rem;
   }
 }
 
@@ -70,6 +112,23 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    background-color: var(--fj-bg);
+    color: var(--fj-ink);
+    font-family: 'Mulish', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Focus ring — visible keyboard focus for accessibility */
+  :focus-visible {
+    outline: 2.5px solid var(--fj-accent);
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
   }
 }
