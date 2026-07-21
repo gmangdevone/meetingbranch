@@ -10,6 +10,8 @@ import { Label } from "../components/ui/label";
 import { useState } from "react";
 import { useUser } from "@clerk/react";
 import { describeFee } from "../lib/fees";
+import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
+import { useEffect } from "react";
 
 export function ReunionHub({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
@@ -35,6 +37,16 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       queryKey: getGetMyContributionsQueryKey(reunion?.id ?? 0)
     }
   });
+
+  // Remember the last successfully visited reunion so the Home nav can return here;
+  // forget it if the code turns out to be invalid.
+  useEffect(() => {
+    if (reunion) {
+      saveLastReunionCode(reunion.code);
+    } else if (isError && getLastReunionCode() === code) {
+      clearLastReunionCode();
+    }
+  }, [reunion, isError, code]);
 
   const handleContribute = () => {
     if (!reunion) return;

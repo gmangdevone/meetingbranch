@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useGetReunionByCode, getGetReunionByCodeQueryKey } from "@workspace/api-client-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { ArrowRight, Search, Users } from "lucide-react";
+import { Search } from "lucide-react";
+import { saveLastReunionCode } from "../lib/lastReunion";
 
 export function JoinReunion() {
   const [, setLocation] = useLocation();
@@ -16,6 +17,14 @@ export function JoinReunion() {
       retry: false
     , queryKey: getGetReunionByCodeQueryKey(submittedCode) }
   });
+
+  // Valid code found — remember it and go straight to the reunion hub
+  useEffect(() => {
+    if (reunion) {
+      saveLastReunionCode(reunion.code);
+      setLocation(`/r/${reunion.code}`);
+    }
+  }, [reunion, setLocation]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,21 +73,9 @@ export function JoinReunion() {
       </form>
 
       {reunion && (
-        <div className="w-full mt-8 animate-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-primary/10 border border-primary/20 rounded-3xl p-6 flex flex-col items-center text-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-5">
-              <Users className="w-32 h-32" />
-            </div>
-            <h3 className="font-serif text-2xl font-bold text-foreground mb-2">{reunion.name}</h3>
-            <p className="text-sm text-muted-foreground font-medium mb-6">Code: <span className="font-mono">{reunion.code}</span></p>
-            <Button 
-              onClick={() => setLocation(`/r/${reunion.code}`)}
-              className="w-full rounded-xl py-6 font-bold"
-            >
-              Go to Reunion Hub <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+        <p className="mt-6 text-sm font-bold" style={{ color: "var(--fj-brand)" }}>
+          Found {reunion.name} — taking you there…
+        </p>
       )}
     </div>
   );

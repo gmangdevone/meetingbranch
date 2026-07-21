@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+import { useLastReunionCode } from "../lib/lastReunion";
+
 export function Nav() {
   const [location] = useLocation();
   const { isSignedIn } = useAuth();
@@ -48,9 +50,13 @@ export function Nav() {
 
   const isActive = (href: string) => location === href;
 
+  // If the user has entered a valid RSVP code, "Home" returns to that reunion hub
+  const lastCode = useLastReunionCode();
+  const homeHref = lastCode ? `/r/${lastCode}` : "/";
+
   // Mobile nav items
   const mobileLinks = [
-    { href: "/", label: "Home", icon: Home },
+    { href: homeHref, label: "Home", icon: Home },
     { href: "/join", label: "Join", icon: Key },
     ...(isSignedIn ? [
       { href: "/dashboard", label: "Dash", icon: Home },
@@ -71,7 +77,7 @@ export function Nav() {
         </Link>
         <div className="flex items-center gap-6">
           {[
-            { href: "/", label: "Home" },
+            { href: homeHref, label: "Home" },
             { href: "/join", label: "Join" },
             ...(isSignedIn ? [
               { href: "/dashboard", label: "Dashboard" },
