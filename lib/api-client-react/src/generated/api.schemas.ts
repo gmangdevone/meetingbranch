@@ -216,13 +216,19 @@ export const FeeChargeType = {
 } as const;
 
 /**
- * An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier's amount instead of the fee's base amount.
+ * An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier's amount instead of the fee's base amount. A null minAge means 'this age and below' (no lower bound); a null maxAge means 'this age and above' (no upper bound). At least one bound must be set.
  */
 export interface FeeAgeTier {
-  /** @minimum 0 */
-  minAge: number;
-  /** @minimum 0 */
-  maxAge: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  minAge: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  maxAge: number | null;
   /** @minimum 0 */
   amount: number;
 }

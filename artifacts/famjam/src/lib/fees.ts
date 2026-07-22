@@ -18,7 +18,9 @@ export function tierForAge(
   age: number | null | undefined,
 ): FeeAgeTier | undefined {
   if (age == null) return undefined;
-  return tiers.find((t) => age >= t.minAge && age <= t.maxAge);
+  return tiers.find(
+    (t) => (t.minAge == null || age >= t.minAge) && (t.maxAge == null || age <= t.maxAge),
+  );
 }
 
 /**
@@ -53,9 +55,10 @@ export function computeTotal(
   );
 }
 
-/** Human-readable label for a tier's age bracket, e.g. "under 10", "ages 10–17". */
+/** Human-readable label for a tier's age bracket, e.g. "9 and under", "ages 10–17", "18 and up". */
 export function describeTierRange(tier: FeeAgeTier): string {
-  if (tier.minAge <= 0) return `under ${tier.maxAge + 1}`;
+  if (tier.maxAge == null) return `${tier.minAge ?? 0} and up`;
+  if (tier.minAge == null || tier.minAge <= 0) return `${tier.maxAge} and under`;
   return `ages ${tier.minAge}–${tier.maxAge}`;
 }
 

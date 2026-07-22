@@ -27,11 +27,13 @@ export const feeChargeTypeEnum = pgEnum("fee_charge_type", ["per_person", "flat"
 /**
  * An age-bracket price override on a per-person fee. An attendee whose age falls
  * within [minAge, maxAge] (inclusive) pays `amount` instead of the fee's base
- * amount. Attendees matching no tier — or with no age on file — pay the base amount.
+ * amount. A null minAge means no lower bound ("this age and below"); a null
+ * maxAge means no upper bound ("this age and above"); at least one bound must be
+ * set. Attendees matching no tier — or with no age on file — pay the base amount.
  */
 export interface FeeAgeTier {
-  minAge: number;
-  maxAge: number;
+  minAge: number | null;
+  maxAge: number | null;
   amount: number;
 }
 

@@ -219,7 +219,10 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   );
 }
 
+type TierKind = "below" | "range" | "above";
+
 type TierFormRow = {
+  kind: TierKind;
   minAge: string;
   maxAge: string;
   amount: string;
@@ -248,8 +251,9 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
     isOptional: fee.isOptional,
     amount: String(fee.amount),
     tiers: (fee.ageTiers ?? []).map((t) => ({
-      minAge: String(t.minAge),
-      maxAge: String(t.maxAge),
+      kind: (t.maxAge == null ? "above" : t.minAge == null ? "below" : "range") as TierKind,
+      minAge: t.minAge != null ? String(t.minAge) : "",
+      maxAge: t.maxAge != null ? String(t.maxAge) : "",
       amount: String(t.amount),
     })),
   };
@@ -297,30 +301,39 @@ function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[
       return null;
     }
     const useTiers = draft.chargeType === "per_person";
-    const ageTiers: { minAge: number; maxAge: number; amount: number }[] = [];
+    const ageTiers: { minAge: number | null; maxAge: number | null; amount: number }[] = [];
     if (useTiers) {
       for (const row of draft.tiers) {
-        const minAge = Number(row.minAge);
-        const maxAge = Number(row.maxAge);
+        const needsMin = row.kind !== "below";
+        const needsMax = row.kind !== "above";
+        const minAge = needsMin ? Number(row.minAge) : null;
+        const maxAge = needsMax ? Number(row.maxAge) : null;
         const tierAmount = Number(row.amount);
-        if (!Number.isInteger(minAge) || minAge < 0 || !Number.isInteger(maxAge) || maxAge < 0) {
-          setError("Each age range needs a valid \"from\" and \"to\" age (0 or higher).");
+        if (
+          (needsMin && (row.minAge.trim() === "" || !Number.isInteger(minAge) || minAge! < 0)) ||
+          (needsMax && (row.maxAge.trim() === "" || !Number.isInteger(maxAge) || maxAge! < 0))
+        ) {
+          setError("Each age rule needs a valid age (0 or higher).");
           return null;
         }
-        if (minAge > maxAge) {
+        if (minAge != null && maxAge != null && minAge > maxAge) {
           setError("An age range's \"from\" age can't be higher than its \"to\" age.");
           return null;
         }
         if (row.amount.trim() === "" || !Number.isFinite(tierAmount) || tierAmount < 0) {
-          setError("Each age range needs a price ($0 means free).");
+          setError("Each age rule needs a price ($0 means free).");
           return null;
         }
         ageTiers.push({ minAge, maxAge, amount: tierAmount });
       }
-      const sorted = [...ageTiers].sort((a, b) => a.minAge - b.minAge);
+      const sorted = [...ageTiers].sort(
+        (a, b) => (a.minAge ?? Number.NEGATIVE_INFINITY) - (b.minAge ?? Number.NEGATIVE_INFINITY),
+      );
       for (let i = 1; i < sorted.length; i++) {
-        if (sorted[i].minAge <= sorted[i - 1].maxAge) {
-          setError("Age ranges can't overlap — adjust the ranges so each age falls in only one.");
+        const prevMax = sorted[i - 1].maxAge ?? Number.POSITIVE_INFINITY;
+        const curMin = sorted[i].minAge ?? Number.NEGATIVE_INFINITY;
+        if (curMin <= prevMax) {
+          setError("Age rules can't overlap — adjust them so each age falls in only one.");
           return null;
         }
       }
@@ -484,7 +497,10 @@ function FeeEditor({
       tiers: prev.tiers.map((t, i) => (i === index ? { ...t, [key]: value } : t)),
     }));
   const addTier = () =>
-    setDraft((prev) => ({ ...prev, tiers: [...prev.tiers, { minAge: "", maxAge: "", amount: "" }] }));
+    setDraft((prev) => ({
+      ...prev,
+      tiers: [...prev.tiers, { kind: "range" as TierKind, minAge: "", maxAge: "", amount: "" }],
+    }));
   const removeTier = (index: number) =>
     setDraft((prev) => ({ ...prev, tiers: prev.tiers.filter((_, i) => i !== index) }));
 
@@ -558,28 +574,48 @@ function FeeEditor({
           </div>
           {draft.tiers.map((tier, i) => (
             <div key={i} className="flex flex-wrap items-end gap-3 pl-1">
-              <div className="w-24">
-                <label className="text-sm font-bold block mb-1">Ages from</label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="rounded-xl bg-background"
-                  placeholder="0"
-                  value={tier.minAge}
-                  onChange={(e) => setTier(i, "minAge", e.target.value)}
-                />
+              <div className="w-36">
+                <label className="text-sm font-bold block mb-1">Who</label>
+                <select
+                  className="w-full h-10 rounded-xl border bg-background px-3 text-sm"
+                  value={tier.kind}
+                  onChange={(e) => setTier(i, "kind", e.target.value as TierKind)}
+                >
+                  <option value="below">Below an age</option>
+                  <option value="range">Age range</option>
+                  <option value="above">Above an age</option>
+                </select>
               </div>
-              <div className="w-24">
-                <label className="text-sm font-bold block mb-1">to</label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="rounded-xl bg-background"
-                  placeholder="e.g. 17"
-                  value={tier.maxAge}
-                  onChange={(e) => setTier(i, "maxAge", e.target.value)}
-                />
-              </div>
+              {tier.kind !== "below" && (
+                <div className="w-24">
+                  <label className="text-sm font-bold block mb-1">
+                    {tier.kind === "above" ? "Age & up" : "Ages from"}
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="rounded-xl bg-background"
+                    placeholder={tier.kind === "above" ? "e.g. 18" : "e.g. 10"}
+                    value={tier.minAge}
+                    onChange={(e) => setTier(i, "minAge", e.target.value)}
+                  />
+                </div>
+              )}
+              {tier.kind !== "above" && (
+                <div className="w-24">
+                  <label className="text-sm font-bold block mb-1">
+                    {tier.kind === "below" ? "Age & under" : "to"}
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="rounded-xl bg-background"
+                    placeholder={tier.kind === "below" ? "e.g. 9" : "e.g. 17"}
+                    value={tier.maxAge}
+                    onChange={(e) => setTier(i, "maxAge", e.target.value)}
+                  />
+                </div>
+              )}
               <div className="w-28">
                 <label className="text-sm font-bold block mb-1">pay ($)</label>
                 <Input

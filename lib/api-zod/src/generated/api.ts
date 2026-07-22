@@ -90,10 +90,10 @@ export const CreateReunionResponse = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(createReunionResponseFeesItemAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(createReunionResponseFeesItemAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(createReunionResponseFeesItemAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(createReunionResponseFeesItemAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(createReunionResponseFeesItemAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 })
@@ -136,10 +136,10 @@ export const ListMyReunionsResponseItem = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 }),
@@ -195,10 +195,10 @@ export const GetReunionByCodeResponse = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 })
@@ -245,10 +245,10 @@ export const GetReunionResponse = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 }),
@@ -318,10 +318,10 @@ export const UpdateReunionResponse = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(updateReunionResponseFeesItemAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(updateReunionResponseFeesItemAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(updateReunionResponseFeesItemAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(updateReunionResponseFeesItemAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(updateReunionResponseFeesItemAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 })
@@ -558,10 +558,10 @@ export const CreateFeeBody = zod.object({
   "isOptional": zod.boolean().default(createFeeBodyIsOptionalDefault),
   "amount": zod.number().min(createFeeBodyAmountMin),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(createFeeBodyAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(createFeeBodyAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(createFeeBodyAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(createFeeBodyAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(createFeeBodyAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).default(createFeeBodyAgeTiersDefault),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).default(createFeeBodyAgeTiersDefault),
   "sortOrder": zod.number().default(createFeeBodySortOrderDefault)
 })
 
@@ -581,10 +581,10 @@ export const CreateFeeResponse = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(createFeeResponseAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(createFeeResponseAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(createFeeResponseAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(createFeeResponseAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(createFeeResponseAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 })
 
@@ -616,10 +616,10 @@ export const UpdateFeeBody = zod.object({
   "isOptional": zod.boolean().default(updateFeeBodyIsOptionalDefault),
   "amount": zod.number().min(updateFeeBodyAmountMin),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(updateFeeBodyAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(updateFeeBodyAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(updateFeeBodyAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(updateFeeBodyAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(updateFeeBodyAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).default(updateFeeBodyAgeTiersDefault),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).default(updateFeeBodyAgeTiersDefault),
   "sortOrder": zod.number().default(updateFeeBodySortOrderDefault)
 })
 
@@ -639,10 +639,10 @@ export const UpdateFeeResponse = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(updateFeeResponseAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(updateFeeResponseAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(updateFeeResponseAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(updateFeeResponseAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(updateFeeResponseAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 })
 
@@ -1638,10 +1638,10 @@ export const AdminListReunionsResponseItem = zod.object({
   "isOptional": zod.boolean(),
   "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
   "ageTiers": zod.array(zod.object({
-  "minAge": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin),
-  "maxAge": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin),
+  "minAge": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin).nullable(),
+  "maxAge": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin).nullable(),
   "amount": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemAmountMin)
-}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount. A null minAge means \'this age and below\' (no lower bound); a null maxAge means \'this age and above\' (no upper bound). At least one bound must be set.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 }),

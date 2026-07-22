@@ -85,22 +85,34 @@ async function getReunionWithBranches(reunionId: number) {
 
 /**
  * Normalize fee input: age tiers only apply to per-person fees (flat fees get an
- * empty list). Tiers with an inverted range (minAge > maxAge) are rejected as a
- * 400 by the caller via normalizeFeeInput returning null.
+ * empty list). A null minAge means "and below"; a null maxAge means "and above".
+ * Rejected (caller returns 400 when this returns null): a tier with both bounds
+ * null, an inverted range (minAge > maxAge), or overlapping tiers.
  */
 function normalizeFeeInput(data: {
   label: string;
   chargeType: "per_person" | "flat";
   isOptional: boolean;
   amount: number;
-  ageTiers?: { minAge: number; maxAge: number; amount: number }[];
+  ageTiers?: { minAge?: number | null; maxAge?: number | null; amount: number }[];
   sortOrder: number;
 }) {
-  const tiers = data.chargeType === "per_person" ? (data.ageTiers ?? []) : [];
-  if (tiers.some((t) => t.minAge > t.maxAge)) return null;
-  const sorted = [...tiers].sort((a, b) => a.minAge - b.minAge);
+  const rawTiers = data.chargeType === "per_person" ? (data.ageTiers ?? []) : [];
+  const tiers = rawTiers.map((t) => ({
+    minAge: t.minAge ?? null,
+    maxAge: t.maxAge ?? null,
+    amount: t.amount,
+  }));
+  if (tiers.some((t) => t.minAge == null && t.maxAge == null)) return null;
+  if (tiers.some((t) => t.minAge != null && t.maxAge != null && t.minAge > t.maxAge)) return null;
+  // Treat null bounds as unbounded and reject any intersecting ranges.
+  const sorted = [...tiers].sort(
+    (a, b) => (a.minAge ?? Number.NEGATIVE_INFINITY) - (b.minAge ?? Number.NEGATIVE_INFINITY),
+  );
   for (let i = 1; i < sorted.length; i++) {
-    if (sorted[i].minAge <= sorted[i - 1].maxAge) return null; // overlapping ranges
+    const prevMax = sorted[i - 1].maxAge ?? Number.POSITIVE_INFINITY;
+    const curMin = sorted[i].minAge ?? Number.NEGATIVE_INFINITY;
+    if (curMin <= prevMax) return null; // overlapping ranges
   }
   return {
     label: data.label.trim(),

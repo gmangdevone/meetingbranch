@@ -18,7 +18,9 @@ export function tierForAge(
   age: number | null | undefined,
 ): FeeAgeTier | undefined {
   if (age == null) return undefined;
-  return tiers.find((t) => age >= t.minAge && age <= t.maxAge);
+  return tiers.find(
+    (t) => (t.minAge == null || age >= t.minAge) && (t.maxAge == null || age <= t.maxAge),
+  );
 }
 
 /**
