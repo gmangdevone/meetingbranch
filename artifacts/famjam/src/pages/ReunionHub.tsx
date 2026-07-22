@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, useListMyRegistrations } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
@@ -9,7 +9,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useState } from "react";
 import { useUser } from "@clerk/react";
-import { describeFee } from "../lib/fees";
+import { describeFee, computeTotal } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
 import { useEffect } from "react";
 
@@ -30,6 +30,14 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       retry: false
     , queryKey: getGetReunionByCodeQueryKey(code) }
   });
+
+  const { data: myRegistrations } = useListMyRegistrations({
+    query: { enabled: isSignedIn }
+  });
+
+  const myRegistration = myRegistrations?.find(
+    (r) => r.reunionId === reunion?.id && r.status === "active"
+  );
 
   const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
     query: { 
@@ -105,8 +113,25 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           <Users className="w-64 h-64" />
         </div>
         <div className="relative z-10">
-          <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold tracking-widest uppercase mb-6">
-            Code: <span className="font-mono ml-1">{reunion.code}</span>
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+            <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold tracking-widest uppercase self-start">
+              Code: <span className="font-mono ml-1">{reunion.code}</span>
+            </div>
+            {myRegistration && (
+              <div className="bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-5 py-3 text-right">
+                <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-1">Your Total Due</p>
+                <p className="font-serif text-3xl font-bold leading-none">
+                  ${computeTotal(reunion.fees, myRegistration.attendees, myRegistration.selectedFeeIds ?? [])}
+                </p>
+                <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
+                  myRegistration.paymentStatus === 'paid' ? 'bg-green-300/90 text-green-950' :
+                  myRegistration.paymentStatus === 'waived' ? 'bg-white/25 text-white' :
+                  'bg-amber-300/90 text-amber-950'
+                }`}>
+                  {myRegistration.paymentStatus === 'pending' ? 'Payment Pending' : myRegistration.paymentStatus}
+                </span>
+              </div>
+            )}
           </div>
           <h1 className="font-serif text-5xl md:text-6xl font-bold mb-4 drop-shadow-md">
             {reunion.name}
@@ -118,17 +143,27 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                 {format(new Date(reunion.startDate), 'MMM d')} – {format(new Date(reunion.endDate), 'MMM d, yyyy')}
               </span>
             </div>
-            {reunion.fees.length > 0 && (
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                <span>
-                  {reunion.fees.length === 1
-                    ? describeFee(reunion.fees[0])
-                    : `${reunion.fees.length} fees & dues`}
-                </span>
-              </div>
-            )}
           </div>
+          {reunion.fees.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-white/20">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-3 flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5" /> Fees &amp; Dues
+              </p>
+              <div className="flex flex-col gap-2">
+                {reunion.fees.map((fee) => (
+                  <div key={fee.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                    <span className="font-semibold">
+                      {fee.label}
+                      {fee.isOptional && (
+                        <span className="ml-2 text-xs font-medium text-white/60 uppercase tracking-wide">optional</span>
+                      )}
+                    </span>
+                    <span className="text-white/85">{describeFee(fee)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
