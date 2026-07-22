@@ -128,7 +128,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   myRegistration.paymentStatus === 'waived' ? 'bg-white/25 text-white' :
                   'bg-amber-300/90 text-amber-950'
                 }`}>
-                  {myRegistration.paymentStatus === 'pending' ? 'Payment Pending' : myRegistration.paymentStatus}
+                  {myRegistration.paymentStatus === 'pending' ? 'Payment verification pending' : myRegistration.paymentStatus}
                 </span>
               </div>
             )}
@@ -149,18 +149,29 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-3 flex items-center gap-1.5">
                 <DollarSign className="w-3.5 h-3.5" /> Fees &amp; Dues
               </p>
-              <div className="flex flex-col gap-2">
-                {reunion.fees.map((fee) => (
-                  <div key={fee.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                    <span className="font-semibold">
-                      {fee.label}
-                      {fee.isOptional && (
-                        <span className="ml-2 text-xs font-medium text-white/60 uppercase tracking-wide">optional</span>
-                      )}
-                    </span>
-                    <span className="text-white/85">{describeFee(fee)}</span>
-                  </div>
-                ))}
+              <div className="flex flex-col gap-2 max-w-xl">
+                {reunion.fees.map((fee) => {
+                  const tiered =
+                    fee.chargeType === "per_person" &&
+                    fee.ageThreshold != null &&
+                    fee.amountUnderThreshold != null;
+                  return (
+                    <div key={fee.id} className="grid grid-cols-2 items-baseline gap-x-4">
+                      <span className="font-semibold">
+                        {fee.label}
+                        {fee.isOptional && (
+                          <span className="ml-2 text-xs font-medium text-white/60 uppercase tracking-wide">optional</span>
+                        )}
+                      </span>
+                      <span className="text-white/85 text-left">
+                        ${fee.amount} {fee.chargeType === "flat" ? "flat" : "per person"}
+                        {tiered && (
+                          <span className="block">under {fee.ageThreshold}: ${fee.amountUnderThreshold}</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
