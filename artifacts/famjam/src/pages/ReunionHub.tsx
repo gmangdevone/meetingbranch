@@ -114,26 +114,23 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           <Users className="w-64 h-64" />
         </div>
         <div className="relative z-10">
-          <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-            <div className="inline-block bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-sm font-bold tracking-widest uppercase self-start">
-              Code: <span className="font-mono ml-1">{reunion.code}</span>
-            </div>
-            {myRegistration && (
-              <div className="bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-5 py-3 text-right">
-                <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-1">Your Total Due</p>
-                <p className="font-serif text-3xl font-bold leading-none">
+          {myRegistration && (
+            <div className="inline-block bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-5 py-3 mb-6">
+              <p className="text-sm font-bold uppercase tracking-widest text-white/70">
+                Your Total Due
+                <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
                   ${computeTotal(reunion.fees, myRegistration.attendees, myRegistration.selectedFeeIds ?? [])}
-                </p>
-                <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
-                  myRegistration.paymentStatus === 'paid' ? 'bg-green-300/90 text-green-950' :
-                  myRegistration.paymentStatus === 'waived' ? 'bg-white/25 text-white' :
-                  'bg-amber-300/90 text-amber-950'
-                }`}>
-                  {myRegistration.paymentStatus === 'pending' ? 'Payment verification pending' : myRegistration.paymentStatus}
                 </span>
-              </div>
-            )}
-          </div>
+              </p>
+              <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
+                myRegistration.paymentStatus === 'paid' ? 'bg-green-300/90 text-green-950' :
+                myRegistration.paymentStatus === 'waived' ? 'bg-white/25 text-white' :
+                'bg-amber-300/90 text-amber-950'
+              }`}>
+                {myRegistration.paymentStatus === 'pending' ? 'Payment verification pending' : myRegistration.paymentStatus}
+              </span>
+            </div>
+          )}
           <h1 className="font-serif text-5xl md:text-6xl font-bold mb-4 drop-shadow-md">
             {reunion.name}
           </h1>
@@ -414,6 +411,10 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           </div>
         </div>
       </div>
+
+      <p className="text-center text-sm text-muted-foreground">
+        Reunion Code: <span className="font-mono font-bold tracking-widest">{reunion.code}</span>
+      </p>
     </div>
   );
 }
