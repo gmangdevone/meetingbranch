@@ -22,6 +22,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const [showThankYou, setShowThankYou] = useState(false);
   const [isSponsorDialogOpen, setIsSponsorDialogOpen] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
+  const [showAllFees, setShowAllFees] = useState(false);
   
   const createContribution = useCreateSponsorshipContribution();
 
@@ -216,21 +217,6 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                     <p className="text-foreground font-medium">This reunion is free to attend!</p>
                   ) : (
                     <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-3 pb-4 border-b">
-                        {reunion.fees.map((fee) => (
-                          <div key={fee.id} className="flex justify-between items-start gap-3">
-                            <span className="text-muted-foreground">
-                              {fee.label}
-                              {fee.isOptional && (
-                                <span className="ml-1 text-xs text-muted-foreground/70">(optional)</span>
-                              )}
-                              <span className="block text-xs text-muted-foreground/70">
-                                {describeFee(fee)}
-                              </span>
-                            </span>
-                          </div>
-                        ))}
-                      </div>
                       {myRegistration && (
                         <div className="pb-4 border-b">
                           <span className="text-muted-foreground text-sm block mb-3">
@@ -257,6 +243,36 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                           </div>
                         </div>
                       )}
+                      <div className="pb-4 border-b">
+                        {myRegistration && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAllFees((v) => !v)}
+                            aria-expanded={showAllFees}
+                            className="flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
+                          >
+                            {showAllFees ? "Hide" : "Show"} all fees
+                            <ChevronDown className={`w-4 h-4 transition-transform ${showAllFees ? "rotate-180" : ""}`} />
+                          </button>
+                        )}
+                        {(!myRegistration || showAllFees) && (
+                          <div className={`flex flex-col gap-3 ${myRegistration ? "mt-4" : ""}`}>
+                            {reunion.fees.map((fee) => (
+                              <div key={fee.id} className="flex justify-between items-start gap-3">
+                                <span className="text-muted-foreground">
+                                  {fee.label}
+                                  {fee.isOptional && (
+                                    <span className="ml-1 text-xs text-muted-foreground/70">(optional)</span>
+                                  )}
+                                  <span className="block text-xs text-muted-foreground/70">
+                                    {describeFee(fee)}
+                                  </span>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <div>
                         <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>
                         <div className="font-mono bg-background border px-3 py-2 rounded-lg font-bold">
