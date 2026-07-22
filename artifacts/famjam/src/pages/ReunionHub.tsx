@@ -9,7 +9,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useState } from "react";
 import { useUser } from "@clerk/react";
-import { describeFee, describeTierRange, computeTotal } from "../lib/fees";
+import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
 import { useEffect } from "react";
 
@@ -231,6 +231,32 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                           </div>
                         ))}
                       </div>
+                      {myRegistration && (
+                        <div className="pb-4 border-b">
+                          <span className="text-muted-foreground text-sm block mb-3">
+                            Your registration ({myRegistration.attendeeCount}{" "}
+                            {myRegistration.attendeeCount === 1 ? "attendee" : "attendees"})
+                          </span>
+                          <div className="flex flex-col gap-2">
+                            {reunion.fees
+                              .filter((fee) => feeApplies(fee, myRegistration.selectedFeeIds ?? []))
+                              .map((fee) => (
+                                <div key={fee.id} className="flex justify-between items-baseline gap-3">
+                                  <span className="text-foreground">{fee.label}</span>
+                                  <span className="font-bold tabular-nums">
+                                    ${computeFeeAmount(fee, myRegistration.attendees)}
+                                  </span>
+                                </div>
+                              ))}
+                            <div className="flex justify-between items-baseline gap-3 pt-2 border-t">
+                              <span className="font-bold">Total due</span>
+                              <span className="font-serif text-xl font-bold tabular-nums">
+                                ${computeTotal(reunion.fees, myRegistration.attendees, myRegistration.selectedFeeIds ?? [])}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>
                         <div className="font-mono bg-background border px-3 py-2 rounded-lg font-bold">
