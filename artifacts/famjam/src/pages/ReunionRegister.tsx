@@ -172,6 +172,19 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
         <p className="text-lg text-muted-foreground">Add everyone in your immediate household who is attending.</p>
       </div>
 
+      <div className="lg:hidden sticky top-2 z-30 mb-6">
+        <div className="bg-primary text-primary-foreground rounded-2xl shadow-xl px-5 py-3 flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Users className="w-4 h-4" />
+            {watchAttendees.length} {watchAttendees.length === 1 ? "attendee" : "attendees"}
+          </span>
+          <span className="flex items-baseline gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/70">Total</span>
+            <span className="font-serif text-2xl font-bold tabular-nums">${totalCost}</span>
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <Form {...form}>
