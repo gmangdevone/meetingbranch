@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, useListMyRegistrations } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
@@ -9,7 +9,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useState } from "react";
 import { useUser } from "@clerk/react";
-import { describeFee, computeTotal } from "../lib/fees";
+import { describeFee, describeTierRange, computeTotal } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
 import { useEffect } from "react";
 
@@ -33,7 +33,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   });
 
   const { data: myRegistrations } = useListMyRegistrations({
-    query: { enabled: isSignedIn }
+    query: { enabled: isSignedIn, queryKey: getListMyRegistrationsQueryKey() }
   });
 
   const myRegistration = myRegistrations?.find(
@@ -149,10 +149,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               </p>
               <div className="flex flex-col gap-2 max-w-xl">
                 {reunion.fees.map((fee) => {
-                  const tiered =
-                    fee.chargeType === "per_person" &&
-                    fee.ageThreshold != null &&
-                    fee.amountUnderThreshold != null;
+                  const tiers = fee.chargeType === "per_person" ? (fee.ageTiers ?? []) : [];
                   return (
                     <div key={fee.id} className="grid grid-cols-2 items-baseline gap-x-4">
                       <span className="font-semibold">
@@ -163,9 +160,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       </span>
                       <span className="text-white/85 text-left">
                         ${fee.amount} {fee.chargeType === "flat" ? "flat" : "per person"}
-                        {tiered && (
-                          <span className="block">under {fee.ageThreshold}: ${fee.amountUnderThreshold}</span>
-                        )}
+                        {tiers.map((tier, i) => (
+                          <span key={i} className="block">
+                            {describeTierRange(tier)}: {tier.amount === 0 ? "free" : `$${tier.amount}`}
+                          </span>
+                        ))}
                       </span>
                     </div>
                   );

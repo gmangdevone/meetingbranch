@@ -215,21 +215,28 @@ export const FeeChargeType = {
   flat: 'flat',
 } as const;
 
+/**
+ * An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier's amount instead of the fee's base amount.
+ */
+export interface FeeAgeTier {
+  /** @minimum 0 */
+  minAge: number;
+  /** @minimum 0 */
+  maxAge: number;
+  /** @minimum 0 */
+  amount: number;
+}
+
 export interface ReunionFee {
   id: number;
   reunionId: number;
   label: string;
   chargeType: FeeChargeType;
   isOptional: boolean;
-  /** Amount for at-or-over the age threshold, or the flat/single amount when no age tier is set */
+  /** Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount */
   amount: number;
-  /**
-     * When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.
-     * @nullable
-     */
-  ageThreshold?: number | null;
-  /** @nullable */
-  amountUnderThreshold?: number | null;
+  /** Age-bracket price overrides. Only applies to per_person fees. */
+  ageTiers?: FeeAgeTier[];
   sortOrder: number;
 }
 
@@ -258,16 +265,7 @@ export interface FeeInput {
   isOptional?: boolean;
   /** @minimum 0 */
   amount: number;
-  /**
-     * @minimum 1
-     * @nullable
-     */
-  ageThreshold?: number | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  amountUnderThreshold?: number | null;
+  ageTiers?: FeeAgeTier[];
   sortOrder?: number;
 }
 

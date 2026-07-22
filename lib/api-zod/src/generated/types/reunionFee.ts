@@ -5,6 +5,7 @@
  * FamJam – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
 
 export interface ReunionFee {
@@ -13,14 +14,9 @@ export interface ReunionFee {
   label: string;
   chargeType: FeeChargeType;
   isOptional: boolean;
-  /** Amount for at-or-over the age threshold, or the flat/single amount when no age tier is set */
+  /** Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount */
   amount: number;
-  /**
-     * When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.
-     * @nullable
-     */
-  ageThreshold?: number | null;
-  /** @nullable */
-  amountUnderThreshold?: number | null;
+  /** Age-bracket price overrides. Only applies to per_person fees. */
+  ageTiers?: FeeAgeTier[];
   sortOrder: number;
 }

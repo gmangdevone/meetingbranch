@@ -28,6 +28,7 @@ export * from './castVotesInput';
 export * from './checkInInput';
 export * from './dayRegistrationCount';
 export * from './errorResponse';
+export * from './feeAgeTier';
 export * from './feeChargeType';
 export * from './feeInput';
 export * from './groupCount';

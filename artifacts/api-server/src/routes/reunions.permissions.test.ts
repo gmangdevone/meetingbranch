@@ -64,8 +64,7 @@ vi.mock("@workspace/db", () => {
       "chargeType",
       "isOptional",
       "amount",
-      "ageThreshold",
-      "amountUnderThreshold",
+      "ageTiers",
       "sortOrder",
     ],
     registrations: [

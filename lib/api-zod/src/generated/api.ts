@@ -57,6 +57,14 @@ export const CreateReunionBody = zod.object({
   "branches": zod.array(zod.string().min(1)).min(1)
 })
 
+export const createReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
+
+export const createReunionResponseFeesItemAgeTiersItemMaxAgeMin = 0;
+
+export const createReunionResponseFeesItemAgeTiersItemAmountMin = 0;
+
+
+
 export const CreateReunionResponse = zod.object({
   "id": zod.number(),
   "code": zod.string(),
@@ -80,9 +88,12 @@ export const CreateReunionResponse = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(createReunionResponseFeesItemAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(createReunionResponseFeesItemAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(createReunionResponseFeesItemAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 })
@@ -91,6 +102,14 @@ export const CreateReunionResponse = zod.object({
 /**
  * @summary List reunions the current user organizes
  */
+export const listMyReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
+
+export const listMyReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
+
+export const listMyReunionsResponseReunionFeesItemAgeTiersItemAmountMin = 0;
+
+
+
 export const ListMyReunionsResponseItem = zod.object({
   "reunion": zod.object({
   "id": zod.number(),
@@ -115,9 +134,12 @@ export const ListMyReunionsResponseItem = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(listMyReunionsResponseReunionFeesItemAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 }),
@@ -139,6 +161,14 @@ export const ListMyReunionsResponse = zod.array(ListMyReunionsResponseItem)
 export const GetReunionByCodeParams = zod.object({
   "code": zod.coerce.string()
 })
+
+export const getReunionByCodeResponseFeesItemAgeTiersItemMinAgeMin = 0;
+
+export const getReunionByCodeResponseFeesItemAgeTiersItemMaxAgeMin = 0;
+
+export const getReunionByCodeResponseFeesItemAgeTiersItemAmountMin = 0;
+
+
 
 export const GetReunionByCodeResponse = zod.object({
   "id": zod.number(),
@@ -163,9 +193,12 @@ export const GetReunionByCodeResponse = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(getReunionByCodeResponseFeesItemAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 })
@@ -177,6 +210,14 @@ export const GetReunionByCodeResponse = zod.object({
 export const GetReunionParams = zod.object({
   "reunionId": zod.coerce.number()
 })
+
+export const getReunionResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
+
+export const getReunionResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
+
+export const getReunionResponseReunionFeesItemAgeTiersItemAmountMin = 0;
+
+
 
 export const GetReunionResponse = zod.object({
   "reunion": zod.object({
@@ -202,9 +243,12 @@ export const GetReunionResponse = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(getReunionResponseReunionFeesItemAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 }),
@@ -241,6 +285,14 @@ export const UpdateReunionBody = zod.object({
   "registrationsOpen": zod.boolean().optional()
 })
 
+export const updateReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
+
+export const updateReunionResponseFeesItemAgeTiersItemMaxAgeMin = 0;
+
+export const updateReunionResponseFeesItemAgeTiersItemAmountMin = 0;
+
+
+
 export const UpdateReunionResponse = zod.object({
   "id": zod.number(),
   "code": zod.string(),
@@ -264,9 +316,12 @@ export const UpdateReunionResponse = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(updateReunionResponseFeesItemAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(updateReunionResponseFeesItemAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(updateReunionResponseFeesItemAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 })
@@ -488,9 +543,13 @@ export const CreateFeeParams = zod.object({
 export const createFeeBodyIsOptionalDefault = false;
 export const createFeeBodyAmountMin = 0;
 
+export const createFeeBodyAgeTiersItemMinAgeMin = 0;
 
-export const createFeeBodyAmountUnderThresholdMin = 0;
+export const createFeeBodyAgeTiersItemMaxAgeMin = 0;
 
+export const createFeeBodyAgeTiersItemAmountMin = 0;
+
+export const createFeeBodyAgeTiersDefault = [];
 export const createFeeBodySortOrderDefault = 0;
 
 export const CreateFeeBody = zod.object({
@@ -498,10 +557,21 @@ export const CreateFeeBody = zod.object({
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean().default(createFeeBodyIsOptionalDefault),
   "amount": zod.number().min(createFeeBodyAmountMin),
-  "ageThreshold": zod.number().min(1).nullish(),
-  "amountUnderThreshold": zod.number().min(createFeeBodyAmountUnderThresholdMin).nullish(),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(createFeeBodyAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(createFeeBodyAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(createFeeBodyAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).default(createFeeBodyAgeTiersDefault),
   "sortOrder": zod.number().default(createFeeBodySortOrderDefault)
 })
+
+export const createFeeResponseAgeTiersItemMinAgeMin = 0;
+
+export const createFeeResponseAgeTiersItemMaxAgeMin = 0;
+
+export const createFeeResponseAgeTiersItemAmountMin = 0;
+
+
 
 export const CreateFeeResponse = zod.object({
   "id": zod.number(),
@@ -509,9 +579,12 @@ export const CreateFeeResponse = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(createFeeResponseAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(createFeeResponseAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(createFeeResponseAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 })
 
@@ -528,9 +601,13 @@ export const UpdateFeeParams = zod.object({
 export const updateFeeBodyIsOptionalDefault = false;
 export const updateFeeBodyAmountMin = 0;
 
+export const updateFeeBodyAgeTiersItemMinAgeMin = 0;
 
-export const updateFeeBodyAmountUnderThresholdMin = 0;
+export const updateFeeBodyAgeTiersItemMaxAgeMin = 0;
 
+export const updateFeeBodyAgeTiersItemAmountMin = 0;
+
+export const updateFeeBodyAgeTiersDefault = [];
 export const updateFeeBodySortOrderDefault = 0;
 
 export const UpdateFeeBody = zod.object({
@@ -538,10 +615,21 @@ export const UpdateFeeBody = zod.object({
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean().default(updateFeeBodyIsOptionalDefault),
   "amount": zod.number().min(updateFeeBodyAmountMin),
-  "ageThreshold": zod.number().min(1).nullish(),
-  "amountUnderThreshold": zod.number().min(updateFeeBodyAmountUnderThresholdMin).nullish(),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(updateFeeBodyAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(updateFeeBodyAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(updateFeeBodyAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).default(updateFeeBodyAgeTiersDefault),
   "sortOrder": zod.number().default(updateFeeBodySortOrderDefault)
 })
+
+export const updateFeeResponseAgeTiersItemMinAgeMin = 0;
+
+export const updateFeeResponseAgeTiersItemMaxAgeMin = 0;
+
+export const updateFeeResponseAgeTiersItemAmountMin = 0;
+
+
 
 export const UpdateFeeResponse = zod.object({
   "id": zod.number(),
@@ -549,9 +637,12 @@ export const UpdateFeeResponse = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(updateFeeResponseAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(updateFeeResponseAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(updateFeeResponseAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 })
 
@@ -1513,6 +1604,14 @@ export const AdminUpdateSettingsResponse = zod.object({
 /**
  * @summary List all reunions across the platform
  */
+export const adminListReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
+
+export const adminListReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
+
+export const adminListReunionsResponseReunionFeesItemAgeTiersItemAmountMin = 0;
+
+
+
 export const AdminListReunionsResponseItem = zod.object({
   "reunion": zod.object({
   "id": zod.number(),
@@ -1537,9 +1636,12 @@ export const AdminListReunionsResponseItem = zod.object({
   "label": zod.string(),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
   "isOptional": zod.boolean(),
-  "amount": zod.number().describe('Amount for at-or-over the age threshold, or the flat\/single amount when no age tier is set'),
-  "ageThreshold": zod.number().nullish().describe('When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees.'),
-  "amountUnderThreshold": zod.number().nullish(),
+  "amount": zod.number().describe('Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount'),
+  "ageTiers": zod.array(zod.object({
+  "minAge": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin),
+  "maxAge": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin),
+  "amount": zod.number().min(adminListReunionsResponseReunionFeesItemAgeTiersItemAmountMin)
+}).describe('An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier\'s amount instead of the fee\'s base amount.')).optional().describe('Age-bracket price overrides. Only applies to per_person fees.'),
   "sortOrder": zod.number()
 }))
 }),

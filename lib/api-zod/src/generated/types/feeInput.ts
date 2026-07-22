@@ -5,6 +5,7 @@
  * FamJam – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
 
 export interface FeeInput {
@@ -14,15 +15,6 @@ export interface FeeInput {
   isOptional?: boolean;
   /** @minimum 0 */
   amount: number;
-  /**
-     * @minimum 1
-     * @nullable
-     */
-  ageThreshold?: number | null;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  amountUnderThreshold?: number | null;
+  ageTiers?: FeeAgeTier[];
   sortOrder?: number;
 }

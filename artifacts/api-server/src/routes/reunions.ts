@@ -84,30 +84,30 @@ async function getReunionWithBranches(reunionId: number) {
 }
 
 /**
- * Normalize fee input: age tiering only applies to per-person fees, and requires
- * BOTH an age threshold and an under-threshold amount to be meaningful. Anything
- * else clears the tier so we never store a half-configured tier.
+ * Normalize fee input: age tiers only apply to per-person fees (flat fees get an
+ * empty list). Tiers with an inverted range (minAge > maxAge) are rejected as a
+ * 400 by the caller via normalizeFeeInput returning null.
  */
 function normalizeFeeInput(data: {
   label: string;
   chargeType: "per_person" | "flat";
   isOptional: boolean;
   amount: number;
-  ageThreshold?: number | null;
-  amountUnderThreshold?: number | null;
+  ageTiers?: { minAge: number; maxAge: number; amount: number }[];
   sortOrder: number;
 }) {
-  const tierValid =
-    data.chargeType === "per_person" &&
-    data.ageThreshold != null &&
-    data.amountUnderThreshold != null;
+  const tiers = data.chargeType === "per_person" ? (data.ageTiers ?? []) : [];
+  if (tiers.some((t) => t.minAge > t.maxAge)) return null;
+  const sorted = [...tiers].sort((a, b) => a.minAge - b.minAge);
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].minAge <= sorted[i - 1].maxAge) return null; // overlapping ranges
+  }
   return {
     label: data.label.trim(),
     chargeType: data.chargeType,
     isOptional: data.isOptional,
     amount: data.amount,
-    ageThreshold: tierValid ? data.ageThreshold! : null,
-    amountUnderThreshold: tierValid ? data.amountUnderThreshold! : null,
+    ageTiers: sorted,
     sortOrder: data.sortOrder,
   };
 }
@@ -435,11 +435,16 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
     res.status(400).json({ error: body.error.message });
     return;
   }
+  const normalized = normalizeFeeInput(body.data);
+  if (!normalized) {
+    res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
+    return;
+  }
   const [created] = await db
     .insert(reunionFeesTable)
     .values({
       reunionId: req.managedReunion!.id,
-      ...normalizeFeeInput(body.data),
+      ...normalized,
     })
     .returning();
   res.status(201).json(created);
@@ -452,9 +457,14 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
     res.status(400).json({ error: "Invalid input" });
     return;
   }
+  const normalizedUpdate = normalizeFeeInput(body.data);
+  if (!normalizedUpdate) {
+    res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
+    return;
+  }
   const [updated] = await db
     .update(reunionFeesTable)
-    .set(normalizeFeeInput(body.data))
+    .set(normalizedUpdate)
     .where(
       and(
         eq(reunionFeesTable.id, feeId),

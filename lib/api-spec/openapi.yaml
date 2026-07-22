@@ -1782,14 +1782,29 @@ components:
           type: boolean
         amount:
           type: integer
-          description: "Amount for at-or-over the age threshold, or the flat/single amount when no age tier is set"
-        ageThreshold:
-          type: ["integer", "null"]
-          description: "When set, attendees younger than this pay amountUnderThreshold; everyone else pays amount. Only applies to per_person fees."
-        amountUnderThreshold:
-          type: ["integer", "null"]
+          description: "Base amount — what attendees matching no age tier (or with no age on file) pay, or the flat amount"
+        ageTiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeeAgeTier"
+          description: "Age-bracket price overrides. Only applies to per_person fees."
         sortOrder:
           type: integer
+
+    FeeAgeTier:
+      type: object
+      required: [minAge, maxAge, amount]
+      description: "An attendee whose age is within [minAge, maxAge] (inclusive) pays this tier's amount instead of the fee's base amount."
+      properties:
+        minAge:
+          type: integer
+          minimum: 0
+        maxAge:
+          type: integer
+          minimum: 0
+        amount:
+          type: integer
+          minimum: 0
 
     FeeInput:
       type: object
@@ -1806,12 +1821,11 @@ components:
         amount:
           type: integer
           minimum: 0
-        ageThreshold:
-          type: ["integer", "null"]
-          minimum: 1
-        amountUnderThreshold:
-          type: ["integer", "null"]
-          minimum: 0
+        ageTiers:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeeAgeTier"
+          default: []
         sortOrder:
           type: integer
           default: 0

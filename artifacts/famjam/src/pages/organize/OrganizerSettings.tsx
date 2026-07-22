@@ -219,14 +219,18 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   );
 }
 
+type TierFormRow = {
+  minAge: string;
+  maxAge: string;
+  amount: string;
+};
+
 type FeeFormState = {
   label: string;
   chargeType: "per_person" | "flat";
   isOptional: boolean;
   amount: string;
-  hasAgeTier: boolean;
-  ageThreshold: string;
-  amountUnderThreshold: string;
+  tiers: TierFormRow[];
 };
 
 const EMPTY_FEE: FeeFormState = {
@@ -234,9 +238,7 @@ const EMPTY_FEE: FeeFormState = {
   chargeType: "per_person",
   isOptional: false,
   amount: "",
-  hasAgeTier: false,
-  ageThreshold: "",
-  amountUnderThreshold: "",
+  tiers: [],
 };
 
 function feeToFormState(fee: ReunionFee): FeeFormState {
@@ -245,9 +247,11 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
     chargeType: fee.chargeType,
     isOptional: fee.isOptional,
     amount: String(fee.amount),
-    hasAgeTier: fee.ageThreshold != null && fee.amountUnderThreshold != null,
-    ageThreshold: fee.ageThreshold != null ? String(fee.ageThreshold) : "",
-    amountUnderThreshold: fee.amountUnderThreshold != null ? String(fee.amountUnderThreshold) : "",
+    tiers: (fee.ageTiers ?? []).map((t) => ({
+      minAge: String(t.minAge),
+      maxAge: String(t.maxAge),
+      amount: String(t.amount),
+    })),
   };
 }
 
@@ -292,17 +296,33 @@ function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[
       setError("Enter a valid amount.");
       return null;
     }
-    const useTier = draft.chargeType === "per_person" && draft.hasAgeTier;
-    const ageThreshold = Number(draft.ageThreshold);
-    const amountUnder = Number(draft.amountUnderThreshold);
-    if (useTier) {
-      if (!Number.isInteger(ageThreshold) || ageThreshold < 1) {
-        setError("Enter a valid age threshold (1 or higher).");
-        return null;
+    const useTiers = draft.chargeType === "per_person";
+    const ageTiers: { minAge: number; maxAge: number; amount: number }[] = [];
+    if (useTiers) {
+      for (const row of draft.tiers) {
+        const minAge = Number(row.minAge);
+        const maxAge = Number(row.maxAge);
+        const tierAmount = Number(row.amount);
+        if (!Number.isInteger(minAge) || minAge < 0 || !Number.isInteger(maxAge) || maxAge < 0) {
+          setError("Each age range needs a valid \"from\" and \"to\" age (0 or higher).");
+          return null;
+        }
+        if (minAge > maxAge) {
+          setError("An age range's \"from\" age can't be higher than its \"to\" age.");
+          return null;
+        }
+        if (row.amount.trim() === "" || !Number.isFinite(tierAmount) || tierAmount < 0) {
+          setError("Each age range needs a price ($0 means free).");
+          return null;
+        }
+        ageTiers.push({ minAge, maxAge, amount: tierAmount });
       }
-      if (!Number.isFinite(amountUnder) || amountUnder < 0) {
-        setError("Enter a valid under-threshold amount.");
-        return null;
+      const sorted = [...ageTiers].sort((a, b) => a.minAge - b.minAge);
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].minAge <= sorted[i - 1].maxAge) {
+          setError("Age ranges can't overlap — adjust the ranges so each age falls in only one.");
+          return null;
+        }
       }
     }
     return {
@@ -310,8 +330,7 @@ function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[
       chargeType: draft.chargeType,
       isOptional: draft.isOptional,
       amount,
-      ageThreshold: useTier ? ageThreshold : null,
-      amountUnderThreshold: useTier ? amountUnder : null,
+      ageTiers: useTiers ? ageTiers : [],
     };
   };
 
@@ -459,6 +478,15 @@ function FeeEditor({
 }) {
   const set = <K extends keyof FeeFormState>(key: K, value: FeeFormState[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
+  const setTier = (index: number, key: keyof TierFormRow, value: string) =>
+    setDraft((prev) => ({
+      ...prev,
+      tiers: prev.tiers.map((t, i) => (i === index ? { ...t, [key]: value } : t)),
+    }));
+  const addTier = () =>
+    setDraft((prev) => ({ ...prev, tiers: [...prev.tiers, { minAge: "", maxAge: "", amount: "" }] }));
+  const removeTier = (index: number) =>
+    setDraft((prev) => ({ ...prev, tiers: prev.tiers.filter((_, i) => i !== index) }));
 
   return (
     <div className="p-4 space-y-4">
@@ -495,7 +523,7 @@ function FeeEditor({
 
         <div>
           <label className="text-sm font-bold block mb-1">
-            {draft.chargeType === "per_person" && draft.hasAgeTier ? "Amount (age & up)" : "Amount ($)"}
+            {draft.chargeType === "per_person" && draft.tiers.length > 0 ? "Standard amount ($)" : "Amount ($)"}
           </label>
           <Input
             type="number"
@@ -521,42 +549,69 @@ function FeeEditor({
 
       {draft.chargeType === "per_person" && (
         <div className="space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <Checkbox
-              checked={draft.hasAgeTier}
-              onCheckedChange={(v) => set("hasAgeTier", v === true)}
-            />
-            <span className="text-sm">
-              <span className="font-medium">Age-based pricing</span>
-              <span className="text-muted-foreground"> — charge a different amount for younger attendees</span>
-            </span>
-          </label>
-          {draft.hasAgeTier && (
-            <div className="grid grid-cols-2 gap-4 pl-7">
-              <div>
-                <label className="text-sm font-bold block mb-1">Under age…</label>
-                <Input
-                  type="number"
-                  min={1}
-                  className="rounded-xl bg-background"
-                  placeholder="e.g. 12"
-                  value={draft.ageThreshold}
-                  onChange={(e) => set("ageThreshold", e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-bold block mb-1">…pays ($)</label>
+          <div>
+            <p className="text-sm font-medium">Age-based pricing</p>
+            <p className="text-sm text-muted-foreground">
+              Add age ranges that pay a different rate. Anyone outside these ranges (or with no age on
+              file) pays the standard amount. Set a range's price to $0 to make it free.
+            </p>
+          </div>
+          {draft.tiers.map((tier, i) => (
+            <div key={i} className="flex flex-wrap items-end gap-3 pl-1">
+              <div className="w-24">
+                <label className="text-sm font-bold block mb-1">Ages from</label>
                 <Input
                   type="number"
                   min={0}
                   className="rounded-xl bg-background"
                   placeholder="0"
-                  value={draft.amountUnderThreshold}
-                  onChange={(e) => set("amountUnderThreshold", e.target.value)}
+                  value={tier.minAge}
+                  onChange={(e) => setTier(i, "minAge", e.target.value)}
                 />
               </div>
+              <div className="w-24">
+                <label className="text-sm font-bold block mb-1">to</label>
+                <Input
+                  type="number"
+                  min={0}
+                  className="rounded-xl bg-background"
+                  placeholder="e.g. 17"
+                  value={tier.maxAge}
+                  onChange={(e) => setTier(i, "maxAge", e.target.value)}
+                />
+              </div>
+              <div className="w-28">
+                <label className="text-sm font-bold block mb-1">pay ($)</label>
+                <Input
+                  type="number"
+                  min={0}
+                  className="rounded-xl bg-background"
+                  placeholder="0 = free"
+                  value={tier.amount}
+                  onChange={(e) => setTier(i, "amount", e.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => removeTier(i)}
+                aria-label="Remove age range"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
             </div>
-          )}
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addTier}
+            className="rounded-full font-bold gap-2"
+          >
+            <Plus className="w-4 h-4" /> Add age range
+          </Button>
         </div>
       )}
 

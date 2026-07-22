@@ -1,4 +1,4 @@
-import type { ReunionFee } from "@workspace/db";
+import type { ReunionFee, FeeAgeTier } from "@workspace/db";
 
 export interface FeeAttendee {
   age?: number | null;
@@ -12,27 +12,32 @@ export function feeApplies(
   return !fee.isOptional || selectedFeeIds.includes(fee.id);
 }
 
+/** The tier whose [minAge, maxAge] bracket contains this age, if any. */
+export function tierForAge(
+  tiers: FeeAgeTier[],
+  age: number | null | undefined,
+): FeeAgeTier | undefined {
+  if (age == null) return undefined;
+  return tiers.find((t) => age >= t.minAge && age <= t.maxAge);
+}
+
 /**
- * How much a single fee costs a household.
+ * How much a single fee costs a household. Mirrors the web app's fee logic.
  * - flat: one amount per registration (age is ignored)
- * - per_person: amount × attendees, or age-tiered when ageThreshold is set
- *   (attendees younger than the threshold pay amountUnderThreshold; a null age
- *   is treated as at-or-over, i.e. the standard amount).
+ * - per_person: each attendee pays the base amount, unless their age falls in
+ *   one of the fee's age tiers, in which case they pay that tier's amount.
+ *   A null age always pays the base amount.
  */
 export function computeFeeAmount(
-  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageThreshold" | "amountUnderThreshold">,
+  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers">,
   attendees: FeeAttendee[],
 ): number {
   if (fee.chargeType === "flat") return fee.amount;
-  if (fee.ageThreshold != null && fee.amountUnderThreshold != null) {
-    const threshold = fee.ageThreshold;
-    const under = fee.amountUnderThreshold;
-    return attendees.reduce(
-      (sum, a) => sum + (a.age != null && a.age < threshold ? under : fee.amount),
-      0,
-    );
-  }
-  return fee.amount * attendees.length;
+  const tiers = fee.ageTiers ?? [];
+  return attendees.reduce(
+    (sum, a) => sum + (tierForAge(tiers, a.age)?.amount ?? fee.amount),
+    0,
+  );
 }
 
 /** Total across every applicable fee for this household. */

@@ -1,4 +1,4 @@
-import { pgTable, integer, text, timestamp, unique, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, integer, text, timestamp, unique, boolean, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -25,11 +25,21 @@ export const reunionsTable = pgTable("reunions", {
 export const feeChargeTypeEnum = pgEnum("fee_charge_type", ["per_person", "flat"]);
 
 /**
+ * An age-bracket price override on a per-person fee. An attendee whose age falls
+ * within [minAge, maxAge] (inclusive) pays `amount` instead of the fee's base
+ * amount. Attendees matching no tier — or with no age on file — pay the base amount.
+ */
+export interface FeeAgeTier {
+  minAge: number;
+  maxAge: number;
+  amount: number;
+}
+
+/**
  * Labeled fees & dues for a reunion (e.g. "Registration Fee", "T-Shirt", "Facility Dues").
  * Replaces the old single `reunions.fee_per_person`.
- * Age tiering: when `ageThreshold` is set, attendees under it are charged
- * `amountUnderThreshold`, everyone at-or-over pays `amount`. (Only meaningful for
- * per-person fees; flat fees ignore age.)
+ * Age tiering: `ageTiers` holds age-bracket price overrides (see FeeAgeTier).
+ * Only meaningful for per-person fees; flat fees ignore age.
  */
 export const reunionFeesTable = pgTable("reunion_fees", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -40,8 +50,7 @@ export const reunionFeesTable = pgTable("reunion_fees", {
   chargeType: feeChargeTypeEnum("charge_type").notNull().default("per_person"),
   isOptional: boolean("is_optional").notNull().default(false),
   amount: integer("amount").notNull(),
-  ageThreshold: integer("age_threshold"),
-  amountUnderThreshold: integer("amount_under_threshold"),
+  ageTiers: jsonb("age_tiers").$type<FeeAgeTier[]>().notNull().default([]),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 

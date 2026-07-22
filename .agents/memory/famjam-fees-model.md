@@ -7,10 +7,13 @@ description: How reunion fees are modeled/computed after replacing the single fe
 
 Reunion pricing is a list of labeled fees (a `reunion_fees` table), NOT a single
 per-person number. The old `reunions.fee_per_person` column was fully removed.
-Each fee has a charge type (per_person | flat), an optional flag, and an optional
-age tier (an age threshold + a separate under-threshold amount). Optional fees a
-household opts into are stored in a `registration_fees` join table; mandatory
-fees always apply. `attendees.age` drives age tiering (nullable = at-or-over).
+Each fee has a charge type (per_person | flat), an optional flag, and a jsonb
+`age_tiers` list of brackets `{minAge, maxAge, amount}` (replaced the old single
+ageThreshold/amountUnderThreshold pair). An attendee whose age falls in a bracket
+pays that amount; anyone else — including null age — pays the base `amount`.
+Brackets must not overlap (validated server-side, 400 on violation) and are
+stored sorted by minAge. Optional fees a household opts into are stored in a
+`registration_fees` join table; mandatory fees always apply.
 
 **feePerPerson still exists ONLY in the create-reunion input** as a seed value for
 the initial "Registration Fee" item — it is gone from the Reunion response and
