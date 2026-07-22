@@ -37,9 +37,20 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     query: { enabled: isSignedIn, queryKey: getListMyRegistrationsQueryKey() }
   });
 
-  const myRegistration = myRegistrations?.find(
+  const myActiveRegistrations = (myRegistrations ?? []).filter(
     (r) => r.reunionId === reunion?.id && r.status === "active"
   );
+  const myRegistration = myActiveRegistrations[0];
+  const myAccountTotal = myActiveRegistrations.reduce(
+    (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
+    0,
+  );
+  // Account-level payment status: paid/waived only when every registration is settled.
+  const myPaymentStatus = myActiveRegistrations.every((r) => r.paymentStatus === "paid")
+    ? "paid"
+    : myActiveRegistrations.every((r) => r.paymentStatus === "paid" || r.paymentStatus === "waived")
+      ? "waived"
+      : "pending";
 
   const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
     query: { 
@@ -120,15 +131,15 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-sm font-bold uppercase tracking-widest text-white/70">
                 Your Total Due
                 <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
-                  ${computeTotal(reunion.fees, myRegistration.attendees, myRegistration.selectedFeeIds ?? [])}
+                  ${myAccountTotal}
                 </span>
               </p>
               <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
-                myRegistration.paymentStatus === 'paid' ? 'bg-green-300/90 text-green-950' :
-                myRegistration.paymentStatus === 'waived' ? 'bg-white/25 text-white' :
+                myPaymentStatus === 'paid' ? 'bg-green-300/90 text-green-950' :
+                myPaymentStatus === 'waived' ? 'bg-white/25 text-white' :
                 'bg-amber-300/90 text-amber-950'
               }`}>
-                {myRegistration.paymentStatus === 'pending' ? 'Payment verification pending' : myRegistration.paymentStatus}
+                {myPaymentStatus === 'pending' ? 'Payment verification pending' : myPaymentStatus}
               </span>
             </div>
           )}
@@ -217,30 +228,62 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                     <p className="text-foreground font-medium">This reunion is free to attend!</p>
                   ) : (
                     <div className="flex flex-col gap-4">
-                      {myRegistration && (
-                        <div className="pb-4 border-b">
-                          <span className="text-muted-foreground text-sm block mb-3">
-                            Your registration ({myRegistration.attendeeCount}{" "}
-                            {myRegistration.attendeeCount === 1 ? "attendee" : "attendees"})
-                          </span>
-                          <div className="flex flex-col gap-2">
-                            {reunion.fees
-                              .filter((fee) => feeApplies(fee, myRegistration.selectedFeeIds ?? []))
-                              .map((fee) => (
-                                <div key={fee.id} className="flex justify-between items-baseline gap-3">
-                                  <span className="text-foreground">{fee.label}</span>
-                                  <span className="font-bold tabular-nums">
-                                    ${computeFeeAmount(fee, myRegistration.attendees)}
-                                  </span>
+                      {myActiveRegistrations.map((reg) => {
+                        const applicableFees = reunion.fees.filter((fee) =>
+                          feeApplies(fee, reg.selectedFeeIds ?? []),
+                        );
+                        const perPersonFees = applicableFees.filter((f) => f.chargeType === "per_person");
+                        const flatFees = applicableFees.filter((f) => f.chargeType === "flat");
+                        return (
+                          <div key={reg.id} className="pb-4 border-b">
+                            <span className="text-muted-foreground text-sm block mb-3">
+                              {reg.branchName} registration ({reg.attendeeCount}{" "}
+                              {reg.attendeeCount === 1 ? "attendee" : "attendees"})
+                            </span>
+                            <div className="flex flex-col gap-3">
+                              {reg.attendees.map((attendee, i) => (
+                                <div key={i}>
+                                  <div className="flex justify-between items-baseline gap-3">
+                                    <span className="font-bold text-foreground">
+                                      {attendee.name}
+                                      {attendee.age != null && (
+                                        <span className="ml-1.5 text-xs font-medium text-muted-foreground">
+                                          age {attendee.age}
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span className="font-bold tabular-nums">
+                                      ${perPersonFees.reduce((sum, fee) => sum + computeFeeAmount(fee, [attendee]), 0)}
+                                    </span>
+                                  </div>
+                                  {perPersonFees.map((fee) => (
+                                    <div key={fee.id} className="flex justify-between items-baseline gap-3 pl-4 text-sm text-muted-foreground">
+                                      <span>{fee.label}</span>
+                                      <span className="tabular-nums">${computeFeeAmount(fee, [attendee])}</span>
+                                    </div>
+                                  ))}
                                 </div>
                               ))}
-                            <div className="flex justify-between items-baseline gap-3 pt-2 border-t">
-                              <span className="font-bold">Total due</span>
-                              <span className="font-serif text-xl font-bold tabular-nums">
-                                ${computeTotal(reunion.fees, myRegistration.attendees, myRegistration.selectedFeeIds ?? [])}
-                              </span>
+                              {flatFees.map((fee) => (
+                                <div key={fee.id} className="flex justify-between items-baseline gap-3">
+                                  <span className="text-foreground">{fee.label} <span className="text-xs text-muted-foreground">flat</span></span>
+                                  <span className="font-bold tabular-nums">${fee.amount}</span>
+                                </div>
+                              ))}
+                              <div className="flex justify-between items-baseline gap-3 pt-2 border-t">
+                                <span className="font-medium text-muted-foreground">Registration total</span>
+                                <span className="font-bold tabular-nums">
+                                  ${computeTotal(reunion.fees, reg.attendees, reg.selectedFeeIds ?? [])}
+                                </span>
+                              </div>
                             </div>
                           </div>
+                        );
+                      })}
+                      {myActiveRegistrations.length > 0 && (
+                        <div className="flex justify-between items-baseline gap-3 pb-4 border-b">
+                          <span className="font-bold">Account total due</span>
+                          <span className="font-serif text-xl font-bold tabular-nums">${myAccountTotal}</span>
                         </div>
                       )}
                       <div className="pb-4 border-b">
