@@ -39,3 +39,7 @@ NOT run these .sql files or backfill data for a column→table restructure. If a
 app with real prod data is published after such a change, the old column is
 dropped without its data being migrated into the new tables. Warn the user to
 handle prod data (or that the restructure is destructive) at publish time.
+
+## Dev vs prod fee config
+- Fee rows (reunion_fees) are DATA, not schema: publishing syncs schema only, so dev fee setup never reaches prod — organizers must reconfigure fees in the live app.
+- Common misconfiguration: creating separate fees per age band ("Registration 18+", "Registration 10-17"). A fee with no age tiers charges everyone, so this double-charges. Correct model: one fee per item with age tiers; base amount covers unmatched ages.
