@@ -24,6 +24,15 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const [isSponsorDialogOpen, setIsSponsorDialogOpen] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showAllFees, setShowAllFees] = useState(false);
+  const [showHeroFees, setShowHeroFees] = useState(false);
+
+  const revealPayments = () => {
+    setShowPayments(true);
+    // Wait a tick so the section is rendered before scrolling
+    setTimeout(() => {
+      document.getElementById("payments-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
   const queryClient = useQueryClient();
   
   const createContribution = useCreateSponsorshipContribution();
@@ -130,7 +139,12 @@ export function ReunionHub({ params }: { params: { code: string } }) {
         </div>
         <div className="relative z-10">
           {myRegistration && (
-            <div className="inline-block bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-5 py-3 mb-6">
+            <button
+              type="button"
+              onClick={revealPayments}
+              className="inline-block text-left bg-white/15 backdrop-blur-sm border border-white/25 rounded-2xl px-5 py-3 mb-6 hover:bg-white/25 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+              aria-label="View payment and contribution details"
+            >
               <p className="text-sm font-bold uppercase tracking-widest text-white/70">
                 Your Total Due
                 <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
@@ -144,7 +158,10 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               }`}>
                 {myPaymentStatus === 'pending' ? 'Payment verification pending' : myPaymentStatus}
               </span>
-            </div>
+              <span className="block mt-1.5 text-xs font-medium text-white/60 underline underline-offset-2">
+                View payment details
+              </span>
+            </button>
           )}
           <h1 className="font-serif text-5xl md:text-6xl font-bold mb-4 drop-shadow-md">
             {reunion.name}
@@ -159,10 +176,17 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           </div>
           {reunion.fees.length > 0 && (
             <div className="mt-6 pt-5 border-t border-white/20">
-              <p className="text-xs font-bold uppercase tracking-widest text-white/70 mb-3 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5" /> Fees &amp; Dues
-              </p>
-              <div className="flex flex-col gap-2 max-w-xl">
+              <button
+                type="button"
+                onClick={() => setShowHeroFees((v) => !v)}
+                aria-expanded={showHeroFees}
+                className="text-xs font-bold uppercase tracking-widest text-white/70 mb-3 flex items-center gap-1.5 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+              >
+                <DollarSign className="w-3.5 h-3.5" /> {showHeroFees ? "Hide" : "Show"} Fees &amp; Dues
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showHeroFees ? "rotate-180" : ""}`} />
+              </button>
+              {showHeroFees && (
+              <div className="flex flex-col gap-2 max-w-xl animate-in fade-in slide-in-from-top-1 duration-200">
                 {reunion.fees.map((fee) => {
                   const tiers = fee.chargeType === "per_person" ? (fee.ageTiers ?? []) : [];
                   return (
@@ -185,6 +209,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   );
                 })}
               </div>
+              )}
             </div>
           )}
         </div>
@@ -212,7 +237,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             )}
           </div>
 
-          <div>
+          <div id="payments-section" className="scroll-mt-4">
             <button
               type="button"
               onClick={() => setShowPayments((v) => !v)}
