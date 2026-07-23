@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
@@ -23,6 +24,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const [isSponsorDialogOpen, setIsSponsorDialogOpen] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showAllFees, setShowAllFees] = useState(false);
+  const queryClient = useQueryClient();
   
   const createContribution = useCreateSponsorshipContribution();
 
@@ -82,6 +84,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       }
     }, {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetMyContributionsQueryKey(reunion.id) });
         setShowThankYou(true);
         setTimeout(() => {
           setIsSponsorDialogOpen(false);
