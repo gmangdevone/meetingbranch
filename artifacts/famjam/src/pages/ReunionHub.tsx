@@ -69,6 +69,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       queryKey: getGetMyContributionsQueryKey(reunion?.id ?? 0)
     }
   });
+  const myContributionsTotal = (myContributionsData?.contributions ?? []).reduce(
+    (sum, c) => sum + c.amount,
+    0,
+  );
+  const myTotalDue = myAccountTotal + myContributionsTotal;
 
   // Remember the last successfully visited reunion so the Home nav can return here;
   // forget it if the code turns out to be invalid.
@@ -148,7 +153,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-sm font-bold uppercase tracking-widest text-white/70">
                 Your Total Due
                 <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
-                  ${myAccountTotal}
+                  ${myTotalDue}
                 </span>
               </p>
               <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
@@ -309,9 +314,23 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                         );
                       })}
                       {myActiveRegistrations.length > 0 && (
-                        <div className="flex justify-between items-baseline gap-3 pb-4 border-b">
-                          <span className="font-bold">Account total due</span>
-                          <span className="font-serif text-xl font-bold tabular-nums">${myAccountTotal}</span>
+                        <div className="flex flex-col gap-2 pb-4 border-b">
+                          {myContributionsTotal > 0 && (
+                            <>
+                              <div className="flex justify-between items-baseline gap-3">
+                                <span className="font-medium text-muted-foreground">Registrations</span>
+                                <span className="font-bold tabular-nums">${myAccountTotal}</span>
+                              </div>
+                              <div className="flex justify-between items-baseline gap-3">
+                                <span className="font-medium text-muted-foreground">Fund contributions</span>
+                                <span className="font-bold tabular-nums">${myContributionsTotal}</span>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex justify-between items-baseline gap-3">
+                            <span className="font-bold">Account total due</span>
+                            <span className="font-serif text-xl font-bold tabular-nums">${myTotalDue}</span>
+                          </div>
                         </div>
                       )}
                       <div className="pb-4 border-b">
