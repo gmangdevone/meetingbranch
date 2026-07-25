@@ -5,7 +5,7 @@ import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { useGetMyAccess, getGetMyAccessQueryKey } from "@workspace/api-client-react";
+import { useGetMyAccess, getGetMyAccessQueryKey, useListMyRegistrations, useListMyReunions } from "@workspace/api-client-react";
 
 import { Layout } from "./components/Layout";
 import { Home } from "./pages/Home";
@@ -141,11 +141,79 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function PostLoginLanding() {
+  const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
+  const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
+
+  if (loadingRegistrations || loadingReunions) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  // Organizers go to the dashboard where their reunions are managed.
+  if (reunions && reunions.length > 0) {
+    return <Redirect to="/dashboard" />;
+  }
+
+  // Unique reunions the user has an active registration in.
+  const joined = new Map<string, { code: string; name: string }>();
+  for (const reg of registrations ?? []) {
+    if (reg.status === "cancelled" || !reg.reunionCode) continue;
+    if (!joined.has(reg.reunionCode)) {
+      joined.set(reg.reunionCode, {
+        code: reg.reunionCode,
+        name: reg.reunionName || `Reunion ${reg.reunionCode}`,
+      });
+    }
+  }
+
+  if (joined.size === 0) {
+    return <Redirect to="/dashboard" />;
+  }
+
+  if (joined.size === 1) {
+    const only = joined.values().next().value!;
+    return <Redirect to={`/r/${only.code}`} />;
+  }
+
+  return (
+    <div className="max-w-xl mx-auto py-16 px-4 flex flex-col gap-8">
+      <div className="text-center">
+        <h1 className="font-serif text-4xl font-bold mb-2">Welcome Back</h1>
+        <p className="text-lg text-muted-foreground">Which reunion would you like to visit?</p>
+      </div>
+      <div className="flex flex-col gap-4">
+        {[...joined.values()].map((r) => (
+          <Link
+            key={r.code}
+            href={`/r/${r.code}`}
+            className="bg-card border shadow-sm rounded-3xl p-6 flex items-center justify-between gap-4 hover:border-primary/50 hover:shadow-md transition-all group"
+          >
+            <div>
+              <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{r.name}</h3>
+              <p className="text-sm text-muted-foreground font-mono">{r.code}</p>
+            </div>
+            <span className="text-primary font-medium shrink-0">Go to Hub →</span>
+          </Link>
+        ))}
+      </div>
+      <div className="text-center">
+        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm font-medium hover:underline">
+          Go to my dashboard instead
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function HomeRedirect() {
   return (
     <>
       <Show when="signed-in">
-        <Redirect to="/dashboard" />
+        <Layout><PostLoginLanding /></Layout>
       </Show>
       <Show when="signed-out">
         <Layout><Home /></Layout>
