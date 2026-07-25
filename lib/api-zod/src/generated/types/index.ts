@@ -77,3 +77,4 @@ export * from './transferRegistrationInput';
 export * from './transferRegistrationInputKind';
 export * from './updateOrganizerRolesInput';
 export * from './updatePaymentStatusInput';
+export * from './updateRegistrationInput';

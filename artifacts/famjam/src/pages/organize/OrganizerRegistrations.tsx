@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useLocation } from "wouter";
 import { 
   useListReunionRegistrations, 
   useUpdateRegistrationPayment, 
@@ -18,7 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck } from "lucide-react";
+import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck, Pencil } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -52,6 +53,7 @@ const managedRegistrationSchema = z.object({
 
 export function OrganizerRegistrations({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
@@ -394,6 +396,11 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                       <td className="px-4 py-4">
                         {!isCancelled && (
                           <div className="flex flex-wrap gap-2">
+                            {reunion?.code && (
+                              <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setLocation(`/r/${reunion.code}/register/edit/${reg.id}`)}>
+                                <Pencil className="w-3 h-3 mr-1" /> Edit
+                              </Button>
+                            )}
                             <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setTransferReg(reg)}>
                               <Send className="w-3 h-3 mr-1" /> Transfer
                             </Button>

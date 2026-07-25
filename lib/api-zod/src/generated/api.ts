@@ -74,6 +74,7 @@ export const CreateReunionResponse = zod.object({
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "registrationsOpen": zod.boolean(),
+  "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -120,6 +121,7 @@ export const ListMyReunionsResponseItem = zod.object({
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "registrationsOpen": zod.boolean(),
+  "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -179,6 +181,7 @@ export const GetReunionByCodeResponse = zod.object({
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "registrationsOpen": zod.boolean(),
+  "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -229,6 +232,7 @@ export const GetReunionResponse = zod.object({
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "registrationsOpen": zod.boolean(),
+  "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -282,7 +286,8 @@ export const UpdateReunionBody = zod.object({
   "endDate": zod.string().min(1),
   "paymentHandle": zod.string().min(1),
   "paymentUrl": zod.string().optional(),
-  "registrationsOpen": zod.boolean().optional()
+  "registrationsOpen": zod.boolean().optional(),
+  "allowRegistrantEdits": zod.boolean().optional()
 })
 
 export const updateReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
@@ -302,6 +307,7 @@ export const UpdateReunionResponse = zod.object({
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "registrationsOpen": zod.boolean(),
+  "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -1512,6 +1518,57 @@ export const GetRegistrationResponse = zod.object({
 
 
 /**
+ * Organizers with the registration role (and platform admins) may edit any registration. The registrant may edit their own active registration when the reunion's allowRegistrantEdits setting is enabled.
+ * @summary Update a registration's branch, attendees, and optional fees
+ */
+export const UpdateRegistrationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+export const updateRegistrationBodyAttendeesItemAgeMin = 0;
+
+
+
+
+export const UpdateRegistrationBody = zod.object({
+  "branchName": zod.string().min(1),
+  "attendees": zod.array(zod.object({
+  "name": zod.string().min(1),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().optional(),
+  "age": zod.number().min(updateRegistrationBodyAttendeesItemAgeMin).nullish()
+})).min(1),
+  "selectedFeeIds": zod.array(zod.number()).optional().describe('IDs of OPTIONAL fees this household opted into. Mandatory fees always apply.')
+})
+
+export const UpdateRegistrationResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "reunionName": zod.string().nullish(),
+  "reunionCode": zod.string().nullish(),
+  "userId": zod.string(),
+  "branchName": zod.string(),
+  "attendeeCount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "status": zod.enum(['active', 'cancelled']),
+  "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
+  "createdAt": zod.coerce.date(),
+  "attendees": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "name": zod.string(),
+  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "dietaryRestrictions": zod.string().nullish(),
+  "age": zod.number().nullish(),
+  "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
+})),
+  "selectedFeeIds": zod.array(zod.number()).optional()
+})
+
+
+/**
  * @summary Transfer a registration (or its payment) to someone else
  */
 export const TransferRegistrationParams = zod.object({
@@ -1622,6 +1679,7 @@ export const AdminListReunionsResponseItem = zod.object({
   "paymentHandle": zod.string(),
   "paymentUrl": zod.string().nullish(),
   "registrationsOpen": zod.boolean(),
+  "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({

@@ -38,6 +38,7 @@ const formSchema = z.object({
   paymentHandle: z.string().min(1, "Required"),
   paymentUrl: z.string().optional(),
   registrationsOpen: z.boolean().default(true),
+  allowRegistrantEdits: z.boolean().default(false),
 });
 
 export function OrganizerSettings({ params }: { params: { reunionId: string } }) {
@@ -60,6 +61,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       paymentHandle: "",
       paymentUrl: "",
       registrationsOpen: true,
+      allowRegistrantEdits: false,
     },
   });
 
@@ -72,6 +74,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         paymentHandle: summary.reunion.paymentHandle,
         paymentUrl: summary.reunion.paymentUrl || "",
         registrationsOpen: summary.reunion.registrationsOpen,
+        allowRegistrantEdits: summary.reunion.allowRegistrantEdits ?? false,
       });
     }
   }, [summary, form]);
@@ -86,6 +89,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         paymentHandle: values.paymentHandle,
         paymentUrl: values.paymentUrl || undefined,
         registrationsOpen: values.registrationsOpen,
+        allowRegistrantEdits: values.allowRegistrantEdits,
       }
     }, {
       onSuccess: () => {
@@ -160,6 +164,28 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                         {field.value 
                           ? "Families can currently register and select fees." 
                           : "Registration is closed. New families cannot register, but existing ones keep their spot."}
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="allowRegistrantEdits"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="font-bold text-base">Allow Registrants to Edit</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        {field.value
+                          ? "Registrants can edit their own registration (attendees, branch, add-ons)."
+                          : "Only organizers can edit registrations. Registrants must contact you for changes."}
                       </div>
                     </div>
                     <FormControl>

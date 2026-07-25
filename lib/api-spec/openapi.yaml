@@ -1223,6 +1223,45 @@ paths:
                 $ref: "#/components/schemas/Registration"
         "404":
           description: Not found
+    put:
+      operationId: updateRegistration
+      tags: [registrations]
+      summary: Update a registration's branch, attendees, and optional fees
+      description: >
+        Organizers with the registration role (and platform admins) may edit any
+        registration. The registrant may edit their own active registration when
+        the reunion's allowRegistrantEdits setting is enabled.
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRegistrationInput"
+      responses:
+        "200":
+          description: Updated registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Registration"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
 
   /registrations/{id}/transfer:
     post:
@@ -1593,6 +1632,24 @@ components:
             donate the paid amount to the sponsorship fund. Ignored when
             nothing was paid.
 
+    UpdateRegistrationInput:
+      type: object
+      required: [branchName, attendees]
+      properties:
+        branchName:
+          type: string
+          minLength: 1
+        attendees:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttendeeInput"
+          minItems: 1
+        selectedFeeIds:
+          type: array
+          items:
+            type: integer
+          description: "IDs of OPTIONAL fees this household opted into. Mandatory fees always apply."
+
     TransferRegistrationInput:
       type: object
       required: [kind]
@@ -1747,6 +1804,9 @@ components:
           type: ["string", "null"]
         registrationsOpen:
           type: boolean
+        allowRegistrantEdits:
+          type: boolean
+          description: "When true, registrants may edit their own active registrations."
         organizerId:
           type: string
         createdAt:
@@ -1974,6 +2034,8 @@ components:
         paymentUrl:
           type: string
         registrationsOpen:
+          type: boolean
+        allowRegistrantEdits:
           type: boolean
 
     BranchInput:

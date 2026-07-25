@@ -265,6 +265,9 @@ function ClerkProviderWithRoutes() {
           <Route path="/r/:code/register">
             {(params) => <ProtectedRoute component={() => <ReunionRegister params={params} />} />}
           </Route>
+          <Route path="/r/:code/register/edit/:editId">
+            {(params) => <ProtectedRoute component={() => <ReunionRegister params={params} />} />}
+          </Route>
           <Route path="/r/:code/schedule">
             {(params) => <Layout><ReunionSchedule params={params} /></Layout>}
           </Route>

@@ -92,6 +92,27 @@ export interface CancelRegistrationInput {
   resolution?: CancelRegistrationInputResolution;
 }
 
+export interface AttendeeInput {
+  /** @minLength 1 */
+  name: string;
+  shirtSize: ShirtSize;
+  dietaryRestrictions?: string;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  age?: number | null;
+}
+
+export interface UpdateRegistrationInput {
+  /** @minLength 1 */
+  branchName: string;
+  /** @minItems 1 */
+  attendees: AttendeeInput[];
+  /** IDs of OPTIONAL fees this household opted into. Mandatory fees always apply. */
+  selectedFeeIds?: number[];
+}
+
 export type TransferRegistrationInputKind = typeof TransferRegistrationInputKind[keyof typeof TransferRegistrationInputKind];
 
 
@@ -258,6 +279,8 @@ export interface Reunion {
   /** @nullable */
   paymentUrl?: string | null;
   registrationsOpen: boolean;
+  /** When true, registrants may edit their own active registrations. */
+  allowRegistrantEdits?: boolean;
   organizerId?: string;
   createdAt: string;
   branches: ReunionBranch[];
@@ -371,24 +394,13 @@ export interface ReunionUpdateInput {
   paymentHandle: string;
   paymentUrl?: string;
   registrationsOpen?: boolean;
+  allowRegistrantEdits?: boolean;
 }
 
 export interface BranchInput {
   /** @minLength 1 */
   name: string;
   sortOrder?: number;
-}
-
-export interface AttendeeInput {
-  /** @minLength 1 */
-  name: string;
-  shirtSize: ShirtSize;
-  dietaryRestrictions?: string;
-  /**
-     * @minimum 0
-     * @nullable
-     */
-  age?: number | null;
 }
 
 export interface Attendee {

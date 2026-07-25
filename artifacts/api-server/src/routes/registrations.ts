@@ -21,6 +21,9 @@ import {
   ListMyRegistrationsResponse,
   GetRegistrationResponse,
   TransferRegistrationBody,
+  UpdateRegistrationBody,
+  UpdateRegistrationParams,
+  UpdateRegistrationResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { sendRegistrationConfirmation } from "../lib/email";
@@ -204,20 +207,9 @@ router.get("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
-  // Owner, the reunion's organizer, or a platform admin may view
-  const [userRecord] = await db
-    .select({ isAdmin: usersTable.isAdmin })
-    .from(usersTable)
-    .where(eq(usersTable.id, userId));
-  const isAdmin = userRecord?.isAdmin ?? false;
-
-  const [reunion] = await db
-    .select({ organizerId: reunionsTable.organizerId })
-    .from(reunionsTable)
-    .where(eq(reunionsTable.id, full.reunionId));
-  const isOrganizer = reunion?.organizerId === userId;
-
-  if (full.userId !== userId && !isAdmin && !isOrganizer) {
+  // Owner, or anyone who may manage this reunion's registrations (reunion
+  // owner, platform admin, or co-organizer with registration/power_user role)
+  if (full.userId !== userId && !(await canManageRegistrations(userId, full.reunionId))) {
     res.status(403).json({ error: "Forbidden" });
     return;
   }
@@ -249,8 +241,134 @@ async function canManageRegistrations(userId: string, reunionId: number): Promis
   ]);
   if (reunion?.organizerId === userId) return true;
   if (userRecord?.isAdmin) return true;
-  return organizer?.roles?.includes("registration") ?? false;
+  const roles = organizer?.roles ?? [];
+  return roles.includes("registration") || roles.includes("power_user");
 }
+
+// PUT /registrations/:id
+// Organizers with the registration role (and platform admins) may edit any
+// registration. The registrant may edit their own ACTIVE registration when the
+// reunion's allowRegistrantEdits setting is on.
+router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> => {
+  const params = UpdateRegistrationParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid registration ID" });
+    return;
+  }
+  const body = UpdateRegistrationBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const userId = (req as any).userId as string;
+  const [registration] = await db
+    .select()
+    .from(registrationsTable)
+    .where(eq(registrationsTable.id, params.data.id));
+  if (!registration) {
+    res.status(404).json({ error: "Registration not found" });
+    return;
+  }
+
+  const [reunion] = await db
+    .select()
+    .from(reunionsTable)
+    .where(eq(reunionsTable.id, registration.reunionId));
+  if (!reunion) {
+    res.status(404).json({ error: "Reunion not found" });
+    return;
+  }
+
+  const isManager = await canManageRegistrations(userId, registration.reunionId);
+  const isOwner = registration.userId === userId;
+  if (!isManager) {
+    if (!isOwner) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    if (!reunion.allowRegistrantEdits) {
+      res.status(403).json({
+        error: "Editing registrations is not enabled for this reunion. Contact your organizer to make changes.",
+      });
+      return;
+    }
+  }
+  if (registration.status !== "active") {
+    res.status(400).json({ error: "Cancelled registrations cannot be edited." });
+    return;
+  }
+
+  const { branchName, attendees, selectedFeeIds } = body.data;
+
+  // Branch must be one of the reunion's configured branches (when it has any)
+  const branches = await db
+    .select({ name: reunionBranchesTable.name })
+    .from(reunionBranchesTable)
+    .where(eq(reunionBranchesTable.reunionId, registration.reunionId));
+  if (branches.length > 0 && !branches.some((b) => b.name === branchName)) {
+    res.status(400).json({ error: "Selected branch is not part of this reunion." });
+    return;
+  }
+
+  // Only this reunion's OWN optional fees may be selected
+  const fees = await db
+    .select()
+    .from(reunionFeesTable)
+    .where(eq(reunionFeesTable.reunionId, registration.reunionId));
+  const optionalFeeIds = new Set(fees.filter((f) => f.isOptional).map((f) => f.id));
+  const chosenFeeIds = [...new Set(selectedFeeIds ?? [])];
+  if (!chosenFeeIds.every((id) => optionalFeeIds.has(id))) {
+    res.status(400).json({ error: "One or more selected fees are not available for this reunion." });
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(registrationsTable)
+      .set({ branchName, attendeeCount: attendees.length })
+      .where(eq(registrationsTable.id, registration.id));
+
+    // Replace attendees wholesale, preserving check-in state by matching names
+    // (attendee ids are not exposed in the edit form input). Matches are
+    // consumed one-to-one so duplicate names cannot double-assign a check-in.
+    const existing = await tx
+      .select()
+      .from(attendeesTable)
+      .where(eq(attendeesTable.registrationId, registration.id));
+    const checkInsByName = new Map<string, Date[]>();
+    for (const a of existing) {
+      if (!a.checkedInAt) continue;
+      const key = a.name.trim().toLowerCase();
+      const list = checkInsByName.get(key) ?? [];
+      list.push(a.checkedInAt);
+      checkInsByName.set(key, list);
+    }
+    await tx.delete(attendeesTable).where(eq(attendeesTable.registrationId, registration.id));
+    await tx.insert(attendeesTable).values(
+      attendees.map((a) => ({
+        registrationId: registration.id,
+        name: a.name,
+        shirtSize: a.shirtSize,
+        dietaryRestrictions: a.dietaryRestrictions ?? null,
+        age: a.age ?? null,
+        checkedInAt: checkInsByName.get(a.name.trim().toLowerCase())?.shift() ?? null,
+      })),
+    );
+
+    await tx
+      .delete(registrationFeesTable)
+      .where(eq(registrationFeesTable.registrationId, registration.id));
+    if (chosenFeeIds.length > 0) {
+      await tx.insert(registrationFeesTable).values(
+        chosenFeeIds.map((feeId) => ({ registrationId: registration.id, feeId })),
+      );
+    }
+  });
+
+  const full = await getFullRegistration(registration.id);
+  res.json(UpdateRegistrationResponse.parse(full));
+});
 
 // POST /registrations/:id/transfer
 // kind=registration: hand the whole registration to another account (by email).

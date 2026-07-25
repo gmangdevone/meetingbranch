@@ -71,7 +71,8 @@ import type {
   TransferOwnershipInput,
   TransferRegistrationInput,
   UpdateOrganizerRolesInput,
-  UpdatePaymentStatusInput
+  UpdatePaymentStatusInput,
+  UpdateRegistrationInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -3824,6 +3825,79 @@ export function useGetRegistration<TData = Awaited<ReturnType<typeof getRegistra
 
 
 
+
+export const getUpdateRegistrationUrl = (id: number,) => {
+
+
+
+
+  return `/api/registrations/${id}`
+}
+
+/**
+ * Organizers with the registration role (and platform admins) may edit any registration. The registrant may edit their own active registration when the reunion's allowRegistrantEdits setting is enabled.
+ * @summary Update a registration's branch, attendees, and optional fees
+ */
+export const updateRegistration = async (id: number,
+    updateRegistrationInput: UpdateRegistrationInput, options?: RequestInit): Promise<Registration> => {
+
+  return customFetch<Registration>(getUpdateRegistrationUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateRegistrationInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateRegistrationMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRegistration>>, TError,{id: number;data: BodyType<UpdateRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateRegistration>>, TError,{id: number;data: BodyType<UpdateRegistrationInput>}, TContext> => {
+
+const mutationKey = ['updateRegistration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateRegistration>>, {id: number;data: BodyType<UpdateRegistrationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateRegistration(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateRegistrationMutationResult = NonNullable<Awaited<ReturnType<typeof updateRegistration>>>
+    export type UpdateRegistrationMutationBody = BodyType<UpdateRegistrationInput>
+    export type UpdateRegistrationMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Update a registration's branch, attendees, and optional fees
+ */
+export const useUpdateRegistration = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateRegistration>>, TError,{id: number;data: BodyType<UpdateRegistrationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateRegistration>>,
+        TError,
+        {id: number;data: BodyType<UpdateRegistrationInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateRegistrationMutationOptions(options));
+    }
 
 export const getTransferRegistrationUrl = (id: number,) => {
 

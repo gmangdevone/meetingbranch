@@ -1,7 +1,7 @@
 import { useLocation } from "wouter";
-import { useGetRegistration, getGetRegistrationQueryKey, useTransferRegistration, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
+import { useGetRegistration, getGetRegistrationQueryKey, useTransferRegistration, getListMyRegistrationsQueryKey, useGetReunionByCode, getGetReunionByCodeQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { ArrowLeft, Users, CreditCard, ExternalLink, CalendarDays, Send, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Users, CreditCard, ExternalLink, CalendarDays, Send, AlertTriangle, Pencil } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
@@ -26,6 +26,15 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
   });
 
   const transferMutation = useTransferRegistration();
+
+  const { data: regReunion } = useGetReunionByCode(reg?.reunionCode ?? "", {
+    query: {
+      enabled: !!reg?.reunionCode,
+      retry: false,
+      queryKey: getGetReunionByCodeQueryKey(reg?.reunionCode ?? ""),
+    },
+  });
+  const canEdit = !!regReunion?.allowRegistrantEdits;
 
   if (isLoading) {
     return (
@@ -150,6 +159,16 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
               <Button onClick={() => setLocation(`/r/${reg.reunionCode}`)} variant="outline" className="rounded-xl w-full sm:w-auto">
                 Go to Reunion Hub
               </Button>
+
+              {!isCancelled && canEdit && (
+                <Button
+                  onClick={() => setLocation(`/r/${reg.reunionCode}/register/edit/${reg.id}`)}
+                  variant="outline"
+                  className="rounded-xl w-full sm:w-auto"
+                >
+                  <Pencil className="w-4 h-4 mr-2" /> Edit Registration
+                </Button>
+              )}
 
               {!isCancelled && (
                 <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>

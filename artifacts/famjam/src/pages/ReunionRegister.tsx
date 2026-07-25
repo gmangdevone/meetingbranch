@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, getListMyRegistrationsQueryKey, getGetReunionSummaryQueryKey } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, useUpdateRegistration, useGetRegistration, getGetRegistrationQueryKey, getListMyRegistrationsQueryKey, getGetReunionSummaryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,8 +28,10 @@ const formSchema = z.object({
   sponsorshipContribution: z.coerce.number().int().min(0).optional(),
 });
 
-export function ReunionRegister({ params }: { params: { code: string } }) {
+export function ReunionRegister({ params }: { params: { code: string; editId?: string } }) {
   const code = params.code?.toUpperCase();
+  const editId = params.editId ? parseInt(params.editId, 10) : null;
+  const isEdit = editId != null && !isNaN(editId);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -38,7 +40,12 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
     query: {  enabled: !!code, retry: false , queryKey: getGetReunionByCodeQueryKey(code) }
   });
 
+  const { data: existingReg, isLoading: isLoadingExisting } = useGetRegistration(editId ?? 0, {
+    query: { enabled: isEdit, retry: false, queryKey: getGetRegistrationQueryKey(editId ?? 0) }
+  });
+
   const registerMutation = useCreateRegistration();
+  const updateMutation = useUpdateRegistration();
 
   const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
 
@@ -54,6 +61,21 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
     control: form.control,
     name: "attendees",
   });
+
+  // Prefill the form when editing an existing registration
+  useEffect(() => {
+    if (!isEdit || !existingReg) return;
+    form.reset({
+      branchName: existingReg.branchName,
+      attendees: existingReg.attendees.map((a) => ({
+        name: a.name,
+        shirtSize: a.shirtSize,
+        dietaryRestrictions: a.dietaryRestrictions ?? "",
+        age: (a.age ?? undefined) as unknown as number,
+      })),
+    });
+    setSelectedFeeIds(existingReg.selectedFeeIds ?? []);
+  }, [isEdit, existingReg, form]);
 
   const watchAttendees = form.watch("attendees");
   const watchSponsorshipContribution = form.watch("sponsorshipContribution");
@@ -94,7 +116,33 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!reunion) return;
-    
+
+    if (isEdit && editId != null) {
+      updateMutation.mutate({
+        id: editId,
+        data: {
+          branchName: values.branchName,
+          selectedFeeIds,
+          attendees: values.attendees.map(a => ({
+            ...a,
+            dietaryRestrictions: a.dietaryRestrictions || undefined
+          }))
+        }
+      }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetRegistrationQueryKey(editId) });
+          queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunion.id) });
+          toast({ title: "Registration updated", description: "Your changes have been saved." });
+          setLocation(`/registrations/${editId}`);
+        },
+        onError: (err) => {
+          toast({ title: "Update failed", description: (err as any)?.error || "An error occurred", variant: "destructive" });
+        }
+      });
+      return;
+    }
+
     registerMutation.mutate({
       data: {
         reunionId: reunion.id,
@@ -119,7 +167,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || (isEdit && isLoadingExisting)) {
     return (
       <div className="max-w-3xl mx-auto py-12">
         <Skeleton className="h-12 w-48 mb-8" />
@@ -137,7 +185,16 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
     );
   }
 
-  if (!reunion.registrationsOpen) {
+  if (isEdit && !existingReg) {
+    return (
+      <div className="max-w-xl mx-auto py-20 text-center">
+        <h1 className="font-serif text-4xl font-bold mb-4">Registration Not Found</h1>
+        <Button onClick={() => setLocation("/dashboard")} variant="outline" className="rounded-full">Back to Dashboard</Button>
+      </div>
+    );
+  }
+
+  if (!isEdit && !reunion.registrationsOpen) {
     return (
       <div className="max-w-xl mx-auto py-20 text-center">
         <div className="bg-primary/10 text-primary w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -168,8 +225,8 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
         <div className="inline-block bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-3">
           {reunion.name}
         </div>
-        <h1 className="font-serif text-4xl md:text-5xl font-bold mb-3">Register Your Household</h1>
-        <p className="text-lg text-muted-foreground">Add everyone in your immediate household who is attending.</p>
+        <h1 className="font-serif text-4xl md:text-5xl font-bold mb-3">{isEdit ? "Edit Registration" : "Register Your Household"}</h1>
+        <p className="text-lg text-muted-foreground">{isEdit ? "Update the attendees, branch, or add-ons for this registration." : "Add everyone in your immediate household who is attending."}</p>
       </div>
 
       <div className="lg:hidden sticky top-2 z-30 mb-6">
@@ -196,7 +253,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-base font-bold">Which family branch are you in?</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="rounded-xl h-14 bg-muted/50 border-transparent focus:border-primary">
                             <SelectValue placeholder="Select a branch..." />
@@ -256,7 +313,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                         render={({ field: inputField }) => (
                           <FormItem>
                             <FormLabel>T-Shirt Size</FormLabel>
-                            <Select onValueChange={inputField.onChange} defaultValue={inputField.value}>
+                            <Select onValueChange={inputField.onChange} value={inputField.value}>
                               <FormControl>
                                 <SelectTrigger className="rounded-xl bg-muted/50 border-transparent focus:border-primary">
                                   <SelectValue placeholder="Size" />
@@ -352,6 +409,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                 </div>
               )}
 
+              {!isEdit && (
               <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="bg-rose-100 text-rose-500 w-10 h-10 rounded-full flex items-center justify-center">
@@ -383,6 +441,7 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                   )}
                 />
               </div>
+              )}
 
               <div className="lg:hidden">
                 {/* Mobile summary duplicate */}
@@ -417,8 +476,10 @@ export function ReunionRegister({ params }: { params: { code: string } }) {
                 </div>
               </div>
 
-              <Button type="submit" disabled={registerMutation.isPending} className="w-full rounded-full py-7 text-lg font-bold shadow-lg hover:-translate-y-1 transition-all">
-                {registerMutation.isPending ? "Submitting..." : "Complete Registration"}
+              <Button type="submit" disabled={registerMutation.isPending || updateMutation.isPending} className="w-full rounded-full py-7 text-lg font-bold shadow-lg hover:-translate-y-1 transition-all">
+                {isEdit
+                  ? (updateMutation.isPending ? "Saving..." : "Save Changes")
+                  : (registerMutation.isPending ? "Submitting..." : "Complete Registration")}
               </Button>
             </form>
           </Form>

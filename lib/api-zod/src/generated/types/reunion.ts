@@ -20,6 +20,8 @@ export interface Reunion {
   /** @nullable */
   paymentUrl?: string | null;
   registrationsOpen: boolean;
+  /** When true, registrants may edit their own active registrations. */
+  allowRegistrantEdits?: boolean;
   organizerId?: string;
   createdAt: Date;
   branches: ReunionBranch[];
