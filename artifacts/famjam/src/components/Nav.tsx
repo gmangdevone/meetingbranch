@@ -5,6 +5,28 @@ import { useAdminListReunions, getAdminListReunionsQueryKey, useGetSettings } fr
 import { useEffect, useRef, useState } from "react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const isDevEnvironment = import.meta.env.DEV;
+
+function DevBadge() {
+  if (!isDevEnvironment) return null;
+  return (
+    <span
+      title="You are viewing the development version of this app"
+      style={{
+        background: "#F59E0B",
+        color: "#451A03",
+        fontWeight: 800,
+        fontSize: "0.65rem",
+        letterSpacing: "0.08em",
+        padding: "2px 8px",
+        borderRadius: "9999px",
+        textTransform: "uppercase",
+      }}
+    >
+      Dev
+    </span>
+  );
+}
 
 import { useLastReunionCode } from "../lib/lastReunion";
 
@@ -72,9 +94,12 @@ export function Nav() {
       {/* ── Desktop Top Nav ─────────────────────────────────────────── */}
       <div className="hidden md:flex items-center justify-between px-8 py-4 sticky top-0 z-50"
         style={{ background: "var(--fj-bg)", borderBottom: "1px solid var(--fj-line)", backdropFilter: "blur(8px)" }}>
-        <Link href="/" style={{ color: "var(--fj-brand)", fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.5rem", letterSpacing: "-0.5px" }}>
-          FamJam
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link href="/" style={{ color: "var(--fj-brand)", fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.5rem", letterSpacing: "-0.5px" }}>
+            FamJam
+          </Link>
+          <DevBadge />
+        </div>
         <div className="flex items-center gap-6">
           {[
             { href: homeHref, label: "Home" },
@@ -164,6 +189,16 @@ export function Nav() {
           )}
         </div>
       </div>
+
+      {/* ── Mobile Dev Badge (top of screen) ────────────────────────── */}
+      {isDevEnvironment && (
+        <div
+          className="md:hidden fixed top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
+          <DevBadge />
+        </div>
+      )}
 
       {/* ── Mobile Bottom Nav ───────────────────────────────────────── */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50"
