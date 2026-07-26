@@ -360,19 +360,25 @@ router.put(
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits } = body.data;
-  await db
-    .update(reunionsTable)
-    .set({
-      name,
-      startDate,
-      endDate,
-      paymentHandle,
-      paymentUrl: paymentUrl ?? null,
-      ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
-      ...(allowRegistrantEdits === undefined ? {} : { allowRegistrantEdits }),
-    })
-    .where(eq(reunionsTable.id, req.managedReunion!.id));
+  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl } = body.data;
+  // Partial update: only fields present in the request body are changed, so
+  // concurrent editors can't clobber each other's unrelated settings.
+  const updates = {
+    ...(name === undefined ? {} : { name }),
+    ...(startDate === undefined ? {} : { startDate }),
+    ...(endDate === undefined ? {} : { endDate }),
+    ...(paymentHandle === undefined ? {} : { paymentHandle }),
+    ...(paymentUrl === undefined ? {} : { paymentUrl: paymentUrl || null }),
+    ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
+    ...(allowRegistrantEdits === undefined ? {} : { allowRegistrantEdits }),
+    ...(heroImageUrl === undefined ? {} : { heroImageUrl: heroImageUrl || null }),
+  };
+  if (Object.keys(updates).length > 0) {
+    await db
+      .update(reunionsTable)
+      .set(updates)
+      .where(eq(reunionsTable.id, req.managedReunion!.id));
+  }
   const full = await getReunionWithBranches(req.managedReunion!.id);
   res.json(UpdateReunionResponse.parse(full));
 });

@@ -74,6 +74,7 @@ vi.mock("@workspace/api-client-react", () => {
     useDeleteBranch: noopMutation,
     // Settings
     useUpdateReunion: noopMutation,
+  useRequestUploadUrl: noopMutation,
     useListReunionOrganizers: emptyList,
     getListReunionOrganizersQueryKey: (id: number) => ["organizers", id],
     useAddReunionOrganizer: noopMutation,

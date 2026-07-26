@@ -16,6 +16,7 @@ export const reunionsTable = pgTable("reunions", {
   // When false, new registrations are rejected (organizers can toggle anytime).
   registrationsOpen: boolean("registrations_open").notNull().default(true),
   allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
+  heroImageUrl: text("hero_image_url"),
   organizerId: text("organizer_id")
     .notNull()
     .references(() => usersTable.id),

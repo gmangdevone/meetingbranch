@@ -22,6 +22,11 @@ export interface Reunion {
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
+  /**
+     * Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background.
+     * @nullable
+     */
+  heroImageUrl?: string | null;
   organizerId?: string;
   createdAt: Date;
   branches: ReunionBranch[];

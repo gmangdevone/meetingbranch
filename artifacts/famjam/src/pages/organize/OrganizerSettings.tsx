@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   useGetReunion,
   useUpdateReunion,
+  useRequestUploadUrl,
   getGetReunionQueryKey,
   useListReunionOrganizers,
   useAddReunionOrganizer,
@@ -20,7 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check } from "lucide-react";
+import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -235,6 +236,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
           </form>
         </Form>
 
+        <HeroImageManager reunionId={reunionId} heroImageUrl={summary.reunion.heroImageUrl ?? null} />
+
         <FeesManager reunionId={reunionId} fees={summary.reunion.fees} />
 
         {summary.viewer?.canManageOrganizers && <CoOrganizers reunionId={reunionId} />}
@@ -242,6 +245,122 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
             roster controls inside are available to whoever can see it. */}
       </div>
     </OrganizerLayout>
+  );
+}
+
+const API_BASE = `${import.meta.env.BASE_URL}api`;
+
+function HeroImageManager({ reunionId, heroImageUrl }: { reunionId: number; heroImageUrl: string | null }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const requestUrlMutation = useRequestUploadUrl();
+  const updateMutation = useUpdateReunion();
+  const busy = isUploading || updateMutation.isPending;
+
+  const saveHeroImage = (objectPath: string | null) => {
+    updateMutation.mutate(
+      // Partial update: only the hero image is touched, so a concurrent
+      // settings edit by another organizer can't be clobbered.
+      { reunionId, data: { heroImageUrl: objectPath } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
+          toast({ title: objectPath ? "Hero image updated" : "Hero image removed", description: objectPath ? "The hub page now uses your custom banner." : "The hub page is back to the default background." });
+        },
+        onError: () => toast({ title: "Could not save the hero image", variant: "destructive" }),
+      },
+    );
+  };
+
+  const onFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please keep the image under 10MB.", variant: "destructive" });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const { uploadURL, objectPath } = await requestUrlMutation.mutateAsync({
+        data: { name: file.name, size: file.size, contentType: file.type },
+      });
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`);
+      saveHeroImage(objectPath);
+    } catch {
+      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-5">
+      <div>
+        <h2 className="font-serif text-2xl font-bold">Hub Hero Background</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload a banner image for the top of your reunion hub page. A wide image works best
+          (around 2048×640). If none is set, the default background is used.
+        </p>
+      </div>
+
+      {heroImageUrl ? (
+        <div className="relative rounded-2xl overflow-hidden border">
+          <img
+            src={`${API_BASE}/storage${heroImageUrl}`}
+            alt="Current hub hero background"
+            className="w-full h-40 md:h-52 object-cover"
+          />
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-dashed bg-muted/30 h-32 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+          <ImageIcon className="w-8 h-8" />
+          <span className="text-sm font-medium">Using the default background</span>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onFileChosen}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={busy}
+          className="rounded-full font-bold gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          {isUploading ? "Uploading..." : heroImageUrl ? "Replace Image" : "Upload Image"}
+        </Button>
+        {heroImageUrl && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => saveHeroImage(null)}
+            disabled={busy}
+            className="rounded-full font-bold gap-2 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="w-4 h-4" /> Remove (use default)
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 

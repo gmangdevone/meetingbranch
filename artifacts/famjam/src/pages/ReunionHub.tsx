@@ -139,9 +139,22 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   return (
     <div className="flex flex-col gap-8 pb-12 animate-in fade-in zoom-in-95 duration-500">
       <div className="relative rounded-3xl overflow-hidden bg-primary shadow-xl text-primary-foreground p-8 md:p-12">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Users className="w-64 h-64" />
-        </div>
+        {reunion.heroImageUrl ? (
+          <>
+            <img
+              src={`${import.meta.env.BASE_URL}api/storage${reunion.heroImageUrl}`}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+            {/* Dark scrim so hero text stays readable over any image */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30 pointer-events-none" />
+          </>
+        ) : (
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+            <Users className="w-64 h-64" />
+          </div>
+        )}
         <div className="relative z-10">
           {myRegistration && (
             <button

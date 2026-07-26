@@ -6,16 +6,24 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Partial update — only provided fields are changed.
+ */
 export interface ReunionUpdateInput {
   /** @minLength 1 */
-  name: string;
+  name?: string;
   /** @minLength 1 */
-  startDate: string;
+  startDate?: string;
   /** @minLength 1 */
-  endDate: string;
+  endDate?: string;
   /** @minLength 1 */
-  paymentHandle: string;
+  paymentHandle?: string;
   paymentUrl?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
+  /**
+     * Object path of a custom hub hero background image. Set null to restore the default.
+     * @nullable
+     */
+  heroImageUrl?: string | null;
 }

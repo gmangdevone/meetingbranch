@@ -281,6 +281,11 @@ export interface Reunion {
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
+  /**
+     * Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background.
+     * @nullable
+     */
+  heroImageUrl?: string | null;
   organizerId?: string;
   createdAt: string;
   branches: ReunionBranch[];
@@ -383,18 +388,56 @@ export interface ReunionInput {
   branches: string[];
 }
 
+/**
+ * Partial update — only provided fields are changed.
+ */
 export interface ReunionUpdateInput {
   /** @minLength 1 */
-  name: string;
+  name?: string;
   /** @minLength 1 */
-  startDate: string;
+  startDate?: string;
   /** @minLength 1 */
-  endDate: string;
+  endDate?: string;
   /** @minLength 1 */
-  paymentHandle: string;
+  paymentHandle?: string;
   paymentUrl?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
+  /**
+     * Object path of a custom hub hero background image. Set null to restore the default.
+     * @nullable
+     */
+  heroImageUrl?: string | null;
+}
+
+export interface UploadUrlRequest {
+  /**
+     * Original file name.
+     * @minLength 1
+     */
+  name: string;
+  /**
+     * File size in bytes.
+     * @minimum 1
+     */
+  size: number;
+  /**
+     * MIME type of the file (e.g. `image/jpeg`).
+     * @minLength 1
+     */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  /** Presigned GCS URL for PUT upload. */
+  uploadURL: string;
+  /** Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database. */
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export interface ErrorEnvelope {
+  error: string;
 }
 
 export interface BranchInput {
