@@ -286,6 +286,21 @@ export interface Reunion {
      * @nullable
      */
   heroImageUrl?: string | null;
+  /**
+     * Object path of a custom background image for the hub Schedule card. Null means the default look.
+     * @nullable
+     */
+  scheduleCardImageUrl?: string | null;
+  /**
+     * Object path of a custom background image for the hub Announcements card. Null means the default look.
+     * @nullable
+     */
+  announcementsCardImageUrl?: string | null;
+  /**
+     * Object path of a custom background image for the hub Family Vote card. Null means the default look.
+     * @nullable
+     */
+  pollsCardImageUrl?: string | null;
   organizerId?: string;
   createdAt: string;
   branches: ReunionBranch[];
@@ -408,6 +423,21 @@ export interface ReunionUpdateInput {
      * @nullable
      */
   heroImageUrl?: string | null;
+  /**
+     * Object path of a custom Schedule card background. Set null to restore the default.
+     * @nullable
+     */
+  scheduleCardImageUrl?: string | null;
+  /**
+     * Object path of a custom Announcements card background. Set null to restore the default.
+     * @nullable
+     */
+  announcementsCardImageUrl?: string | null;
+  /**
+     * Object path of a custom Family Vote card background. Set null to restore the default.
+     * @nullable
+     */
+  pollsCardImageUrl?: string | null;
 }
 
 export interface UploadUrlRequest {

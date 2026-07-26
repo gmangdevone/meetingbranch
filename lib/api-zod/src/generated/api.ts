@@ -132,6 +132,9 @@ export const CreateReunionResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -180,6 +183,9 @@ export const ListMyReunionsResponseItem = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -241,6 +247,9 @@ export const GetReunionByCodeResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -293,6 +302,9 @@ export const GetReunionResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -348,7 +360,10 @@ export const UpdateReunionBody = zod.object({
   "paymentUrl": zod.string().optional(),
   "registrationsOpen": zod.boolean().optional(),
   "allowRegistrantEdits": zod.boolean().optional(),
-  "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.')
+  "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom Schedule card background. Set null to restore the default.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom Announcements card background. Set null to restore the default.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom Family Vote card background. Set null to restore the default.')
 }).describe('Partial update — only provided fields are changed.')
 
 export const updateReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
@@ -370,6 +385,9 @@ export const UpdateReunionResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -1743,6 +1761,9 @@ export const AdminListReunionsResponseItem = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
+  "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({

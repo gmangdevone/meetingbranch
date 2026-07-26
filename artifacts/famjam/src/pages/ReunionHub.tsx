@@ -443,38 +443,40 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Link href={`/r/${reunion.code}/schedule`} className="bg-secondary/10 border border-secondary/20 rounded-3xl p-8 flex flex-col items-start hover:bg-secondary/20 transition-colors group">
-              <div className="bg-secondary text-secondary-foreground w-12 h-12 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <CalendarDays className="w-6 h-6" />
-              </div>
-              <h3 className="font-serif text-2xl font-bold mb-2">Schedule</h3>
-              <p className="text-muted-foreground mb-4">View the full itinerary and locations for all events.</p>
-              <span className="mt-auto font-bold text-secondary flex items-center">
-                View Itinerary <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </Link>
-
-            <Link href={`/r/${reunion.code}/announcements`} className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-3xl p-8 flex flex-col items-start hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-colors group">
-              <div className="bg-amber-500 text-white w-12 h-12 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Users className="w-6 h-6" />
-              </div>
-              <h3 className="font-serif text-2xl font-bold mb-2">Announcements</h3>
-              <p className="text-muted-foreground mb-4">Read updates and important news from the organizers.</p>
-              <span className="mt-auto font-bold text-amber-700 dark:text-amber-500 flex items-center">
-                Read News <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </Link>
-
-            <Link href={`/r/${reunion.code}/polls`} className="bg-primary/5 border border-primary/20 rounded-3xl p-8 flex flex-col items-start hover:bg-primary/10 transition-colors group md:col-span-2">
-              <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Vote className="w-6 h-6" />
-              </div>
-              <h3 className="font-serif text-2xl font-bold mb-2">Family Vote</h3>
-              <p className="text-muted-foreground mb-4">Weigh in on family decisions — polls open to checked-in members.</p>
-              <span className="mt-auto font-bold text-primary flex items-center">
-                See Polls <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </Link>
+            <HubCard
+              href={`/r/${reunion.code}/schedule`}
+              imageUrl={reunion.scheduleCardImageUrl}
+              defaultClassName="bg-secondary/10 border-secondary/20 hover:bg-secondary/20"
+              iconClassName="bg-secondary text-secondary-foreground"
+              linkClassName="text-secondary"
+              icon={<CalendarDays className="w-6 h-6" />}
+              title="Schedule"
+              description="View the full itinerary and locations for all events."
+              linkLabel="View Itinerary"
+            />
+            <HubCard
+              href={`/r/${reunion.code}/announcements`}
+              imageUrl={reunion.announcementsCardImageUrl}
+              defaultClassName="bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/20"
+              iconClassName="bg-amber-500 text-white"
+              linkClassName="text-amber-700 dark:text-amber-500"
+              icon={<Users className="w-6 h-6" />}
+              title="Announcements"
+              description="Read updates and important news from the organizers."
+              linkLabel="Read News"
+            />
+            <HubCard
+              href={`/r/${reunion.code}/polls`}
+              imageUrl={reunion.pollsCardImageUrl}
+              className="md:col-span-2"
+              defaultClassName="bg-primary/5 border-primary/20 hover:bg-primary/10"
+              iconClassName="bg-primary text-primary-foreground"
+              linkClassName="text-primary"
+              icon={<Vote className="w-6 h-6" />}
+              title="Family Vote"
+              description="Weigh in on family decisions — polls open to checked-in members."
+              linkLabel="See Polls"
+            />
           </div>
         </div>
 
@@ -560,5 +562,71 @@ export function ReunionHub({ params }: { params: { code: string } }) {
         Reunion Code: <span className="font-mono font-bold tracking-widest">{reunion.code}</span>
       </p>
     </div>
+  );
+}
+
+/**
+ * A hub navigation card. When a custom background image is set, it renders as
+ * a cover image with a dark scrim and white text (mirroring the hero); with no
+ * image it keeps its default tinted look.
+ */
+function HubCard({
+  href,
+  imageUrl,
+  className = "",
+  defaultClassName,
+  iconClassName,
+  linkClassName,
+  icon,
+  title,
+  description,
+  linkLabel,
+}: {
+  href: string;
+  imageUrl?: string | null;
+  className?: string;
+  defaultClassName: string;
+  iconClassName: string;
+  linkClassName: string;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  linkLabel: string;
+}) {
+  const hasImage = !!imageUrl;
+  return (
+    <Link
+      href={href}
+      className={`relative overflow-hidden border rounded-3xl p-8 flex flex-col items-start transition-colors group ${
+        hasImage ? "border-black/20 text-white" : defaultClassName
+      } ${className}`}
+    >
+      {hasImage && (
+        <>
+          <img
+            src={`${import.meta.env.BASE_URL}api/storage${imageUrl}`}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500"
+          />
+          {/* Dark scrim so card text stays readable over any image */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/50 to-black/30 pointer-events-none" />
+        </>
+      )}
+      <div className="relative z-10 flex flex-col items-start h-full w-full">
+        <div
+          className={`w-12 h-12 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform ${
+            hasImage ? "bg-white/20 backdrop-blur-sm text-white border border-white/30" : iconClassName
+          }`}
+        >
+          {icon}
+        </div>
+        <h3 className={`font-serif text-2xl font-bold mb-2 ${hasImage ? "drop-shadow-md" : ""}`}>{title}</h3>
+        <p className={`mb-4 ${hasImage ? "text-white/85 drop-shadow" : "text-muted-foreground"}`}>{description}</p>
+        <span className={`mt-auto font-bold flex items-center ${hasImage ? "text-white drop-shadow" : linkClassName}`}>
+          {linkLabel} <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </span>
+      </div>
+    </Link>
   );
 }

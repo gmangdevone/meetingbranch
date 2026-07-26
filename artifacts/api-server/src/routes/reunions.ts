@@ -360,7 +360,7 @@ router.put(
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl } = body.data;
+  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl } = body.data;
   // Partial update: only fields present in the request body are changed, so
   // concurrent editors can't clobber each other's unrelated settings.
   const updates = {
@@ -372,6 +372,9 @@ router.put(
     ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
     ...(allowRegistrantEdits === undefined ? {} : { allowRegistrantEdits }),
     ...(heroImageUrl === undefined ? {} : { heroImageUrl: heroImageUrl || null }),
+    ...(scheduleCardImageUrl === undefined ? {} : { scheduleCardImageUrl: scheduleCardImageUrl || null }),
+    ...(announcementsCardImageUrl === undefined ? {} : { announcementsCardImageUrl: announcementsCardImageUrl || null }),
+    ...(pollsCardImageUrl === undefined ? {} : { pollsCardImageUrl: pollsCardImageUrl || null }),
   };
   if (Object.keys(updates).length > 0) {
     await db

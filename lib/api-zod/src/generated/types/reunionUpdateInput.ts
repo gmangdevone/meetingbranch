@@ -26,4 +26,19 @@ export interface ReunionUpdateInput {
      * @nullable
      */
   heroImageUrl?: string | null;
+  /**
+     * Object path of a custom Schedule card background. Set null to restore the default.
+     * @nullable
+     */
+  scheduleCardImageUrl?: string | null;
+  /**
+     * Object path of a custom Announcements card background. Set null to restore the default.
+     * @nullable
+     */
+  announcementsCardImageUrl?: string | null;
+  /**
+     * Object path of a custom Family Vote card background. Set null to restore the default.
+     * @nullable
+     */
+  pollsCardImageUrl?: string | null;
 }

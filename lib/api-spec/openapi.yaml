@@ -1917,6 +1917,15 @@ components:
         heroImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background."
+        scheduleCardImageUrl:
+          type: ["string", "null"]
+          description: "Object path of a custom background image for the hub Schedule card. Null means the default look."
+        announcementsCardImageUrl:
+          type: ["string", "null"]
+          description: "Object path of a custom background image for the hub Announcements card. Null means the default look."
+        pollsCardImageUrl:
+          type: ["string", "null"]
+          description: "Object path of a custom background image for the hub Family Vote card. Null means the default look."
         organizerId:
           type: string
         createdAt:
@@ -2150,6 +2159,15 @@ components:
         heroImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom hub hero background image. Set null to restore the default."
+        scheduleCardImageUrl:
+          type: ["string", "null"]
+          description: "Object path of a custom Schedule card background. Set null to restore the default."
+        announcementsCardImageUrl:
+          type: ["string", "null"]
+          description: "Object path of a custom Announcements card background. Set null to restore the default."
+        pollsCardImageUrl:
+          type: ["string", "null"]
+          description: "Object path of a custom Family Vote card background. Set null to restore the default."
 
     UploadUrlRequest:
       type: object

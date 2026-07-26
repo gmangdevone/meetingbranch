@@ -17,6 +17,9 @@ export const reunionsTable = pgTable("reunions", {
   registrationsOpen: boolean("registrations_open").notNull().default(true),
   allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
   heroImageUrl: text("hero_image_url"),
+  scheduleCardImageUrl: text("schedule_card_image_url"),
+  announcementsCardImageUrl: text("announcements_card_image_url"),
+  pollsCardImageUrl: text("polls_card_image_url"),
   organizerId: text("organizer_id")
     .notNull()
     .references(() => usersTable.id),

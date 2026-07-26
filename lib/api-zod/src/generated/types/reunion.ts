@@ -27,6 +27,21 @@ export interface Reunion {
      * @nullable
      */
   heroImageUrl?: string | null;
+  /**
+     * Object path of a custom background image for the hub Schedule card. Null means the default look.
+     * @nullable
+     */
+  scheduleCardImageUrl?: string | null;
+  /**
+     * Object path of a custom background image for the hub Announcements card. Null means the default look.
+     * @nullable
+     */
+  announcementsCardImageUrl?: string | null;
+  /**
+     * Object path of a custom background image for the hub Family Vote card. Null means the default look.
+     * @nullable
+     */
+  pollsCardImageUrl?: string | null;
   organizerId?: string;
   createdAt: Date;
   branches: ReunionBranch[];

@@ -236,7 +236,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
           </form>
         </Form>
 
-        <HeroImageManager reunionId={reunionId} heroImageUrl={summary.reunion.heroImageUrl ?? null} />
+        <HubImagesManager reunionId={reunionId} reunion={summary.reunion} />
 
         <FeesManager reunionId={reunionId} fees={summary.reunion.fees} />
 
@@ -250,7 +250,26 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
 const API_BASE = `${import.meta.env.BASE_URL}api`;
 
-function HeroImageManager({ reunionId, heroImageUrl }: { reunionId: number; heroImageUrl: string | null }) {
+/**
+ * One uploadable image slot (hero banner or a hub card background).
+ * Saves via a partial reunion update — only its own field is touched, so a
+ * concurrent settings edit by another organizer can't be clobbered.
+ */
+function ImageSlot({
+  reunionId,
+  field,
+  label,
+  hint,
+  imageUrl,
+  previewClassName = "h-40 md:h-52",
+}: {
+  reunionId: number;
+  field: "heroImageUrl" | "scheduleCardImageUrl" | "announcementsCardImageUrl" | "pollsCardImageUrl";
+  label: string;
+  hint: string;
+  imageUrl: string | null;
+  previewClassName?: string;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -260,17 +279,18 @@ function HeroImageManager({ reunionId, heroImageUrl }: { reunionId: number; hero
   const updateMutation = useUpdateReunion();
   const busy = isUploading || updateMutation.isPending;
 
-  const saveHeroImage = (objectPath: string | null) => {
+  const saveImage = (objectPath: string | null) => {
     updateMutation.mutate(
-      // Partial update: only the hero image is touched, so a concurrent
-      // settings edit by another organizer can't be clobbered.
-      { reunionId, data: { heroImageUrl: objectPath } },
+      { reunionId, data: { [field]: objectPath } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
-          toast({ title: objectPath ? "Hero image updated" : "Hero image removed", description: objectPath ? "The hub page now uses your custom banner." : "The hub page is back to the default background." });
+          toast({
+            title: objectPath ? `${label} image updated` : `${label} image removed`,
+            description: objectPath ? "The hub page now uses your custom image." : "Back to the default look.",
+          });
         },
-        onError: () => toast({ title: "Could not save the hero image", variant: "destructive" }),
+        onError: () => toast({ title: `Could not save the ${label} image`, variant: "destructive" }),
       },
     );
   };
@@ -298,7 +318,7 @@ function HeroImageManager({ reunionId, heroImageUrl }: { reunionId: number; hero
         body: file,
       });
       if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`);
-      saveHeroImage(objectPath);
+      saveImage(objectPath);
     } catch {
       toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
     } finally {
@@ -307,26 +327,23 @@ function HeroImageManager({ reunionId, heroImageUrl }: { reunionId: number; hero
   };
 
   return (
-    <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-5">
+    <div className="space-y-3">
       <div>
-        <h2 className="font-serif text-2xl font-bold">Hub Hero Background</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Upload a banner image for the top of your reunion hub page. A wide image works best
-          (around 2048×640). If none is set, the default background is used.
-        </p>
+        <h3 className="font-bold text-lg">{label}</h3>
+        <p className="text-sm text-muted-foreground">{hint}</p>
       </div>
 
-      {heroImageUrl ? (
+      {imageUrl ? (
         <div className="relative rounded-2xl overflow-hidden border">
           <img
-            src={`${API_BASE}/storage${heroImageUrl}`}
-            alt="Current hub hero background"
-            className="w-full h-40 md:h-52 object-cover"
+            src={`${API_BASE}/storage${imageUrl}`}
+            alt={`Current ${label} background`}
+            className={`w-full object-cover ${previewClassName}`}
           />
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed bg-muted/30 h-32 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-          <ImageIcon className="w-8 h-8" />
+        <div className="rounded-2xl border border-dashed bg-muted/30 h-24 flex flex-col items-center justify-center gap-1.5 text-muted-foreground">
+          <ImageIcon className="w-6 h-6" />
           <span className="text-sm font-medium">Using the default background</span>
         </div>
       )}
@@ -346,19 +363,82 @@ function HeroImageManager({ reunionId, heroImageUrl }: { reunionId: number; hero
           className="rounded-full font-bold gap-2"
         >
           <Upload className="w-4 h-4" />
-          {isUploading ? "Uploading..." : heroImageUrl ? "Replace Image" : "Upload Image"}
+          {isUploading ? "Uploading..." : imageUrl ? "Replace Image" : "Upload Image"}
         </Button>
-        {heroImageUrl && (
+        {imageUrl && (
           <Button
             type="button"
             variant="outline"
-            onClick={() => saveHeroImage(null)}
+            onClick={() => saveImage(null)}
             disabled={busy}
             className="rounded-full font-bold gap-2 text-destructive hover:text-destructive"
           >
             <Trash2 className="w-4 h-4" /> Remove (use default)
           </Button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function HubImagesManager({
+  reunionId,
+  reunion,
+}: {
+  reunionId: number;
+  reunion: {
+    heroImageUrl?: string | null;
+    scheduleCardImageUrl?: string | null;
+    announcementsCardImageUrl?: string | null;
+    pollsCardImageUrl?: string | null;
+  };
+}) {
+  return (
+    <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-8">
+      <div>
+        <h2 className="font-serif text-2xl font-bold">Hub Backgrounds</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Customize the hub page with your own photos. Each section falls back to its
+          default look when no image is set.
+        </p>
+      </div>
+
+      <ImageSlot
+        reunionId={reunionId}
+        field="heroImageUrl"
+        label="Hero Banner"
+        hint="The big banner at the top of the hub. A wide image works best (around 2048×640)."
+        imageUrl={reunion.heroImageUrl ?? null}
+      />
+      <div className="border-t pt-6">
+        <ImageSlot
+          reunionId={reunionId}
+          field="scheduleCardImageUrl"
+          label="Schedule Card"
+          hint="Background for the Schedule card. Roughly square images work well (around 1024×768)."
+          imageUrl={reunion.scheduleCardImageUrl ?? null}
+          previewClassName="h-32 md:h-40"
+        />
+      </div>
+      <div className="border-t pt-6">
+        <ImageSlot
+          reunionId={reunionId}
+          field="announcementsCardImageUrl"
+          label="Announcements Card"
+          hint="Background for the Announcements card. Roughly square images work well (around 1024×768)."
+          imageUrl={reunion.announcementsCardImageUrl ?? null}
+          previewClassName="h-32 md:h-40"
+        />
+      </div>
+      <div className="border-t pt-6">
+        <ImageSlot
+          reunionId={reunionId}
+          field="pollsCardImageUrl"
+          label="Family Vote Card"
+          hint="Background for the Family Vote card. It spans the full width, so a wide image works best (around 2048×768)."
+          imageUrl={reunion.pollsCardImageUrl ?? null}
+          previewClassName="h-32 md:h-40"
+        />
       </div>
     </div>
   );
