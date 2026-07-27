@@ -14,6 +14,7 @@ import {
   scheduleItemsTable,
   sponsorshipContributionsTable,
   sponsorshipAllocationsTable,
+  paymentSubmissionsTable,
   REUNION_ROLES,
 } from "@workspace/db";
 import {
@@ -47,6 +48,7 @@ import {
   CancelRegistrationBody,
   CreateSponsorshipAllocationBody,
   CreateSponsorshipContributionBody,
+  ListPaymentSubmissionsResponse,
   GetMyContributionsResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
@@ -360,7 +362,7 @@ router.put(
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl } = body.data;
+  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, cashAppTag, checkPayee } = body.data;
   // Partial update: only fields present in the request body are changed, so
   // concurrent editors can't clobber each other's unrelated settings.
   const updates = {
@@ -375,6 +377,8 @@ router.put(
     ...(scheduleCardImageUrl === undefined ? {} : { scheduleCardImageUrl: scheduleCardImageUrl || null }),
     ...(announcementsCardImageUrl === undefined ? {} : { announcementsCardImageUrl: announcementsCardImageUrl || null }),
     ...(pollsCardImageUrl === undefined ? {} : { pollsCardImageUrl: pollsCardImageUrl || null }),
+    ...(cashAppTag === undefined ? {} : { cashAppTag: cashAppTag?.trim().replace(/^\$/, "") || null }),
+    ...(checkPayee === undefined ? {} : { checkPayee: checkPayee?.trim() || null }),
   };
   if (Object.keys(updates).length > 0) {
     await db
@@ -877,6 +881,22 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
   );
   res.send(csvLines.join("\n"));
 });
+
+// List all payment submissions for a reunion (reconciliation view). Same
+// permission as managing payment status: the "registration" role.
+router.get(
+  "/reunions/:reunionId/payment-submissions",
+  ...manage,
+  requireReunionPermission("registration"),
+  async (req, res): Promise<void> => {
+    const submissions = await db
+      .select()
+      .from(paymentSubmissionsTable)
+      .where(eq(paymentSubmissionsTable.reunionId, req.managedReunion!.id))
+      .orderBy(desc(paymentSubmissionsTable.createdAt), desc(paymentSubmissionsTable.id));
+    res.json(ListPaymentSubmissionsResponse.parse({ submissions }));
+  },
+);
 
 router.patch(
   "/reunions/:reunionId/registrations/:registrationId/payment",

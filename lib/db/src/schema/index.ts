@@ -3,6 +3,7 @@ export * from "./reunions";
 export * from "./settings";
 export * from "./registrations";
 export * from "./sponsorships";
+export * from "./payments";
 export * from "./announcements";
 export * from "./schedule";
 export * from "./polls";

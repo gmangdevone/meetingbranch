@@ -43,3 +43,6 @@ handle prod data (or that the restructure is destructive) at publish time.
 ## Dev vs prod fee config
 - Fee rows (reunion_fees) are DATA, not schema: publishing syncs schema only, so dev fee setup never reaches prod — organizers must reconfigure fees in the live app.
 - Common misconfiguration: creating separate fees per age band ("Registration 18+", "Registration 10-17"). A fee with no age tiers charges everyone, so this double-charges. Correct model: one fee per item with age tiers; base amount covers unmatched ages.
+
+## Test workflows collide
+`test` and `api-test` workflows both run the api-server integration tests against the same dev database; running them at the same time makes tests with hardcoded reunion codes (e.g. ZZ99999) fail on unique constraints. Run one at a time; a lone failure like that is usually the collision, not a real bug.

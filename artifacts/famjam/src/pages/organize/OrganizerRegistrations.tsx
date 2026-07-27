@@ -13,13 +13,15 @@ import {
   useGetReunion,
   getGetReunionQueryKey,
   useCreateManagedRegistration,
-  useSetAttendeeCheckIn
+  useSetAttendeeCheckIn,
+  useListPaymentSubmissions,
+  getListPaymentSubmissionsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck, Pencil } from "lucide-react";
+import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck, Pencil, Receipt } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -75,6 +77,22 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const setCheckIn = useSetAttendeeCheckIn();
 
   const { refetch: fetchExport, isFetching: isExporting } = useExportReunionRegistrations(reunionId, { query: { enabled: false, queryKey: ['export', reunionId] } });
+
+  // Registrant-recorded payment submissions (Cash App / Zelle / cash / check),
+  // grouped per registration for the reconciliation dialog.
+  const { data: paymentSubmissionsData } = useListPaymentSubmissions(reunionId, {
+    query: { enabled: !isNaN(reunionId), queryKey: getListPaymentSubmissionsQueryKey(reunionId) },
+  });
+  const submissionsByRegistration = useMemo(() => {
+    const map = new Map<number, NonNullable<typeof paymentSubmissionsData>["submissions"]>();
+    for (const s of paymentSubmissionsData?.submissions ?? []) {
+      const list = map.get(s.registrationId) ?? [];
+      list.push(s);
+      map.set(s.registrationId, list);
+    }
+    return map;
+  }, [paymentSubmissionsData]);
+  const [submissionsRegId, setSubmissionsRegId] = useState<number | null>(null);
 
   // Dialog state
   const [cancelReg, setCancelReg] = useState<any>(null);
@@ -392,6 +410,17 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                             </SelectContent>
                           </Select>
                         )}
+                        {(submissionsByRegistration.get(reg.id)?.length ?? 0) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSubmissionsRegId(reg.id)}
+                            className="mt-1.5 flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                          >
+                            <Receipt className="w-3.5 h-3.5" />
+                            {submissionsByRegistration.get(reg.id)!.length}{" "}
+                            {submissionsByRegistration.get(reg.id)!.length === 1 ? "payment note" : "payment notes"}
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         {!isCancelled && (
@@ -418,6 +447,50 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           </div>
         </div>
       </div>
+
+      <Dialog open={submissionsRegId !== null} onOpenChange={(open) => { if (!open) setSubmissionsRegId(null); }}>
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Payment Submissions</DialogTitle>
+            <DialogDescription>
+              Details recorded by the registrant. Confirm the money actually arrived before
+              marking the registration paid — submitting never changes the status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="divide-y">
+            {(submissionsByRegistration.get(submissionsRegId ?? -1) ?? []).map((s) => (
+              <div key={s.id} className="py-4 first:pt-0 last:pb-0 space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-bold uppercase tracking-wide text-sm">
+                    {s.method === "cashapp" ? "Cash App" : s.method === "zelle" ? "Zelle" : s.method === "check" ? "Check" : "Cash"}
+                  </span>
+                  <span className="font-bold text-lg tabular-nums">${s.amount}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+                {s.reference && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">
+                      {s.method === "cashapp" ? "Their $cashtag: " : s.method === "zelle" ? "Their Zelle ID: " : s.method === "cash" ? "Given to: " : "Check #: "}
+                    </span>
+                    <span className="font-mono font-bold">{s.reference}</span>
+                  </p>
+                )}
+                {s.givenDate && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Date given: </span>
+                    <span className="font-bold">{s.givenDate}</span>
+                  </p>
+                )}
+                {s.note && (
+                  <p className="text-sm bg-muted/50 border rounded-lg px-3 py-2 whitespace-pre-wrap">{s.note}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={registerDialogOpen} onOpenChange={setRegisterDialogOpen}>
         <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-2xl max-h-[90vh] overflow-y-auto">

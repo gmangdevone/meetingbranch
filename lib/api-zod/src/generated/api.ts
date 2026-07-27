@@ -135,6 +135,8 @@ export const CreateReunionResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -186,6 +188,8 @@ export const ListMyReunionsResponseItem = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -250,6 +254,8 @@ export const GetReunionByCodeResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -305,6 +311,8 @@ export const GetReunionResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -363,7 +371,9 @@ export const UpdateReunionBody = zod.object({
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom Schedule card background. Set null to restore the default.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom Announcements card background. Set null to restore the default.'),
-  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom Family Vote card background. Set null to restore the default.')
+  "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom Family Vote card background. Set null to restore the default.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag. Set null to hide the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Set null to hide the check payment option.')
 }).describe('Partial update — only provided fields are changed.')
 
 export const updateReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
@@ -388,6 +398,8 @@ export const UpdateReunionResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({
@@ -1691,6 +1703,61 @@ export const TransferRegistrationResponse = zod.object({
 
 
 /**
+ * @summary Record a payment submission for reconciliation (never changes payment status)
+ */
+export const CreatePaymentSubmissionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const CreatePaymentSubmissionBody = zod.object({
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "amount": zod.number().min(1).describe('Whole-dollar amount the registrant says they are paying.'),
+  "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
+  "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
+  "note": zod.string().nullish().describe('Free-form note from the registrant.')
+})
+
+export const CreatePaymentSubmissionResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "registrationId": zod.number(),
+  "submittedBy": zod.string().optional(),
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "amount": zod.number(),
+  "reference": zod.string().nullish(),
+  "givenDate": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List all payment submissions for a reunion (organizers with the registration role)
+ */
+export const ListPaymentSubmissionsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListPaymentSubmissionsResponse = zod.object({
+  "submissions": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "registrationId": zod.number(),
+  "submittedBy": zod.string().optional(),
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "amount": zod.number(),
+  "reference": zod.string().nullish(),
+  "givenDate": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary Report whether an administrator already exists (first-run bootstrap)
  */
 export const GetAdminSetupStatusResponse = zod.object({
@@ -1764,6 +1831,8 @@ export const AdminListReunionsResponseItem = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
+  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
   "branches": zod.array(zod.object({

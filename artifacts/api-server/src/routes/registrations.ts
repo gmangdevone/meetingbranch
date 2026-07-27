@@ -11,6 +11,7 @@ import {
   reunionFeesTable,
   reunionOrganizersTable,
   sponsorshipContributionsTable,
+  paymentSubmissionsTable,
 } from "@workspace/db";
 import { and } from "drizzle-orm";
 import { inArray } from "drizzle-orm";
@@ -24,6 +25,9 @@ import {
   UpdateRegistrationBody,
   UpdateRegistrationParams,
   UpdateRegistrationResponse,
+  CreatePaymentSubmissionParams,
+  CreatePaymentSubmissionBody,
+  CreatePaymentSubmissionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { sendRegistrationConfirmation } from "../lib/email";
@@ -496,5 +500,80 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
   const full = await getFullRegistration(reg.id);
   res.json(GetRegistrationResponse.parse(full));
 });
+
+// POST /registrations/:id/payment-submissions
+// A registrant (or a manager on their behalf) records that a payment was
+// sent/handed over, with method-specific reconciliation info. This is purely
+// informational: it NEVER touches paymentStatus — organizers reconcile
+// manually and flip the status themselves.
+router.post(
+  "/registrations/:id/payment-submissions",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const params = CreatePaymentSubmissionParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "Invalid registration ID" });
+      return;
+    }
+    const body = CreatePaymentSubmissionBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+
+    const userId = (req as any).userId as string;
+    const [registration] = await db
+      .select()
+      .from(registrationsTable)
+      .where(eq(registrationsTable.id, params.data.id));
+    if (!registration) {
+      res.status(404).json({ error: "Registration not found" });
+      return;
+    }
+    if (
+      registration.userId !== userId &&
+      !(await canManageRegistrations(userId, registration.reunionId))
+    ) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    if (registration.status !== "active") {
+      res.status(400).json({ error: "Cancelled registrations cannot record payments." });
+      return;
+    }
+
+    const { method, amount, reference, givenDate, note } = body.data;
+    // Method-specific validation the OpenAPI shape can't express:
+    // whole-dollar amounts only, and each method's reconciliation key.
+    if (!Number.isInteger(amount)) {
+      res.status(400).json({ error: "Amount must be a whole-dollar number." });
+      return;
+    }
+    if ((method === "cashapp" || method === "zelle" || method === "cash") && !reference?.trim()) {
+      const label =
+        method === "cashapp" ? "your $cashtag" : method === "zelle" ? "your Zelle ID" : "who received the cash";
+      res.status(400).json({ error: `Please include ${label}.` });
+      return;
+    }
+    if (method === "cash" && !/^\d{4}-\d{2}-\d{2}$/.test(givenDate ?? "")) {
+      res.status(400).json({ error: "Please include the date the cash was given (YYYY-MM-DD)." });
+      return;
+    }
+    const [created] = await db
+      .insert(paymentSubmissionsTable)
+      .values({
+        reunionId: registration.reunionId,
+        registrationId: registration.id,
+        submittedBy: userId,
+        method,
+        amount,
+        reference: reference || null,
+        givenDate: givenDate || null,
+        note: note || null,
+      })
+      .returning();
+    res.status(201).json(CreatePaymentSubmissionResponse.parse(created));
+  },
+);
 
 export default router;

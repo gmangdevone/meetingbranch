@@ -46,6 +46,9 @@ import type {
   MemberPoll,
   MemberPollList,
   MyContributionsResponse,
+  PaymentSubmission,
+  PaymentSubmissionInput,
+  PaymentSubmissionList,
   PlatformSettings,
   Poll,
   PollInput,
@@ -4204,6 +4207,155 @@ export const useTransferRegistration = <TError = ErrorType<ErrorResponse | void>
       > => {
       return useMutation(getTransferRegistrationMutationOptions(options));
     }
+
+export const getCreatePaymentSubmissionUrl = (id: number,) => {
+
+
+
+
+  return `/api/registrations/${id}/payment-submissions`
+}
+
+/**
+ * @summary Record a payment submission for reconciliation (never changes payment status)
+ */
+export const createPaymentSubmission = async (id: number,
+    paymentSubmissionInput: PaymentSubmissionInput, options?: RequestInit): Promise<PaymentSubmission> => {
+
+  return customFetch<PaymentSubmission>(getCreatePaymentSubmissionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentSubmissionInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePaymentSubmissionMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentSubmission>>, TError,{id: number;data: BodyType<PaymentSubmissionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaymentSubmission>>, TError,{id: number;data: BodyType<PaymentSubmissionInput>}, TContext> => {
+
+const mutationKey = ['createPaymentSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaymentSubmission>>, {id: number;data: BodyType<PaymentSubmissionInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createPaymentSubmission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof createPaymentSubmission>>>
+    export type CreatePaymentSubmissionMutationBody = BodyType<PaymentSubmissionInput>
+    export type CreatePaymentSubmissionMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Record a payment submission for reconciliation (never changes payment status)
+ */
+export const useCreatePaymentSubmission = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentSubmission>>, TError,{id: number;data: BodyType<PaymentSubmissionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPaymentSubmission>>,
+        TError,
+        {id: number;data: BodyType<PaymentSubmissionInput>},
+        TContext
+      > => {
+      return useMutation(getCreatePaymentSubmissionMutationOptions(options));
+    }
+
+export const getListPaymentSubmissionsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/payment-submissions`
+}
+
+/**
+ * @summary List all payment submissions for a reunion (organizers with the registration role)
+ */
+export const listPaymentSubmissions = async (reunionId: number, options?: RequestInit): Promise<PaymentSubmissionList> => {
+
+  return customFetch<PaymentSubmissionList>(getListPaymentSubmissionsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPaymentSubmissionsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/payment-submissions`
+    ] as const;
+    }
+
+
+export const getListPaymentSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listPaymentSubmissions>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPaymentSubmissionsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPaymentSubmissions>>> = ({ signal }) => listPaymentSubmissions(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPaymentSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPaymentSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listPaymentSubmissions>>>
+export type ListPaymentSubmissionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List all payment submissions for a reunion (organizers with the registration role)
+ */
+
+export function useListPaymentSubmissions<TData = Awaited<ReturnType<typeof listPaymentSubmissions>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPaymentSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPaymentSubmissionsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetAdminSetupStatusUrl = () => {
 

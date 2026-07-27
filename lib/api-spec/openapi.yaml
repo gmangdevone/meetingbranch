@@ -1407,6 +1407,64 @@ paths:
         "404":
           description: Not found
 
+  /registrations/{id}/payment-submissions:
+    post:
+      operationId: createPaymentSubmission
+      tags: [registrations]
+      summary: Record a payment submission for reconciliation (never changes payment status)
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentSubmissionInput"
+      responses:
+        "201":
+          description: Payment submission recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentSubmission"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/payment-submissions:
+    get:
+      operationId: listPaymentSubmissions
+      tags: [reunions]
+      summary: List all payment submissions for a reunion (organizers with the registration role)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Payment submissions, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentSubmissionList"
+        "403":
+          description: Forbidden
+        "404":
+          description: Reunion not found
+
   # ── Platform admin ────────────────────────────────────────────────────────────
   /admin/setup-status:
     get:
@@ -1781,6 +1839,65 @@ components:
           items:
             $ref: "#/components/schemas/SponsorshipContribution"
 
+    PaymentMethod:
+      type: string
+      enum: [cashapp, zelle, cash, check]
+
+    PaymentSubmissionInput:
+      type: object
+      required: [method, amount]
+      properties:
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        amount:
+          type: integer
+          minimum: 1
+          description: "Whole-dollar amount the registrant says they are paying."
+        reference:
+          type: ["string", "null"]
+          description: "Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check)."
+        givenDate:
+          type: ["string", "null"]
+          description: "Date the cash was handed over (cash only), YYYY-MM-DD."
+        note:
+          type: ["string", "null"]
+          description: "Free-form note from the registrant."
+
+    PaymentSubmission:
+      type: object
+      required: [id, reunionId, registrationId, method, amount, createdAt]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        registrationId:
+          type: integer
+        submittedBy:
+          type: string
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        amount:
+          type: integer
+        reference:
+          type: ["string", "null"]
+        givenDate:
+          type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentSubmissionList:
+      type: object
+      required: [submissions]
+      properties:
+        submissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentSubmission"
+
     SponsorshipContributionInput:
       type: object
       required: [amount]
@@ -1926,6 +2043,12 @@ components:
         pollsCardImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom background image for the hub Family Vote card. Null means the default look."
+        cashAppTag:
+          type: ["string", "null"]
+          description: "Organizer's Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option."
+        checkPayee:
+          type: ["string", "null"]
+          description: "Who checks should be made out to. Null hides the check payment option."
         organizerId:
           type: string
         createdAt:
@@ -2168,6 +2291,12 @@ components:
         pollsCardImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom Family Vote card background. Set null to restore the default."
+        cashAppTag:
+          type: ["string", "null"]
+          description: "Organizer's Cash App $cashtag. Set null to hide the Cash App payment option."
+        checkPayee:
+          type: ["string", "null"]
+          description: "Who checks should be made out to. Set null to hide the check payment option."
 
     UploadUrlRequest:
       type: object

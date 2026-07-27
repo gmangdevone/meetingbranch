@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
+import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
 export function ReunionHub({ params }: { params: { code: string } }) {
@@ -390,6 +391,15 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                     </div>
                   )}
                 </div>
+
+                {isSignedIn && myRegistration && myPaymentStatus === "pending" && (
+                  <SubmitPayment
+                    registrationId={myRegistration.id}
+                    totalDue={myTotalDue}
+                    cashAppTag={reunion.cashAppTag ?? null}
+                    checkPayee={reunion.checkPayee ?? null}
+                  />
+                )}
 
                 {isSignedIn && (
                   <div className="bg-card border shadow-sm rounded-3xl p-8">

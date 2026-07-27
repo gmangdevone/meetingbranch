@@ -42,6 +42,16 @@ export interface Reunion {
      * @nullable
      */
   pollsCardImageUrl?: string | null;
+  /**
+     * Organizer's Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.
+     * @nullable
+     */
+  cashAppTag?: string | null;
+  /**
+     * Who checks should be made out to. Null hides the check payment option.
+     * @nullable
+     */
+  checkPayee?: string | null;
   organizerId?: string;
   createdAt: Date;
   branches: ReunionBranch[];

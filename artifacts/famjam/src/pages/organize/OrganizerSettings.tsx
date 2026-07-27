@@ -38,6 +38,8 @@ const formSchema = z.object({
   endDate: z.string().min(1, "Required"),
   paymentHandle: z.string().min(1, "Required"),
   paymentUrl: z.string().optional(),
+  cashAppTag: z.string().optional(),
+  checkPayee: z.string().optional(),
   registrationsOpen: z.boolean().default(true),
   allowRegistrantEdits: z.boolean().default(false),
 });
@@ -61,6 +63,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       endDate: "",
       paymentHandle: "",
       paymentUrl: "",
+      cashAppTag: "",
+      checkPayee: "",
       registrationsOpen: true,
       allowRegistrantEdits: false,
     },
@@ -74,6 +78,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         endDate: summary.reunion.endDate,
         paymentHandle: summary.reunion.paymentHandle,
         paymentUrl: summary.reunion.paymentUrl || "",
+        cashAppTag: summary.reunion.cashAppTag || "",
+        checkPayee: summary.reunion.checkPayee || "",
         registrationsOpen: summary.reunion.registrationsOpen,
         allowRegistrantEdits: summary.reunion.allowRegistrantEdits ?? false,
       });
@@ -89,6 +95,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         endDate: values.endDate,
         paymentHandle: values.paymentHandle,
         paymentUrl: values.paymentUrl || undefined,
+        cashAppTag: values.cashAppTag?.trim() || null,
+        checkPayee: values.checkPayee?.trim() || null,
         registrationsOpen: values.registrationsOpen,
         allowRegistrantEdits: values.allowRegistrantEdits,
       }
@@ -224,6 +232,39 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                     <FormControl>
                       <Input className="rounded-xl bg-muted/50" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="cashAppTag"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Cash App $Cashtag</FormLabel>
+                    <FormControl>
+                      <Input className="rounded-xl bg-muted/50" placeholder="$YourCashtag" {...field} />
+                    </FormControl>
+                    <div className="text-xs text-muted-foreground">
+                      The Cash App account that receives payments. Registrants get a "pay with Cash App"
+                      option that opens the app with their total prefilled. Leave blank to hide the Cash App option.
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="checkPayee"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-bold">Checks Payable To</FormLabel>
+                    <FormControl>
+                      <Input className="rounded-xl bg-muted/50" placeholder="e.g. Lacey Family Reunion Fund" {...field} />
+                    </FormControl>
+                    <div className="text-xs text-muted-foreground">
+                      Shown to registrants as "Make payment out to". Leave blank to hide the check option.
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

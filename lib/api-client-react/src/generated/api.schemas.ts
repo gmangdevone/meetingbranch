@@ -156,6 +156,60 @@ export interface MyContributionsResponse {
   contributions: SponsorshipContribution[];
 }
 
+export type PaymentMethod = typeof PaymentMethod[keyof typeof PaymentMethod];
+
+
+export const PaymentMethod = {
+  cashapp: 'cashapp',
+  zelle: 'zelle',
+  cash: 'cash',
+  check: 'check',
+} as const;
+
+export interface PaymentSubmissionInput {
+  method: PaymentMethod;
+  /**
+     * Whole-dollar amount the registrant says they are paying.
+     * @minimum 1
+     */
+  amount: number;
+  /**
+     * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
+     * @nullable
+     */
+  reference?: string | null;
+  /**
+     * Date the cash was handed over (cash only), YYYY-MM-DD.
+     * @nullable
+     */
+  givenDate?: string | null;
+  /**
+     * Free-form note from the registrant.
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export interface PaymentSubmission {
+  id: number;
+  reunionId: number;
+  registrationId: number;
+  submittedBy?: string;
+  method: PaymentMethod;
+  amount: number;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  givenDate?: string | null;
+  /** @nullable */
+  note?: string | null;
+  createdAt: string;
+}
+
+export interface PaymentSubmissionList {
+  submissions: PaymentSubmission[];
+}
+
 export interface SponsorshipContributionInput {
   /** @minimum 1 */
   amount: number;
@@ -301,6 +355,16 @@ export interface Reunion {
      * @nullable
      */
   pollsCardImageUrl?: string | null;
+  /**
+     * Organizer's Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.
+     * @nullable
+     */
+  cashAppTag?: string | null;
+  /**
+     * Who checks should be made out to. Null hides the check payment option.
+     * @nullable
+     */
+  checkPayee?: string | null;
   organizerId?: string;
   createdAt: string;
   branches: ReunionBranch[];
@@ -438,6 +502,16 @@ export interface ReunionUpdateInput {
      * @nullable
      */
   pollsCardImageUrl?: string | null;
+  /**
+     * Organizer's Cash App $cashtag. Set null to hide the Cash App payment option.
+     * @nullable
+     */
+  cashAppTag?: string | null;
+  /**
+     * Who checks should be made out to. Set null to hide the check payment option.
+     * @nullable
+     */
+  checkPayee?: string | null;
 }
 
 export interface UploadUrlRequest {
