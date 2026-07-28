@@ -57,12 +57,16 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
     0,
   );
-  // Account-level payment status: paid/waived only when every registration is settled.
-  const myPaymentStatus = myActiveRegistrations.every((r) => r.paymentStatus === "paid")
-    ? "paid"
-    : myActiveRegistrations.every((r) => r.paymentStatus === "paid" || r.paymentStatus === "waived")
+  // Account-level payment status: pending if anything is still owed; otherwise
+  // "waived" only when EVERY registration was waived, else "paid".
+  const allSettled = myActiveRegistrations.every(
+    (r) => r.paymentStatus === "paid" || r.paymentStatus === "waived",
+  );
+  const myPaymentStatus = !allSettled
+    ? "pending"
+    : myActiveRegistrations.every((r) => r.paymentStatus === "waived")
       ? "waived"
-      : "pending";
+      : "paid";
 
   const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
     query: { 
