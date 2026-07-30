@@ -47,3 +47,18 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.agents/
+.replit
+.replitignore
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+logs/
+
+# scratch files
+fix-ts*.js
