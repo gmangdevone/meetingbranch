@@ -2109,7 +2109,10 @@ components:
           type: ["string", "null"]
         serviceDate:
           type: ["string", "null"]
-          description: "Contracted service date, YYYY-MM-DD."
+          description: "Contracted service start date, YYYY-MM-DD."
+        serviceEndDate:
+          type: ["string", "null"]
+          description: "Contracted service end date, YYYY-MM-DD (optional; for multi-day service)."
         serviceStartTime:
           type: ["string", "null"]
           description: "Service start time, HH:MM (24h)."
@@ -2143,6 +2146,8 @@ components:
         notes:
           type: ["string", "null"]
         serviceDate:
+          type: ["string", "null"]
+        serviceEndDate:
           type: ["string", "null"]
         serviceStartTime:
           type: ["string", "null"]
@@ -2210,6 +2215,8 @@ components:
         notes:
           type: ["string", "null"]
         serviceDate:
+          type: ["string", "null"]
+        serviceEndDate:
           type: ["string", "null"]
         serviceStartTime:
           type: ["string", "null"]

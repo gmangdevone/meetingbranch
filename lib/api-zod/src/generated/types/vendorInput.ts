@@ -30,10 +30,15 @@ export interface VendorInput {
   /** @nullable */
   notes?: string | null;
   /**
-     * Contracted service date, YYYY-MM-DD.
+     * Contracted service start date, YYYY-MM-DD.
      * @nullable
      */
   serviceDate?: string | null;
+  /**
+     * Contracted service end date, YYYY-MM-DD (optional; for multi-day service).
+     * @nullable
+     */
+  serviceEndDate?: string | null;
   /**
      * Service start time, HH:MM (24h).
      * @nullable

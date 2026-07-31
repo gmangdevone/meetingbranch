@@ -41,6 +41,7 @@ export const vendorsTable = pgTable("vendors", {
   quotedCost: integer("quoted_cost"),
   notes: text("notes"),
   serviceDate: text("service_date"),
+  serviceEndDate: text("service_end_date"),
   serviceStartTime: text("service_start_time"),
   serviceEndTime: text("service_end_time"),
   approvedAt: timestamp("approved_at", { withTimezone: true }),

@@ -1779,6 +1779,7 @@ export const ListVendorsResponse = zod.object({
   "quotedCost": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "serviceDate": zod.string().nullish(),
+  "serviceEndDate": zod.string().nullish(),
   "serviceStartTime": zod.string().nullish(),
   "serviceEndTime": zod.string().nullish(),
   "approvedAt": zod.coerce.date().nullish(),
@@ -1818,7 +1819,8 @@ export const CreateVendorBody = zod.object({
   "address": zod.string().nullish(),
   "quotedCost": zod.number().min(createVendorBodyQuotedCostMin).nullish().describe('Quoted cost in whole dollars.'),
   "notes": zod.string().nullish(),
-  "serviceDate": zod.string().nullish().describe('Contracted service date, YYYY-MM-DD.'),
+  "serviceDate": zod.string().nullish().describe('Contracted service start date, YYYY-MM-DD.'),
+  "serviceEndDate": zod.string().nullish().describe('Contracted service end date, YYYY-MM-DD (optional; for multi-day service).'),
   "serviceStartTime": zod.string().nullish().describe('Service start time, HH:MM (24h).'),
   "serviceEndTime": zod.string().nullish().describe('Service end time, HH:MM (24h).')
 })
@@ -1837,6 +1839,7 @@ export const CreateVendorResponse = zod.object({
   "quotedCost": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "serviceDate": zod.string().nullish(),
+  "serviceEndDate": zod.string().nullish(),
   "serviceStartTime": zod.string().nullish(),
   "serviceEndTime": zod.string().nullish(),
   "approvedAt": zod.coerce.date().nullish(),
@@ -1878,6 +1881,7 @@ export const UpdateVendorBody = zod.object({
   "quotedCost": zod.number().min(updateVendorBodyQuotedCostMin).nullish(),
   "notes": zod.string().nullish(),
   "serviceDate": zod.string().nullish(),
+  "serviceEndDate": zod.string().nullish(),
   "serviceStartTime": zod.string().nullish(),
   "serviceEndTime": zod.string().nullish()
 })
@@ -1896,6 +1900,7 @@ export const UpdateVendorResponse = zod.object({
   "quotedCost": zod.number().nullish(),
   "notes": zod.string().nullish(),
   "serviceDate": zod.string().nullish(),
+  "serviceEndDate": zod.string().nullish(),
   "serviceStartTime": zod.string().nullish(),
   "serviceEndTime": zod.string().nullish(),
   "approvedAt": zod.coerce.date().nullish(),

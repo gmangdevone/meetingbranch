@@ -67,15 +67,21 @@ const formatMoney = (n: number) => `$${n.toLocaleString()}`;
 
 function formatServiceWindow(v: Vendor): string | null {
   if (!v.serviceDate) return null;
-  const date = new Date(`${v.serviceDate}T00:00:00`);
-  const dateStr = isNaN(date.getTime())
-    ? v.serviceDate
-    : date.toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+  const fmtDate = (s: string) => {
+    const d = new Date(`${s}T00:00:00`);
+    return isNaN(d.getTime())
+      ? s
+      : d.toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
+  };
+  const dateStr =
+    v.serviceEndDate && v.serviceEndDate !== v.serviceDate
+      ? `${fmtDate(v.serviceDate)} – ${fmtDate(v.serviceEndDate)}`
+      : fmtDate(v.serviceDate);
   const fmtTime = (t?: string | null) => {
     if (!t) return null;
     const d = new Date(`2000-01-01T${t}:00`);
@@ -101,6 +107,7 @@ type VendorFormState = {
   quotedCost: string;
   notes: string;
   serviceDate: string;
+  serviceEndDate: string;
   serviceStartTime: string;
   serviceEndTime: string;
 };
@@ -116,6 +123,7 @@ const emptyForm: VendorFormState = {
   quotedCost: "",
   notes: "",
   serviceDate: "",
+  serviceEndDate: "",
   serviceStartTime: "",
   serviceEndTime: "",
 };
@@ -132,6 +140,7 @@ function vendorToForm(v: Vendor): VendorFormState {
     quotedCost: v.quotedCost != null ? String(v.quotedCost) : "",
     notes: v.notes ?? "",
     serviceDate: v.serviceDate ?? "",
+    serviceEndDate: v.serviceEndDate ?? "",
     serviceStartTime: v.serviceStartTime ?? "",
     serviceEndTime: v.serviceEndTime ?? "",
   };
@@ -150,6 +159,7 @@ function formToInput(f: VendorFormState): VendorInput {
     quotedCost: f.quotedCost.trim() === "" ? null : Math.max(0, Math.round(Number(f.quotedCost))),
     notes: opt(f.notes),
     serviceDate: opt(f.serviceDate),
+    serviceEndDate: opt(f.serviceEndDate),
     serviceStartTime: opt(f.serviceStartTime),
     serviceEndTime: opt(f.serviceEndTime),
   };
@@ -511,10 +521,21 @@ function VendorsContent({ reunionId }: { reunionId: number }) {
               Address
               <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </label>
-            <label className="flex flex-col gap-1.5 text-sm font-medium">
-              Service date
-              <Input type="date" value={form.serviceDate} onChange={(e) => setForm({ ...form, serviceDate: e.target.value })} />
-            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5 text-sm font-medium">
+                Service start date
+                <Input type="date" value={form.serviceDate} onChange={(e) => setForm({ ...form, serviceDate: e.target.value })} />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm font-medium">
+                End date
+                <Input
+                  type="date"
+                  min={form.serviceDate || undefined}
+                  value={form.serviceEndDate}
+                  onChange={(e) => setForm({ ...form, serviceEndDate: e.target.value })}
+                />
+              </label>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1.5 text-sm font-medium">
                 Start time

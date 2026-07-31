@@ -32,6 +32,8 @@ export interface Vendor {
   /** @nullable */
   serviceDate?: string | null;
   /** @nullable */
+  serviceEndDate?: string | null;
+  /** @nullable */
   serviceStartTime?: string | null;
   /** @nullable */
   serviceEndTime?: string | null;
