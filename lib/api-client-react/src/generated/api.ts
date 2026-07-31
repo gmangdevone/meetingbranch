@@ -78,7 +78,13 @@ import type {
   UpdatePaymentStatusInput,
   UpdateRegistrationInput,
   UploadUrlRequest,
-  UploadUrlResponse
+  UploadUrlResponse,
+  Vendor,
+  VendorContract,
+  VendorContractInput,
+  VendorInput,
+  VendorList,
+  VendorUpdateInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -4356,6 +4362,451 @@ export function useListPaymentSubmissions<TData = Awaited<ReturnType<typeof list
 
 
 
+
+export const getListVendorsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/vendors`
+}
+
+/**
+ * @summary List vendors for a reunion, with their contracts (power_user organizers)
+ */
+export const listVendors = async (reunionId: number, options?: RequestInit): Promise<VendorList> => {
+
+  return customFetch<VendorList>(getListVendorsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVendorsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/vendors`
+    ] as const;
+    }
+
+
+export const getListVendorsQueryOptions = <TData = Awaited<ReturnType<typeof listVendors>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVendors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVendorsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVendors>>> = ({ signal }) => listVendors(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVendors>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVendorsQueryResult = NonNullable<Awaited<ReturnType<typeof listVendors>>>
+export type ListVendorsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List vendors for a reunion, with their contracts (power_user organizers)
+ */
+
+export function useListVendors<TData = Awaited<ReturnType<typeof listVendors>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVendors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVendorsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateVendorUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/vendors`
+}
+
+/**
+ * @summary Add a vendor to evaluate (power_user organizers)
+ */
+export const createVendor = async (reunionId: number,
+    vendorInput: VendorInput, options?: RequestInit): Promise<Vendor> => {
+
+  return customFetch<Vendor>(getCreateVendorUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vendorInput)
+  }
+);}
+
+
+
+
+
+export const getCreateVendorMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVendor>>, TError,{reunionId: number;data: BodyType<VendorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createVendor>>, TError,{reunionId: number;data: BodyType<VendorInput>}, TContext> => {
+
+const mutationKey = ['createVendor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVendor>>, {reunionId: number;data: BodyType<VendorInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createVendor(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateVendorMutationResult = NonNullable<Awaited<ReturnType<typeof createVendor>>>
+    export type CreateVendorMutationBody = BodyType<VendorInput>
+    export type CreateVendorMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Add a vendor to evaluate (power_user organizers)
+ */
+export const useCreateVendor = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVendor>>, TError,{reunionId: number;data: BodyType<VendorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createVendor>>,
+        TError,
+        {reunionId: number;data: BodyType<VendorInput>},
+        TContext
+      > => {
+      return useMutation(getCreateVendorMutationOptions(options));
+    }
+
+export const getUpdateVendorUrl = (reunionId: number,
+    vendorId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/vendors/${vendorId}`
+}
+
+/**
+ * @summary Update a vendor; setting status to approved records the approval time (power_user organizers)
+ */
+export const updateVendor = async (reunionId: number,
+    vendorId: number,
+    vendorUpdateInput: VendorUpdateInput, options?: RequestInit): Promise<Vendor> => {
+
+  return customFetch<Vendor>(getUpdateVendorUrl(reunionId,vendorId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vendorUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateVendorMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendor>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVendor>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateVendor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVendor>>, {reunionId: number;vendorId: number;data: BodyType<VendorUpdateInput>}> = (props) => {
+          const {reunionId,vendorId,data} = props ?? {};
+
+          return  updateVendor(reunionId,vendorId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVendorMutationResult = NonNullable<Awaited<ReturnType<typeof updateVendor>>>
+    export type UpdateVendorMutationBody = BodyType<VendorUpdateInput>
+    export type UpdateVendorMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Update a vendor; setting status to approved records the approval time (power_user organizers)
+ */
+export const useUpdateVendor = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendor>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVendor>>,
+        TError,
+        {reunionId: number;vendorId: number;data: BodyType<VendorUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateVendorMutationOptions(options));
+    }
+
+export const getDeleteVendorUrl = (reunionId: number,
+    vendorId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/vendors/${vendorId}`
+}
+
+/**
+ * @summary Remove a vendor and its contracts (power_user organizers)
+ */
+export const deleteVendor = async (reunionId: number,
+    vendorId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteVendorUrl(reunionId,vendorId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteVendorMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVendor>>, TError,{reunionId: number;vendorId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVendor>>, TError,{reunionId: number;vendorId: number}, TContext> => {
+
+const mutationKey = ['deleteVendor'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVendor>>, {reunionId: number;vendorId: number}> = (props) => {
+          const {reunionId,vendorId} = props ?? {};
+
+          return  deleteVendor(reunionId,vendorId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVendorMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVendor>>>
+
+    export type DeleteVendorMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a vendor and its contracts (power_user organizers)
+ */
+export const useDeleteVendor = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVendor>>, TError,{reunionId: number;vendorId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVendor>>,
+        TError,
+        {reunionId: number;vendorId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteVendorMutationOptions(options));
+    }
+
+export const getCreateVendorContractUrl = (reunionId: number,
+    vendorId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/vendors/${vendorId}/contracts`
+}
+
+/**
+ * @summary Attach an uploaded contract file to a vendor (power_user organizers)
+ */
+export const createVendorContract = async (reunionId: number,
+    vendorId: number,
+    vendorContractInput: VendorContractInput, options?: RequestInit): Promise<VendorContract> => {
+
+  return customFetch<VendorContract>(getCreateVendorContractUrl(reunionId,vendorId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(vendorContractInput)
+  }
+);}
+
+
+
+
+
+export const getCreateVendorContractMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVendorContract>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createVendorContract>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorContractInput>}, TContext> => {
+
+const mutationKey = ['createVendorContract'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVendorContract>>, {reunionId: number;vendorId: number;data: BodyType<VendorContractInput>}> = (props) => {
+          const {reunionId,vendorId,data} = props ?? {};
+
+          return  createVendorContract(reunionId,vendorId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateVendorContractMutationResult = NonNullable<Awaited<ReturnType<typeof createVendorContract>>>
+    export type CreateVendorContractMutationBody = BodyType<VendorContractInput>
+    export type CreateVendorContractMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Attach an uploaded contract file to a vendor (power_user organizers)
+ */
+export const useCreateVendorContract = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVendorContract>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createVendorContract>>,
+        TError,
+        {reunionId: number;vendorId: number;data: BodyType<VendorContractInput>},
+        TContext
+      > => {
+      return useMutation(getCreateVendorContractMutationOptions(options));
+    }
+
+export const getDeleteVendorContractUrl = (reunionId: number,
+    vendorId: number,
+    contractId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/vendors/${vendorId}/contracts/${contractId}`
+}
+
+/**
+ * @summary Remove a contract from a vendor (power_user organizers)
+ */
+export const deleteVendorContract = async (reunionId: number,
+    vendorId: number,
+    contractId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteVendorContractUrl(reunionId,vendorId,contractId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteVendorContractMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVendorContract>>, TError,{reunionId: number;vendorId: number;contractId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVendorContract>>, TError,{reunionId: number;vendorId: number;contractId: number}, TContext> => {
+
+const mutationKey = ['deleteVendorContract'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVendorContract>>, {reunionId: number;vendorId: number;contractId: number}> = (props) => {
+          const {reunionId,vendorId,contractId} = props ?? {};
+
+          return  deleteVendorContract(reunionId,vendorId,contractId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVendorContractMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVendorContract>>>
+
+    export type DeleteVendorContractMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a contract from a vendor (power_user organizers)
+ */
+export const useDeleteVendorContract = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVendorContract>>, TError,{reunionId: number;vendorId: number;contractId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVendorContract>>,
+        TError,
+        {reunionId: number;vendorId: number;contractId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteVendorContractMutationOptions(options));
+    }
 
 export const getGetAdminSetupStatusUrl = () => {
 

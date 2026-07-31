@@ -210,6 +210,152 @@ export interface PaymentSubmissionList {
   submissions: PaymentSubmission[];
 }
 
+export type VendorCategory = typeof VendorCategory[keyof typeof VendorCategory];
+
+
+export const VendorCategory = {
+  venue: 'venue',
+  park: 'park',
+  caterer: 'caterer',
+  supplier: 'supplier',
+  entertainment: 'entertainment',
+  other: 'other',
+} as const;
+
+export type VendorStatus = typeof VendorStatus[keyof typeof VendorStatus];
+
+
+export const VendorStatus = {
+  prospect: 'prospect',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface VendorInput {
+  /** @minLength 1 */
+  name: string;
+  category: VendorCategory;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  website?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /**
+     * Quoted cost in whole dollars.
+     * @minimum 0
+     * @nullable
+     */
+  quotedCost?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  /**
+     * Contracted service date, YYYY-MM-DD.
+     * @nullable
+     */
+  serviceDate?: string | null;
+  /**
+     * Service start time, HH:MM (24h).
+     * @nullable
+     */
+  serviceStartTime?: string | null;
+  /**
+     * Service end time, HH:MM (24h).
+     * @nullable
+     */
+  serviceEndTime?: string | null;
+}
+
+export interface VendorUpdateInput {
+  /** @minLength 1 */
+  name?: string;
+  category?: VendorCategory;
+  status?: VendorStatus;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  website?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  quotedCost?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  serviceDate?: string | null;
+  /** @nullable */
+  serviceStartTime?: string | null;
+  /** @nullable */
+  serviceEndTime?: string | null;
+}
+
+export interface VendorContractInput {
+  /** @minLength 1 */
+  fileName: string;
+  /**
+     * Object path returned by the upload-URL endpoint (/objects/...).
+     * @minLength 1
+     */
+  objectPath: string;
+}
+
+export interface VendorContract {
+  id: number;
+  vendorId: number;
+  reunionId: number;
+  fileName: string;
+  objectPath: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+export interface Vendor {
+  id: number;
+  reunionId: number;
+  name: string;
+  category: VendorCategory;
+  status: VendorStatus;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  website?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  quotedCost?: number | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  serviceDate?: string | null;
+  /** @nullable */
+  serviceStartTime?: string | null;
+  /** @nullable */
+  serviceEndTime?: string | null;
+  /** @nullable */
+  approvedAt?: string | null;
+  createdAt: string;
+  contracts: VendorContract[];
+}
+
+export interface VendorList {
+  vendors: Vendor[];
+}
+
 export interface SponsorshipContributionInput {
   /** @minimum 1 */
   amount: number;

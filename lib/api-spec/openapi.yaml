@@ -1465,6 +1465,182 @@ paths:
         "404":
           description: Reunion not found
 
+  # ── Vendors ───────────────────────────────────────────────────────────────────
+  /reunions/{reunionId}/vendors:
+    get:
+      operationId: listVendors
+      tags: [reunions]
+      summary: List vendors for a reunion, with their contracts (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Vendors with contracts, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorList"
+        "403":
+          description: Forbidden
+        "404":
+          description: Reunion not found
+    post:
+      operationId: createVendor
+      tags: [reunions]
+      summary: Add a vendor to evaluate (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorInput"
+      responses:
+        "201":
+          description: Vendor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Reunion not found
+
+  /reunions/{reunionId}/vendors/{vendorId}:
+    put:
+      operationId: updateVendor
+      tags: [reunions]
+      summary: Update a vendor; setting status to approved records the approval time (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorUpdateInput"
+      responses:
+        "200":
+          description: Vendor updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteVendor
+      tags: [reunions]
+      summary: Remove a vendor and its contracts (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Vendor deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/vendors/{vendorId}/contracts:
+    post:
+      operationId: createVendorContract
+      tags: [reunions]
+      summary: Attach an uploaded contract file to a vendor (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorContractInput"
+      responses:
+        "201":
+          description: Contract attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VendorContract"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/vendors/{vendorId}/contracts/{contractId}:
+    delete:
+      operationId: deleteVendorContract
+      tags: [reunions]
+      summary: Remove a contract from a vendor (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: vendorId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Contract deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   # ── Platform admin ────────────────────────────────────────────────────────────
   /admin/setup-status:
     get:
@@ -1897,6 +2073,167 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PaymentSubmission"
+
+    VendorCategory:
+      type: string
+      enum: [venue, park, caterer, supplier, entertainment, other]
+
+    VendorStatus:
+      type: string
+      enum: [prospect, approved, rejected]
+
+    VendorInput:
+      type: object
+      required: [name, category]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        category:
+          $ref: "#/components/schemas/VendorCategory"
+        contactName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        quotedCost:
+          type: ["integer", "null"]
+          minimum: 0
+          description: "Quoted cost in whole dollars."
+        notes:
+          type: ["string", "null"]
+        serviceDate:
+          type: ["string", "null"]
+          description: "Contracted service date, YYYY-MM-DD."
+        serviceStartTime:
+          type: ["string", "null"]
+          description: "Service start time, HH:MM (24h)."
+        serviceEndTime:
+          type: ["string", "null"]
+          description: "Service end time, HH:MM (24h)."
+
+    VendorUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        category:
+          $ref: "#/components/schemas/VendorCategory"
+        status:
+          $ref: "#/components/schemas/VendorStatus"
+        contactName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        quotedCost:
+          type: ["integer", "null"]
+          minimum: 0
+        notes:
+          type: ["string", "null"]
+        serviceDate:
+          type: ["string", "null"]
+        serviceStartTime:
+          type: ["string", "null"]
+        serviceEndTime:
+          type: ["string", "null"]
+
+    VendorContractInput:
+      type: object
+      required: [fileName, objectPath]
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        objectPath:
+          type: string
+          minLength: 1
+          description: "Object path returned by the upload-URL endpoint (/objects/...)."
+
+    VendorContract:
+      type: object
+      required: [id, vendorId, reunionId, fileName, objectPath, uploadedBy, createdAt]
+      properties:
+        id:
+          type: integer
+        vendorId:
+          type: integer
+        reunionId:
+          type: integer
+        fileName:
+          type: string
+        objectPath:
+          type: string
+        uploadedBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Vendor:
+      type: object
+      required: [id, reunionId, name, category, status, createdAt, contracts]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        name:
+          type: string
+        category:
+          $ref: "#/components/schemas/VendorCategory"
+        status:
+          $ref: "#/components/schemas/VendorStatus"
+        contactName:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        quotedCost:
+          type: ["integer", "null"]
+        notes:
+          type: ["string", "null"]
+        serviceDate:
+          type: ["string", "null"]
+        serviceStartTime:
+          type: ["string", "null"]
+        serviceEndTime:
+          type: ["string", "null"]
+        approvedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/VendorContract"
+
+    VendorList:
+      type: object
+      required: [vendors]
+      properties:
+        vendors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Vendor"
 
     SponsorshipContributionInput:
       type: object

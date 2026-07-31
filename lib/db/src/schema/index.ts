@@ -7,3 +7,4 @@ export * from "./payments";
 export * from "./announcements";
 export * from "./schedule";
 export * from "./polls";
+export * from "./vendors";

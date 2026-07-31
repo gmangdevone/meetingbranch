@@ -68,12 +68,14 @@ router.post(
       return;
     }
 
-    if (!parsed.data.contentType.startsWith('image/')) {
-      res.status(400).json({ error: 'Only image uploads are allowed' });
+    const isImage = parsed.data.contentType.startsWith('image/');
+    const isDocument = parsed.data.contentType === 'application/pdf';
+    if (!isImage && !isDocument) {
+      res.status(400).json({ error: 'Only image or PDF uploads are allowed' });
       return;
     }
     if (parsed.data.size > MAX_UPLOAD_BYTES) {
-      res.status(400).json({ error: 'Image must be under 10MB' });
+      res.status(400).json({ error: 'File must be under 10MB' });
       return;
     }
 

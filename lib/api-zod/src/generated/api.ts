@@ -1758,6 +1758,212 @@ export const ListPaymentSubmissionsResponse = zod.object({
 
 
 /**
+ * @summary List vendors for a reunion, with their contracts (power_user organizers)
+ */
+export const ListVendorsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListVendorsResponse = zod.object({
+  "vendors": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "name": zod.string(),
+  "category": zod.enum(['venue', 'park', 'caterer', 'supplier', 'entertainment', 'other']),
+  "status": zod.enum(['prospect', 'approved', 'rejected']),
+  "contactName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "quotedCost": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "serviceDate": zod.string().nullish(),
+  "serviceStartTime": zod.string().nullish(),
+  "serviceEndTime": zod.string().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "contracts": zod.array(zod.object({
+  "id": zod.number(),
+  "vendorId": zod.number(),
+  "reunionId": zod.number(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+}))
+})
+
+
+/**
+ * @summary Add a vendor to evaluate (power_user organizers)
+ */
+export const CreateVendorParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+export const createVendorBodyQuotedCostMin = 0;
+
+
+
+export const CreateVendorBody = zod.object({
+  "name": zod.string().min(1),
+  "category": zod.enum(['venue', 'park', 'caterer', 'supplier', 'entertainment', 'other']),
+  "contactName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "quotedCost": zod.number().min(createVendorBodyQuotedCostMin).nullish().describe('Quoted cost in whole dollars.'),
+  "notes": zod.string().nullish(),
+  "serviceDate": zod.string().nullish().describe('Contracted service date, YYYY-MM-DD.'),
+  "serviceStartTime": zod.string().nullish().describe('Service start time, HH:MM (24h).'),
+  "serviceEndTime": zod.string().nullish().describe('Service end time, HH:MM (24h).')
+})
+
+export const CreateVendorResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "name": zod.string(),
+  "category": zod.enum(['venue', 'park', 'caterer', 'supplier', 'entertainment', 'other']),
+  "status": zod.enum(['prospect', 'approved', 'rejected']),
+  "contactName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "quotedCost": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "serviceDate": zod.string().nullish(),
+  "serviceStartTime": zod.string().nullish(),
+  "serviceEndTime": zod.string().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "contracts": zod.array(zod.object({
+  "id": zod.number(),
+  "vendorId": zod.number(),
+  "reunionId": zod.number(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Update a vendor; setting status to approved records the approval time (power_user organizers)
+ */
+export const UpdateVendorParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "vendorId": zod.coerce.number()
+})
+
+
+export const updateVendorBodyQuotedCostMin = 0;
+
+
+
+export const UpdateVendorBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "category": zod.enum(['venue', 'park', 'caterer', 'supplier', 'entertainment', 'other']).optional(),
+  "status": zod.enum(['prospect', 'approved', 'rejected']).optional(),
+  "contactName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "quotedCost": zod.number().min(updateVendorBodyQuotedCostMin).nullish(),
+  "notes": zod.string().nullish(),
+  "serviceDate": zod.string().nullish(),
+  "serviceStartTime": zod.string().nullish(),
+  "serviceEndTime": zod.string().nullish()
+})
+
+export const UpdateVendorResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "name": zod.string(),
+  "category": zod.enum(['venue', 'park', 'caterer', 'supplier', 'entertainment', 'other']),
+  "status": zod.enum(['prospect', 'approved', 'rejected']),
+  "contactName": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "quotedCost": zod.number().nullish(),
+  "notes": zod.string().nullish(),
+  "serviceDate": zod.string().nullish(),
+  "serviceStartTime": zod.string().nullish(),
+  "serviceEndTime": zod.string().nullish(),
+  "approvedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "contracts": zod.array(zod.object({
+  "id": zod.number(),
+  "vendorId": zod.number(),
+  "reunionId": zod.number(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Remove a vendor and its contracts (power_user organizers)
+ */
+export const DeleteVendorParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "vendorId": zod.coerce.number()
+})
+
+export const DeleteVendorResponse = zod.void()
+
+
+/**
+ * @summary Attach an uploaded contract file to a vendor (power_user organizers)
+ */
+export const CreateVendorContractParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "vendorId": zod.coerce.number()
+})
+
+
+
+
+
+export const CreateVendorContractBody = zod.object({
+  "fileName": zod.string().min(1),
+  "objectPath": zod.string().min(1).describe('Object path returned by the upload-URL endpoint (\/objects\/...).')
+})
+
+export const CreateVendorContractResponse = zod.object({
+  "id": zod.number(),
+  "vendorId": zod.number(),
+  "reunionId": zod.number(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a contract from a vendor (power_user organizers)
+ */
+export const DeleteVendorContractParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "vendorId": zod.coerce.number(),
+  "contractId": zod.coerce.number()
+})
+
+export const DeleteVendorContractResponse = zod.void()
+
+
+/**
  * @summary Report whether an administrator already exists (first-run bootstrap)
  */
 export const GetAdminSetupStatusResponse = zod.object({
