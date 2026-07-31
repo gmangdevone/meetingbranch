@@ -2491,6 +2491,17 @@ components:
         heroImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background."
+        heroImageUrls:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+          description: "Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl/default applies."
+        heroRotationSeconds:
+          type: integer
+          minimum: 3
+          maximum: 8
+          description: "Seconds between hero slides (3-8)."
         scheduleCardImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom background image for the hub Schedule card. Null means the default look."
@@ -2739,6 +2750,17 @@ components:
         heroImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom hub hero background image. Set null to restore the default."
+        heroImageUrls:
+          type: array
+          maxItems: 5
+          items:
+            type: string
+          description: "Ordered hero slideshow images (object paths, up to 5). Pass [] to clear the slideshow."
+        heroRotationSeconds:
+          type: integer
+          minimum: 3
+          maximum: 8
+          description: "Seconds between hero slides (3-8)."
         scheduleCardImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom Schedule card background. Set null to restore the default."

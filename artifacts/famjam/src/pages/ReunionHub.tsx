@@ -15,6 +15,41 @@ import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from ".
 import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
+/**
+ * Cross-fading hero background slideshow. With a single image it renders it
+ * statically (no timer); with several, it advances at the configured interval
+ * and loops back to the first slide.
+ */
+function HeroSlideshow({ images, intervalSeconds }: { images: string[]; intervalSeconds: number }) {
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    setCurrent(0);
+    if (images.length < 2) return;
+    const seconds = Math.min(8, Math.max(3, intervalSeconds || 3));
+    const timer = setInterval(() => {
+      setCurrent((i) => (i + 1) % images.length);
+    }, seconds * 1000);
+    return () => clearInterval(timer);
+  }, [images.join("|"), intervalSeconds, images.length]);
+
+  return (
+    <>
+      {images.map((url, i) => (
+        <img
+          key={url + i}
+          src={`${import.meta.env.BASE_URL}api/storage${url}`}
+          alt=""
+          aria-hidden="true"
+          className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-1000 ${
+            i === current ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ))}
+    </>
+  );
+}
+
 export function ReunionHub({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
   const [, setLocation] = useLocation();
@@ -115,6 +150,14 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     });
   };
 
+  // Slideshow images: the new ordered list, falling back to the legacy single hero image.
+  const heroImages =
+    reunion && (reunion.heroImageUrls?.length ?? 0) > 0
+      ? reunion.heroImageUrls!
+      : reunion?.heroImageUrl
+        ? [reunion.heroImageUrl]
+        : [];
+
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto py-12">
@@ -144,14 +187,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   return (
     <div className="flex flex-col gap-8 pb-12 animate-in fade-in zoom-in-95 duration-500">
       <div className="relative rounded-3xl overflow-hidden bg-primary shadow-xl text-primary-foreground p-8 md:p-12">
-        {reunion.heroImageUrl ? (
+        {heroImages.length > 0 ? (
           <>
-            <img
-              src={`${import.meta.env.BASE_URL}api/storage${reunion.heroImageUrl}`}
-              alt=""
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-            />
+            <HeroSlideshow images={heroImages} intervalSeconds={reunion.heroRotationSeconds ?? 3} />
             {/* Dark scrim so hero text stays readable over any image */}
             <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30 pointer-events-none" />
           </>

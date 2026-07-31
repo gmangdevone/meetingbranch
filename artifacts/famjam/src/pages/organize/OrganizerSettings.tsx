@@ -21,7 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload } from "lucide-react";
+import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload, ArrowUp, ArrowDown } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -453,6 +453,221 @@ function ImageSlot({
   );
 }
 
+const MAX_HERO_IMAGES = 5;
+
+/**
+ * Manages the hero banner slideshow: up to 5 ordered images (add from library
+ * or upload, reorder, remove) plus the rotation speed (3–8 seconds).
+ * Every change saves immediately via a partial reunion update.
+ */
+function HeroSlideshowManager({
+  reunionId,
+  heroImageUrls,
+  rotationSeconds,
+}: {
+  reunionId: number;
+  heroImageUrls: string[];
+  rotationSeconds: number;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+
+  const requestUrlMutation = useRequestUploadUrl();
+  const updateMutation = useUpdateReunion();
+  const registerImageMutation = useCreateReunionImage();
+  const busy = isUploading || updateMutation.isPending;
+  const atCap = heroImageUrls.length >= MAX_HERO_IMAGES;
+
+  const save = (data: { heroImageUrls?: string[]; heroRotationSeconds?: number }, successTitle: string) => {
+    updateMutation.mutate(
+      { reunionId, data },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
+          toast({ title: successTitle });
+        },
+        onError: () => toast({ title: "Could not save the hero banner", variant: "destructive" }),
+      },
+    );
+  };
+
+  const addImage = (objectPath: string) => {
+    if (atCap) {
+      toast({ title: `You can have up to ${MAX_HERO_IMAGES} hero images`, variant: "destructive" });
+      return;
+    }
+    if (heroImageUrls.includes(objectPath)) {
+      toast({ title: "That image is already in the slideshow" });
+      return;
+    }
+    save({ heroImageUrls: [...heroImageUrls, objectPath] }, "Hero image added");
+  };
+
+  const removeImage = (index: number) => {
+    save({ heroImageUrls: heroImageUrls.filter((_, i) => i !== index) }, "Hero image removed");
+  };
+
+  const moveImage = (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= heroImageUrls.length) return;
+    const next = [...heroImageUrls];
+    [next[index], next[target]] = [next[target], next[index]];
+    save({ heroImageUrls: next }, "Order updated");
+  };
+
+  const onFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please keep the image under 10MB.", variant: "destructive" });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const { uploadURL, objectPath } = await requestUrlMutation.mutateAsync({
+        data: { name: file.name, size: file.size, contentType: file.type },
+      });
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`);
+      // Save into the image library for reuse (best-effort).
+      try {
+        await registerImageMutation.mutateAsync({
+          reunionId,
+          data: { fileName: file.name, objectPath },
+        });
+        queryClient.invalidateQueries({ queryKey: getListReunionImagesQueryKey(reunionId) });
+      } catch {
+        // ignore — image is still usable in the slideshow
+      }
+      addImage(objectPath);
+    } catch {
+      toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h3 className="font-bold text-lg">Hero Banner</h3>
+        <p className="text-sm text-muted-foreground">
+          The big banner at the top of the hub. Add up to {MAX_HERO_IMAGES} wide images (around 2048×640) —
+          with more than one, the banner rotates through them automatically.
+        </p>
+      </div>
+
+      {heroImageUrls.length === 0 ? (
+        <div className="rounded-2xl border border-dashed bg-muted/30 h-24 flex flex-col items-center justify-center gap-1.5 text-muted-foreground">
+          <ImageIcon className="w-6 h-6" />
+          <span className="text-sm font-medium">Using the default background</span>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {heroImageUrls.map((url, i) => (
+            <div key={url} className="flex items-center gap-3 rounded-2xl border p-2">
+              <img
+                src={`${API_BASE}/storage${url}`}
+                alt={`Hero slide ${i + 1}`}
+                className="h-16 w-28 object-cover rounded-xl shrink-0"
+              />
+              <span className="text-sm font-medium text-muted-foreground flex-1">Slide {i + 1}</span>
+              <div className="flex gap-1">
+                <Button
+                  type="button" variant="ghost" size="icon" disabled={busy || i === 0}
+                  onClick={() => moveImage(i, -1)} aria-label={`Move slide ${i + 1} up`}
+                >
+                  <ArrowUp className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button" variant="ghost" size="icon" disabled={busy || i === heroImageUrls.length - 1}
+                  onClick={() => moveImage(i, 1)} aria-label={`Move slide ${i + 1} down`}
+                >
+                  <ArrowDown className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button" variant="ghost" size="icon" disabled={busy}
+                  onClick={() => removeImage(i)} aria-label={`Remove slide ${i + 1}`}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChosen} />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={busy || atCap}
+          className="rounded-full font-bold gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          {isUploading ? "Uploading..." : "Upload Image"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setLibraryOpen(true)}
+          disabled={busy || atCap}
+          className="rounded-full font-bold gap-2"
+        >
+          <ImageIcon className="w-4 h-4" /> Choose from Library
+        </Button>
+        <ImageLibraryDialog
+          reunionId={reunionId}
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          onSelect={(objectPath) => addImage(objectPath)}
+        />
+      </div>
+      {atCap && (
+        <p className="text-xs text-muted-foreground">
+          You've reached the {MAX_HERO_IMAGES}-image limit. Remove one to add another.
+        </p>
+      )}
+
+      {heroImageUrls.length > 1 && (
+        <div className="pt-2">
+          <label htmlFor="hero-rotation-speed" className="font-bold text-sm block mb-1.5">
+            Rotation speed
+          </label>
+          <select
+            id="hero-rotation-speed"
+            value={rotationSeconds}
+            disabled={busy}
+            onChange={(e) => save({ heroRotationSeconds: parseInt(e.target.value, 10) }, "Rotation speed updated")}
+            className="rounded-xl border bg-muted/50 px-3 py-2 text-sm font-medium"
+          >
+            {[3, 4, 5, 6, 7, 8].map((s) => (
+              <option key={s} value={s}>
+                Every {s} seconds
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground mt-1">How long each image stays before fading to the next.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HubImagesManager({
   reunionId,
   reunion,
@@ -460,6 +675,8 @@ function HubImagesManager({
   reunionId: number;
   reunion: {
     heroImageUrl?: string | null;
+    heroImageUrls?: string[];
+    heroRotationSeconds?: number;
     scheduleCardImageUrl?: string | null;
     announcementsCardImageUrl?: string | null;
     pollsCardImageUrl?: string | null;
@@ -475,12 +692,16 @@ function HubImagesManager({
         </p>
       </div>
 
-      <ImageSlot
+      <HeroSlideshowManager
         reunionId={reunionId}
-        field="heroImageUrl"
-        label="Hero Banner"
-        hint="The big banner at the top of the hub. A wide image works best (around 2048×640)."
-        imageUrl={reunion.heroImageUrl ?? null}
+        heroImageUrls={
+          (reunion.heroImageUrls?.length ?? 0) > 0
+            ? reunion.heroImageUrls!
+            : reunion.heroImageUrl
+              ? [reunion.heroImageUrl]
+              : []
+        }
+        rotationSeconds={reunion.heroRotationSeconds ?? 3}
       />
       <div className="border-t pt-6">
         <ImageSlot

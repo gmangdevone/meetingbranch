@@ -28,6 +28,17 @@ export interface Reunion {
      */
   heroImageUrl?: string | null;
   /**
+     * Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl/default applies.
+     * @maxItems 5
+     */
+  heroImageUrls?: string[];
+  /**
+     * Seconds between hero slides (3-8).
+     * @minimum 3
+     * @maximum 8
+     */
+  heroRotationSeconds?: number;
+  /**
      * Object path of a custom background image for the hub Schedule card. Null means the default look.
      * @nullable
      */

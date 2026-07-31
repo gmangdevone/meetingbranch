@@ -362,7 +362,15 @@ router.put(
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, cashAppTag, checkPayee } = body.data;
+  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, heroImageUrls, heroRotationSeconds, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, cashAppTag, checkPayee } = body.data;
+  if (heroImageUrls !== undefined && heroImageUrls.some((p) => !p.startsWith("/objects/"))) {
+    res.status(400).json({ error: "Each hero image must be an object path starting with /objects/" });
+    return;
+  }
+  if (heroRotationSeconds !== undefined && !Number.isInteger(heroRotationSeconds)) {
+    res.status(400).json({ error: "heroRotationSeconds must be a whole number of seconds" });
+    return;
+  }
   // Partial update: only fields present in the request body are changed, so
   // concurrent editors can't clobber each other's unrelated settings.
   const updates = {
@@ -373,7 +381,17 @@ router.put(
     ...(paymentUrl === undefined ? {} : { paymentUrl: paymentUrl || null }),
     ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
     ...(allowRegistrantEdits === undefined ? {} : { allowRegistrantEdits }),
-    ...(heroImageUrl === undefined ? {} : { heroImageUrl: heroImageUrl || null }),
+    // heroImageUrl (legacy single) and heroImageUrls (slideshow) are kept in
+    // sync in both directions: updating one derives the other, and when both
+    // are sent the slideshow list wins.
+    ...(heroImageUrl === undefined || heroImageUrls !== undefined
+      ? {}
+      : {
+          heroImageUrl: heroImageUrl || null,
+          heroImageUrls: heroImageUrl ? [heroImageUrl] : [],
+        }),
+    ...(heroImageUrls === undefined ? {} : { heroImageUrls, heroImageUrl: heroImageUrls[0] ?? null }),
+    ...(heroRotationSeconds === undefined ? {} : { heroRotationSeconds }),
     ...(scheduleCardImageUrl === undefined ? {} : { scheduleCardImageUrl: scheduleCardImageUrl || null }),
     ...(announcementsCardImageUrl === undefined ? {} : { announcementsCardImageUrl: announcementsCardImageUrl || null }),
     ...(pollsCardImageUrl === undefined ? {} : { pollsCardImageUrl: pollsCardImageUrl || null }),

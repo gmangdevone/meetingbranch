@@ -113,6 +113,11 @@ export const CreateReunionBody = zod.object({
   "branches": zod.array(zod.string().min(1)).min(1)
 })
 
+export const createReunionResponseHeroImageUrlsMax = 5;
+
+export const createReunionResponseHeroRotationSecondsMin = 3;
+export const createReunionResponseHeroRotationSecondsMax = 8;
+
 export const createReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const createReunionResponseFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -132,6 +137,8 @@ export const CreateReunionResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "heroImageUrls": zod.array(zod.string()).max(createReunionResponseHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
+  "heroRotationSeconds": zod.number().min(createReunionResponseHeroRotationSecondsMin).max(createReunionResponseHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
@@ -165,6 +172,11 @@ export const CreateReunionResponse = zod.object({
 /**
  * @summary List reunions the current user organizes
  */
+export const listMyReunionsResponseReunionHeroImageUrlsMax = 5;
+
+export const listMyReunionsResponseReunionHeroRotationSecondsMin = 3;
+export const listMyReunionsResponseReunionHeroRotationSecondsMax = 8;
+
 export const listMyReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const listMyReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -185,6 +197,8 @@ export const ListMyReunionsResponseItem = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "heroImageUrls": zod.array(zod.string()).max(listMyReunionsResponseReunionHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
+  "heroRotationSeconds": zod.number().min(listMyReunionsResponseReunionHeroRotationSecondsMin).max(listMyReunionsResponseReunionHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
@@ -232,6 +246,11 @@ export const GetReunionByCodeParams = zod.object({
   "code": zod.coerce.string()
 })
 
+export const getReunionByCodeResponseHeroImageUrlsMax = 5;
+
+export const getReunionByCodeResponseHeroRotationSecondsMin = 3;
+export const getReunionByCodeResponseHeroRotationSecondsMax = 8;
+
 export const getReunionByCodeResponseFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const getReunionByCodeResponseFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -251,6 +270,8 @@ export const GetReunionByCodeResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "heroImageUrls": zod.array(zod.string()).max(getReunionByCodeResponseHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
+  "heroRotationSeconds": zod.number().min(getReunionByCodeResponseHeroRotationSecondsMin).max(getReunionByCodeResponseHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
@@ -288,6 +309,11 @@ export const GetReunionParams = zod.object({
   "reunionId": zod.coerce.number()
 })
 
+export const getReunionResponseReunionHeroImageUrlsMax = 5;
+
+export const getReunionResponseReunionHeroRotationSecondsMin = 3;
+export const getReunionResponseReunionHeroRotationSecondsMax = 8;
+
 export const getReunionResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const getReunionResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -308,6 +334,8 @@ export const GetReunionResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "heroImageUrls": zod.array(zod.string()).max(getReunionResponseReunionHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
+  "heroRotationSeconds": zod.number().min(getReunionResponseReunionHeroRotationSecondsMin).max(getReunionResponseReunionHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
@@ -358,6 +386,11 @@ export const UpdateReunionParams = zod.object({
 
 
 
+export const updateReunionBodyHeroImageUrlsMax = 5;
+
+export const updateReunionBodyHeroRotationSecondsMin = 3;
+export const updateReunionBodyHeroRotationSecondsMax = 8;
+
 
 
 export const UpdateReunionBody = zod.object({
@@ -369,12 +402,19 @@ export const UpdateReunionBody = zod.object({
   "registrationsOpen": zod.boolean().optional(),
   "allowRegistrantEdits": zod.boolean().optional(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.'),
+  "heroImageUrls": zod.array(zod.string()).max(updateReunionBodyHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Pass [] to clear the slideshow.'),
+  "heroRotationSeconds": zod.number().min(updateReunionBodyHeroRotationSecondsMin).max(updateReunionBodyHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom Schedule card background. Set null to restore the default.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom Announcements card background. Set null to restore the default.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom Family Vote card background. Set null to restore the default.'),
   "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag. Set null to hide the Cash App payment option.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Set null to hide the check payment option.')
 }).describe('Partial update — only provided fields are changed.')
+
+export const updateReunionResponseHeroImageUrlsMax = 5;
+
+export const updateReunionResponseHeroRotationSecondsMin = 3;
+export const updateReunionResponseHeroRotationSecondsMax = 8;
 
 export const updateReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
 
@@ -395,6 +435,8 @@ export const UpdateReunionResponse = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "heroImageUrls": zod.array(zod.string()).max(updateReunionResponseHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
+  "heroRotationSeconds": zod.number().min(updateReunionResponseHeroRotationSecondsMin).max(updateReunionResponseHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
@@ -2075,6 +2117,11 @@ export const AdminUpdateSettingsResponse = zod.object({
 /**
  * @summary List all reunions across the platform
  */
+export const adminListReunionsResponseReunionHeroImageUrlsMax = 5;
+
+export const adminListReunionsResponseReunionHeroRotationSecondsMin = 3;
+export const adminListReunionsResponseReunionHeroRotationSecondsMax = 8;
+
 export const adminListReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const adminListReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -2095,6 +2142,8 @@ export const AdminListReunionsResponseItem = zod.object({
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
+  "heroImageUrls": zod.array(zod.string()).max(adminListReunionsResponseReunionHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
+  "heroRotationSeconds": zod.number().min(adminListReunionsResponseReunionHeroRotationSecondsMin).max(adminListReunionsResponseReunionHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),

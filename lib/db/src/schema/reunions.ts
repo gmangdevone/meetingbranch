@@ -17,6 +17,11 @@ export const reunionsTable = pgTable("reunions", {
   registrationsOpen: boolean("registrations_open").notNull().default(true),
   allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
   heroImageUrl: text("hero_image_url"),
+  // Ordered hero slideshow images (object paths, max 5 enforced at the API).
+  // Empty array means "use heroImageUrl (legacy single image) or the default look".
+  heroImageUrls: text("hero_image_urls").array().notNull().default([]),
+  // Seconds between hero slides (3–8, enforced at the API).
+  heroRotationSeconds: integer("hero_rotation_seconds").notNull().default(3),
   // Payment method configuration (all optional; a method is offered to
   // registrants when its recipient info is set — Zelle/cash are always offered)
   cashAppTag: text("cash_app_tag"),
