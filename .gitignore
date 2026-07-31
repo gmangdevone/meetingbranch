@@ -48,8 +48,6 @@ Thumbs.db
 .cache/
 .local/
 .agents/
-.replit
-.replitignore
 
 # environment files
 .env
