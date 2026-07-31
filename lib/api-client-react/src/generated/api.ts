@@ -61,6 +61,9 @@ import type {
   Reunion,
   ReunionBranch,
   ReunionFee,
+  ReunionImage,
+  ReunionImageInput,
+  ReunionImageList,
   ReunionInput,
   ReunionOrganizer,
   ReunionSummary,
@@ -4806,6 +4809,228 @@ export const useDeleteVendorContract = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteVendorContractMutationOptions(options));
+    }
+
+export const getListReunionImagesUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/images`
+}
+
+/**
+ * @summary List the reunion's image library, newest first (power_user organizers)
+ */
+export const listReunionImages = async (reunionId: number, options?: RequestInit): Promise<ReunionImageList> => {
+
+  return customFetch<ReunionImageList>(getListReunionImagesUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReunionImagesQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/images`
+    ] as const;
+    }
+
+
+export const getListReunionImagesQueryOptions = <TData = Awaited<ReturnType<typeof listReunionImages>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReunionImages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReunionImagesQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReunionImages>>> = ({ signal }) => listReunionImages(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReunionImages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReunionImagesQueryResult = NonNullable<Awaited<ReturnType<typeof listReunionImages>>>
+export type ListReunionImagesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the reunion's image library, newest first (power_user organizers)
+ */
+
+export function useListReunionImages<TData = Awaited<ReturnType<typeof listReunionImages>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReunionImages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReunionImagesQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateReunionImageUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/images`
+}
+
+/**
+ * @summary Register an uploaded image in the library; re-registering the same objectPath returns the existing entry (power_user organizers)
+ */
+export const createReunionImage = async (reunionId: number,
+    reunionImageInput: ReunionImageInput, options?: RequestInit): Promise<ReunionImage> => {
+
+  return customFetch<ReunionImage>(getCreateReunionImageUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reunionImageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateReunionImageMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReunionImage>>, TError,{reunionId: number;data: BodyType<ReunionImageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReunionImage>>, TError,{reunionId: number;data: BodyType<ReunionImageInput>}, TContext> => {
+
+const mutationKey = ['createReunionImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReunionImage>>, {reunionId: number;data: BodyType<ReunionImageInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createReunionImage(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReunionImageMutationResult = NonNullable<Awaited<ReturnType<typeof createReunionImage>>>
+    export type CreateReunionImageMutationBody = BodyType<ReunionImageInput>
+    export type CreateReunionImageMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Register an uploaded image in the library; re-registering the same objectPath returns the existing entry (power_user organizers)
+ */
+export const useCreateReunionImage = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReunionImage>>, TError,{reunionId: number;data: BodyType<ReunionImageInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReunionImage>>,
+        TError,
+        {reunionId: number;data: BodyType<ReunionImageInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReunionImageMutationOptions(options));
+    }
+
+export const getDeleteReunionImageUrl = (reunionId: number,
+    imageId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/images/${imageId}`
+}
+
+/**
+ * @summary Remove an image from the library (power_user organizers)
+ */
+export const deleteReunionImage = async (reunionId: number,
+    imageId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteReunionImageUrl(reunionId,imageId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteReunionImageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReunionImage>>, TError,{reunionId: number;imageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteReunionImage>>, TError,{reunionId: number;imageId: number}, TContext> => {
+
+const mutationKey = ['deleteReunionImage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteReunionImage>>, {reunionId: number;imageId: number}> = (props) => {
+          const {reunionId,imageId} = props ?? {};
+
+          return  deleteReunionImage(reunionId,imageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteReunionImageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteReunionImage>>>
+
+    export type DeleteReunionImageMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove an image from the library (power_user organizers)
+ */
+export const useDeleteReunionImage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteReunionImage>>, TError,{reunionId: number;imageId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteReunionImage>>,
+        TError,
+        {reunionId: number;imageId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteReunionImageMutationOptions(options));
     }
 
 export const getGetAdminSetupStatusUrl = () => {

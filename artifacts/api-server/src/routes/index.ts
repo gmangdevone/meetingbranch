@@ -7,6 +7,7 @@ import pollsRouter from "./polls";
 import adminRouter from "./admin";
 import storageRouter from "./storage";
 import vendorsRouter from "./vendors";
+import imagesRouter from "./images";
 
 const router: IRouter = Router();
 
@@ -15,6 +16,7 @@ router.use(settingsRouter);
 router.use(pollsRouter);
 router.use(reunionsRouter);
 router.use(vendorsRouter);
+router.use(imagesRouter);
 router.use(registrationsRouter);
 // storageRouter must come before adminRouter: admin.ts applies a router-level
 // requireAdmin middleware that would swallow any route mounted after it.

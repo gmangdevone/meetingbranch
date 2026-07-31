@@ -307,6 +307,29 @@ export interface VendorUpdateInput {
   serviceEndTime?: string | null;
 }
 
+export interface ReunionImageInput {
+  /** @minLength 1 */
+  fileName: string;
+  /**
+     * Object path returned by the upload-URL endpoint (/objects/...).
+     * @minLength 1
+     */
+  objectPath: string;
+}
+
+export interface ReunionImage {
+  id: number;
+  reunionId: number;
+  fileName: string;
+  objectPath: string;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+export interface ReunionImageList {
+  images: ReunionImage[];
+}
+
 export interface VendorContractInput {
   /** @minLength 1 */
   fileName: string;

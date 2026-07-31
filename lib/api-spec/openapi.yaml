@@ -1641,6 +1641,80 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/images:
+    get:
+      operationId: listReunionImages
+      tags: [reunions]
+      summary: List the reunion's image library, newest first (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Image library entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionImageList"
+        "403":
+          description: Forbidden
+        "404":
+          description: Reunion not found
+    post:
+      operationId: createReunionImage
+      tags: [reunions]
+      summary: Register an uploaded image in the library; re-registering the same objectPath returns the existing entry (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReunionImageInput"
+      responses:
+        "201":
+          description: Image registered (or already present)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionImage"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Reunion not found
+
+  /reunions/{reunionId}/images/{imageId}:
+    delete:
+      operationId: deleteReunionImage
+      tags: [reunions]
+      summary: Remove an image from the library (power_user organizers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Image removed from library
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   # ── Platform admin ────────────────────────────────────────────────────────────
   /admin/setup-status:
     get:
@@ -2153,6 +2227,45 @@ components:
           type: ["string", "null"]
         serviceEndTime:
           type: ["string", "null"]
+
+    ReunionImageInput:
+      type: object
+      required: [fileName, objectPath]
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        objectPath:
+          type: string
+          minLength: 1
+          description: "Object path returned by the upload-URL endpoint (/objects/...)."
+
+    ReunionImage:
+      type: object
+      required: [id, reunionId, fileName, objectPath, uploadedBy, createdAt]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        fileName:
+          type: string
+        objectPath:
+          type: string
+        uploadedBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    ReunionImageList:
+      type: object
+      required: [images]
+      properties:
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReunionImage"
 
     VendorContractInput:
       type: object

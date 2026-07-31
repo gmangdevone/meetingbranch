@@ -29,6 +29,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Checkbox } from "../../components/ui/checkbox";
 import { Switch } from "../../components/ui/switch";
 import { useToast } from "../../hooks/use-toast";
+import { ImageLibraryDialog } from "../../components/ImageLibraryDialog";
+import { useCreateReunionImage, getListReunionImagesQueryKey } from "@workspace/api-client-react";
 import { describeFee } from "../../lib/fees";
 import { ROLE_OPTIONS, ROLE_LABELS } from "../../lib/roles";
 
@@ -315,9 +317,11 @@ function ImageSlot({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
 
   const requestUrlMutation = useRequestUploadUrl();
   const updateMutation = useUpdateReunion();
+  const registerImageMutation = useCreateReunionImage();
   const busy = isUploading || updateMutation.isPending;
 
   const saveImage = (objectPath: string | null) => {
@@ -359,6 +363,17 @@ function ImageSlot({
         body: file,
       });
       if (!putRes.ok) throw new Error(`Upload failed (${putRes.status})`);
+      // Save the upload into the image library so it can be reused later.
+      // Best-effort: the slot still gets its image even if registration fails.
+      try {
+        await registerImageMutation.mutateAsync({
+          reunionId,
+          data: { fileName: file.name, objectPath },
+        });
+        queryClient.invalidateQueries({ queryKey: getListReunionImagesQueryKey(reunionId) });
+      } catch {
+        // ignore — image is still usable in this slot
+      }
       saveImage(objectPath);
     } catch {
       toast({ title: "Upload failed", description: "Please try again.", variant: "destructive" });
@@ -406,6 +421,22 @@ function ImageSlot({
           <Upload className="w-4 h-4" />
           {isUploading ? "Uploading..." : imageUrl ? "Replace Image" : "Upload Image"}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setLibraryOpen(true)}
+          disabled={busy}
+          className="rounded-full font-bold gap-2"
+        >
+          <ImageIcon className="w-4 h-4" /> Choose from Library
+        </Button>
+        <ImageLibraryDialog
+          reunionId={reunionId}
+          open={libraryOpen}
+          onOpenChange={setLibraryOpen}
+          currentObjectPath={imageUrl}
+          onSelect={(objectPath) => saveImage(objectPath)}
+        />
         {imageUrl && (
           <Button
             type="button"

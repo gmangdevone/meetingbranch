@@ -1969,6 +1969,62 @@ export const DeleteVendorContractResponse = zod.void()
 
 
 /**
+ * @summary List the reunion's image library, newest first (power_user organizers)
+ */
+export const ListReunionImagesParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListReunionImagesResponse = zod.object({
+  "images": zod.array(zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Register an uploaded image in the library; re-registering the same objectPath returns the existing entry (power_user organizers)
+ */
+export const CreateReunionImageParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+
+export const CreateReunionImageBody = zod.object({
+  "fileName": zod.string().min(1),
+  "objectPath": zod.string().min(1).describe('Object path returned by the upload-URL endpoint (\/objects\/...).')
+})
+
+export const CreateReunionImageResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "uploadedBy": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove an image from the library (power_user organizers)
+ */
+export const DeleteReunionImageParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "imageId": zod.coerce.number()
+})
+
+export const DeleteReunionImageResponse = zod.void()
+
+
+/**
  * @summary Report whether an administrator already exists (first-run bootstrap)
  */
 export const GetAdminSetupStatusResponse = zod.object({
