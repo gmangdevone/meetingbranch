@@ -231,6 +231,14 @@ function VendorsContent({ reunionId }: { reunionId: number }) {
       setFormError("Quoted cost must be a positive number of dollars.");
       return;
     }
+    if (form.serviceEndDate !== "" && form.serviceDate === "") {
+      setFormError("Please pick a start date before setting an end date.");
+      return;
+    }
+    if (form.serviceEndDate !== "" && form.serviceEndDate < form.serviceDate) {
+      setFormError("The end date can't be before the start date.");
+      return;
+    }
     const input = formToInput(form);
     const opts = {
       onSuccess: () => {

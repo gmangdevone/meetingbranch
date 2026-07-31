@@ -76,9 +76,15 @@ function hasValidQuotedCost(data: { quotedCost?: number | null }): boolean {
   return data.quotedCost == null || Number.isInteger(data.quotedCost);
 }
 
+/** Service window: an end date requires a start date and must not be before it (YYYY-MM-DD strings compare lexically). */
+function hasValidServiceDates(data: { serviceDate?: string | null; serviceEndDate?: string | null }): boolean {
+  if (data.serviceEndDate == null) return true;
+  return data.serviceDate != null && data.serviceEndDate >= data.serviceDate;
+}
+
 router.post("/reunions/:reunionId/vendors", ...manage, async (req, res): Promise<void> => {
   const body = CreateVendorBody.safeParse(req.body);
-  if (!body.success || !hasValidQuotedCost(body.data)) {
+  if (!body.success || !hasValidQuotedCost(body.data) || !hasValidServiceDates(body.data)) {
     res.status(400).json({ error: "Invalid input" });
     return;
   }
@@ -98,6 +104,12 @@ router.put("/reunions/:reunionId/vendors/:vendorId", ...manage, async (req, res)
   const vendor = await loadVendor(req.managedReunion!.id, Number(req.params.vendorId));
   if (!vendor) {
     res.status(404).json({ error: "Vendor not found" });
+    return;
+  }
+  // Validate the service window against the merged result of the update.
+  const merged = { ...vendor, ...body.data };
+  if (!hasValidServiceDates(merged)) {
+    res.status(400).json({ error: "Invalid input" });
     return;
   }
   const updates: Record<string, unknown> = { ...body.data };
