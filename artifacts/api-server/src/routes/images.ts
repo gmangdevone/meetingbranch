@@ -38,6 +38,22 @@ router.post("/reunions/:reunionId/images", ...manage, async (req, res): Promise<
     return;
   }
   const reunionId = req.managedReunion!.id;
+  // Concurrency-safe idempotency: upsert on the (reunionId, objectPath)
+  // unique constraint; on conflict, fall back to the existing row.
+  const [created] = await db
+    .insert(reunionImagesTable)
+    .values({
+      reunionId,
+      fileName: body.data.fileName,
+      objectPath: body.data.objectPath,
+      uploadedBy: req.userId!,
+    })
+    .onConflictDoNothing()
+    .returning();
+  if (created) {
+    res.status(201).json(CreateReunionImageResponse.parse(created));
+    return;
+  }
   const [existing] = await db
     .select()
     .from(reunionImagesTable)
@@ -47,20 +63,7 @@ router.post("/reunions/:reunionId/images", ...manage, async (req, res): Promise<
         eq(reunionImagesTable.objectPath, body.data.objectPath),
       ),
     );
-  if (existing) {
-    res.status(201).json(CreateReunionImageResponse.parse(existing));
-    return;
-  }
-  const [created] = await db
-    .insert(reunionImagesTable)
-    .values({
-      reunionId,
-      fileName: body.data.fileName,
-      objectPath: body.data.objectPath,
-      uploadedBy: req.userId!,
-    })
-    .returning();
-  res.status(201).json(CreateReunionImageResponse.parse(created));
+  res.status(201).json(CreateReunionImageResponse.parse(existing));
 });
 
 router.delete("/reunions/:reunionId/images/:imageId", ...manage, async (req, res): Promise<void> => {

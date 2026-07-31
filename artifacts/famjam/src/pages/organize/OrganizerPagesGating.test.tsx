@@ -77,6 +77,10 @@ vi.mock("@workspace/api-client-react", () => {
     // Settings
     useUpdateReunion: noopMutation,
   useRequestUploadUrl: noopMutation,
+  useCreateReunionImage: noopMutation,
+  useDeleteReunionImage: noopMutation,
+  useListReunionImages: () => ({ data: undefined, isLoading: false }),
+  getListReunionImagesQueryKey: (id: number) => ["images", id],
     useListReunionOrganizers: emptyList,
     getListReunionOrganizersQueryKey: (id: number) => ["organizers", id],
     useAddReunionOrganizer: noopMutation,
