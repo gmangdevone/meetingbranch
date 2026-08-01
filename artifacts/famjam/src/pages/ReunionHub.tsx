@@ -209,7 +209,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-sm font-bold uppercase tracking-widest text-white/70">
                 Your Total Due
                 <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
-                  ${myTotalDue}
+                  ${myPaymentStatus === "pending" ? myTotalDue : 0}
                 </span>
               </p>
               <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
