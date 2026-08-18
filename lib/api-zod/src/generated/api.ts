@@ -1467,6 +1467,13 @@ export const CreateContributionPaymentSubmissionResponse = zod.object({
   "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
   "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
   "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "createdAt": zod.coerce.date()
+}).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
@@ -1855,6 +1862,13 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
   "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
   "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "createdAt": zod.coerce.date()
+}).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
@@ -1879,6 +1893,13 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
   "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
   "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "createdAt": zod.coerce.date()
+}).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),

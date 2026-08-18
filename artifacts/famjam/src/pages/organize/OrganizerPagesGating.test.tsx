@@ -36,6 +36,7 @@ vi.mock("@workspace/api-client-react", () => {
     useListPaymentSubmissions: emptyList,
     getListPaymentSubmissionsQueryKey: (id: number) => ["payment-submissions", id],
     useUpdateRegistrationPayment: noopMutation,
+    useUpdateContributionPayment: noopMutation,
     useCancelRegistration: noopMutation,
     useTransferRegistration: noopMutation,
     useCreateManagedRegistration: noopMutation,

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PaymentMethod } from './paymentMethod';
+import type { SubmissionChipIn } from './submissionChipIn';
 
 export interface PaymentSubmission {
   id: number;
@@ -19,6 +20,8 @@ export interface PaymentSubmission {
   registrationIds: number[];
   /** Standalone fund chip-ins this payment covers. */
   contributionIds: number[];
+  /** Resolved chip-in details for each id in contributionIds — contributor, amount, status, date. */
+  contributions: SubmissionChipIn[];
   submittedBy?: string;
   method: PaymentMethod;
   amount: number;

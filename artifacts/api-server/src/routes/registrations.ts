@@ -712,7 +712,21 @@ router.post(
         note: note || null,
       })
       .returning();
-    res.status(201).json(CreatePaymentSubmissionResponse.parse(created));
+    // Resolve chip-in details for the response (mirrors the list endpoint).
+    const contributions =
+      contributionIds.length > 0
+        ? await db
+            .select({
+              id: sponsorshipContributionsTable.id,
+              contributorName: sponsorshipContributionsTable.contributorName,
+              amount: sponsorshipContributionsTable.amount,
+              paymentStatus: sponsorshipContributionsTable.paymentStatus,
+              createdAt: sponsorshipContributionsTable.createdAt,
+            })
+            .from(sponsorshipContributionsTable)
+            .where(inArray(sponsorshipContributionsTable.id, contributionIds))
+        : [];
+    res.status(201).json(CreatePaymentSubmissionResponse.parse({ ...created, contributions }));
   },
 );
 

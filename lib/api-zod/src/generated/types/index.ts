@@ -80,6 +80,8 @@ export * from './sponsorshipContributionInput';
 export * from './sponsorshipContributionPaymentStatus';
 export * from './sponsorshipContributionSource';
 export * from './sponsorshipFund';
+export * from './submissionChipIn';
+export * from './submissionChipInPaymentStatus';
 export * from './toggleAdminInput';
 export * from './transferOwnershipInput';
 export * from './transferRegistrationInput';

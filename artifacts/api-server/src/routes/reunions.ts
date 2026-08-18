@@ -915,7 +915,38 @@ router.get(
       .from(paymentSubmissionsTable)
       .where(eq(paymentSubmissionsTable.reunionId, req.managedReunion!.id))
       .orderBy(desc(paymentSubmissionsTable.createdAt), desc(paymentSubmissionsTable.id));
-    res.json(ListPaymentSubmissionsResponse.parse({ submissions }));
+
+    // Collect all distinct contribution ids referenced across submissions so we
+    // can fetch their details in one round-trip and embed them per submission.
+    const allContribIds = [
+      ...new Set(submissions.flatMap((s) => s.contributionIds)),
+    ];
+    const contribMap = new Map<
+      number,
+      { id: number; contributorName: string | null; amount: number; paymentStatus: string; createdAt: Date }
+    >();
+    if (allContribIds.length > 0) {
+      const rows = await db
+        .select({
+          id: sponsorshipContributionsTable.id,
+          contributorName: sponsorshipContributionsTable.contributorName,
+          amount: sponsorshipContributionsTable.amount,
+          paymentStatus: sponsorshipContributionsTable.paymentStatus,
+          createdAt: sponsorshipContributionsTable.createdAt,
+        })
+        .from(sponsorshipContributionsTable)
+        .where(inArray(sponsorshipContributionsTable.id, allContribIds));
+      for (const row of rows) contribMap.set(row.id, row);
+    }
+
+    const withContribs = submissions.map((s) => ({
+      ...s,
+      contributions: s.contributionIds
+        .map((id) => contribMap.get(id))
+        .filter(Boolean),
+    }));
+
+    res.json(ListPaymentSubmissionsResponse.parse({ submissions: withContribs }));
   },
 );
 
@@ -1974,7 +2005,21 @@ router.post(
         note: note || null,
       })
       .returning();
-    res.status(201).json(CreateContributionPaymentSubmissionResponse.parse(created));
+    // Resolve chip-in details for the response (mirrors the list endpoint).
+    const contributions =
+      contributionIds.length > 0
+        ? await db
+            .select({
+              id: sponsorshipContributionsTable.id,
+              contributorName: sponsorshipContributionsTable.contributorName,
+              amount: sponsorshipContributionsTable.amount,
+              paymentStatus: sponsorshipContributionsTable.paymentStatus,
+              createdAt: sponsorshipContributionsTable.createdAt,
+            })
+            .from(sponsorshipContributionsTable)
+            .where(inArray(sponsorshipContributionsTable.id, contributionIds))
+        : [];
+    res.status(201).json(CreateContributionPaymentSubmissionResponse.parse({ ...created, contributions }));
   },
 );
 

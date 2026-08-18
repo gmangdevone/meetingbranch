@@ -211,6 +211,27 @@ export interface PaymentSubmissionInput {
   note?: string | null;
 }
 
+export type SubmissionChipInPaymentStatus = typeof SubmissionChipInPaymentStatus[keyof typeof SubmissionChipInPaymentStatus];
+
+
+export const SubmissionChipInPaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  waived: 'waived',
+} as const;
+
+/**
+ * Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.
+ */
+export interface SubmissionChipIn {
+  id: number;
+  /** @nullable */
+  contributorName?: string | null;
+  amount: number;
+  paymentStatus: SubmissionChipInPaymentStatus;
+  createdAt: string;
+}
+
 export interface PaymentSubmission {
   id: number;
   reunionId: number;
@@ -223,6 +244,8 @@ export interface PaymentSubmission {
   registrationIds: number[];
   /** Standalone fund chip-ins this payment covers. */
   contributionIds: number[];
+  /** Resolved chip-in details for each id in contributionIds — contributor, amount, status, date. */
+  contributions: SubmissionChipIn[];
   submittedBy?: string;
   method: PaymentMethod;
   amount: number;

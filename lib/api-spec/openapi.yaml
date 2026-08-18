@@ -2189,9 +2189,27 @@ components:
           type: ["string", "null"]
           description: "Free-form note from the registrant."
 
+    SubmissionChipIn:
+      type: object
+      required: [id, amount, paymentStatus, createdAt]
+      description: "Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered."
+      properties:
+        id:
+          type: integer
+        contributorName:
+          type: ["string", "null"]
+        amount:
+          type: integer
+        paymentStatus:
+          type: string
+          enum: [pending, paid, waived]
+        createdAt:
+          type: string
+          format: date-time
+
     PaymentSubmission:
       type: object
-      required: [id, reunionId, registrationId, registrationIds, contributionIds, method, amount, createdAt]
+      required: [id, reunionId, registrationId, registrationIds, contributionIds, contributions, method, amount, createdAt]
       properties:
         id:
           type: integer
@@ -2210,6 +2228,11 @@ components:
           items:
             type: integer
           description: "Standalone fund chip-ins this payment covers."
+        contributions:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubmissionChipIn"
+          description: "Resolved chip-in details for each id in contributionIds — contributor, amount, status, date."
         submittedBy:
           type: string
         method:

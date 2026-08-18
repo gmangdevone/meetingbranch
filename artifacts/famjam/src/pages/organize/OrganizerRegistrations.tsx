@@ -15,13 +15,15 @@ import {
   useCreateManagedRegistration,
   useSetAttendeeCheckIn,
   useListPaymentSubmissions,
-  getListPaymentSubmissionsQueryKey
+  getListPaymentSubmissionsQueryKey,
+  useUpdateContributionPayment,
 } from "@workspace/api-client-react";
+import { viewerHasRole } from "../../lib/roles";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck, Pencil, Receipt } from "lucide-react";
+import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck, Pencil, Receipt, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -69,8 +71,11 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     query: { enabled: !isNaN(reunionId), queryKey: getGetReunionQueryKey(reunionId) }
   });
   const reunion = summary?.reunion;
+  const viewer = summary?.viewer;
+  const isPowerUser = viewerHasRole(viewer, "power_user");
 
   const updatePayment = useUpdateRegistrationPayment();
+  const updateContributionPayment = useUpdateContributionPayment();
   const cancelMutation = useCancelRegistration();
   const transferMutation = useTransferRegistration();
   const createManagedRegistration = useCreateManagedRegistration();
@@ -128,6 +133,18 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     () => registrations?.find((r) => r.id === checkInRegId) ?? null,
     [registrations, checkInRegId],
   );
+
+  const handleMarkChipInPaid = (contributionId: number) => {
+    updateContributionPayment.mutate(
+      { reunionId, contributionId, data: { paymentStatus: "paid" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListPaymentSubmissionsQueryKey(reunionId) });
+          queryClient.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
+        },
+      },
+    );
+  };
 
   const handleToggleCheckIn = (attendeeId: number, checkedIn: boolean) => {
     setCheckIn.mutate(
@@ -471,11 +488,11 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           <h2 className="font-serif text-2xl font-bold mb-1">Fund Chip-in Payments</h2>
           <p className="text-sm text-muted-foreground mb-4">
             Payment notes covering only standalone fund chip-ins. Confirm the money arrived,
-            then mark the chip-in paid on the Sponsorship page.
+            then mark each chip-in paid below{isPowerUser ? "." : " on the Sponsorship page."}
           </p>
           <div className="divide-y">
             {chipInOnlySubmissions.map((s) => (
-              <div key={s.id} className="py-4 first:pt-0 last:pb-0 space-y-1.5">
+              <div key={s.id} className="py-4 first:pt-0 last:pb-0 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-bold uppercase tracking-wide text-sm">
                     {s.method === "cashapp" ? "Cash App" : s.method === "zelle" ? "Zelle" : s.method === "check" ? "Check" : "Cash"}
@@ -483,8 +500,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <span className="font-bold text-lg tabular-nums">${s.amount}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")} — covers{" "}
-                  {s.contributionIds.length} chip-in{s.contributionIds.length === 1 ? "" : "s"}
+                  Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
                 {s.reference && (
                   <p className="text-sm">
@@ -502,6 +518,46 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 )}
                 {s.note && (
                   <p className="text-sm bg-muted/50 border rounded-lg px-3 py-2 whitespace-pre-wrap">{s.note}</p>
+                )}
+                {/* Chip-in detail rows */}
+                {s.contributions.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                      Covered chip-in{s.contributions.length === 1 ? "" : "s"}
+                    </p>
+                    {s.contributions.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl border bg-muted/30 px-3 py-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium truncate">{c.contributorName ?? "Anonymous"}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(c.createdAt), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold tabular-nums text-sm">${c.amount}</span>
+                          {c.paymentStatus === "paid" ? (
+                            <span className="flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                            </span>
+                          ) : isPowerUser ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs rounded-lg"
+                              disabled={updateContributionPayment.isPending}
+                              onClick={() => handleMarkChipInPaid(c.id)}
+                            >
+                              Mark paid
+                            </Button>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                              <Clock className="w-3.5 h-3.5" /> Pending
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             ))}
@@ -535,10 +591,44 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                     Covers {s.registrationIds.length} registrations in one payment
                   </p>
                 )}
-                {(s.contributionIds?.length ?? 0) > 0 && (
-                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400">
-                    Also covers {s.contributionIds.length} fund chip-in{s.contributionIds.length === 1 ? "" : "s"} — mark {s.contributionIds.length === 1 ? "it" : "them"} paid on the Sponsorship page
-                  </p>
+                {s.contributions.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                      Also covers {s.contributions.length} fund chip-in{s.contributions.length === 1 ? "" : "s"}
+                    </p>
+                    {s.contributions.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl border bg-muted/30 px-3 py-2">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium truncate">{c.contributorName ?? "Anonymous"}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(c.createdAt), "MMM d, yyyy")}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold tabular-nums text-sm">${c.amount}</span>
+                          {c.paymentStatus === "paid" ? (
+                            <span className="flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                            </span>
+                          ) : isPowerUser ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs rounded-lg"
+                              disabled={updateContributionPayment.isPending}
+                              onClick={() => handleMarkChipInPaid(c.id)}
+                            >
+                              Mark paid
+                            </Button>
+                          ) : (
+                            <span className="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400">
+                              <Clock className="w-3.5 h-3.5" /> Pending
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
                 {s.reference && (
                   <p className="text-sm">
