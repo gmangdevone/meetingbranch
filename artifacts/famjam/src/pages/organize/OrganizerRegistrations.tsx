@@ -502,6 +502,17 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 <p className="text-xs text-muted-foreground">
                   Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
+                {(s.submittedByName || s.submittedByEmail) && (
+                  <p className="text-xs text-muted-foreground">
+                    Submitted by{" "}
+                    <span className="font-medium text-foreground">
+                      {s.submittedByName ?? s.submittedByEmail}
+                    </span>
+                    {s.submittedByName && s.submittedByEmail && (
+                      <> (<span className="font-mono">{s.submittedByEmail}</span>)</>
+                    )}
+                  </p>
+                )}
                 {s.reference && (
                   <p className="text-sm">
                     <span className="text-muted-foreground">
@@ -586,6 +597,17 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 <p className="text-xs text-muted-foreground">
                   Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
+                {(s.submittedByName || s.submittedByEmail) && (
+                  <p className="text-xs text-muted-foreground">
+                    Submitted by{" "}
+                    <span className="font-medium text-foreground">
+                      {s.submittedByName ?? s.submittedByEmail}
+                    </span>
+                    {s.submittedByName && s.submittedByEmail && (
+                      <> (<span className="font-mono">{s.submittedByEmail}</span>)</>
+                    )}
+                  </p>
+                )}
                 {(s.registrationIds?.length ?? 0) > 1 && (
                   <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
                     Covers {s.registrationIds.length} registrations in one payment

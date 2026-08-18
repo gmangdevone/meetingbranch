@@ -1475,6 +1475,8 @@ export const CreateContributionPaymentSubmissionResponse = zod.object({
   "createdAt": zod.coerce.date()
 }).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
   "submittedBy": zod.string().optional(),
+  "submittedByName": zod.string().nullish().describe('Resolved display name (first + last) of the user who submitted this payment note.'),
+  "submittedByEmail": zod.string().nullish().describe('Resolved email of the user who submitted this payment note.'),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
   "reference": zod.string().nullish(),
@@ -1870,6 +1872,8 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "createdAt": zod.coerce.date()
 }).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
   "submittedBy": zod.string().optional(),
+  "submittedByName": zod.string().nullish().describe('Resolved display name (first + last) of the user who submitted this payment note.'),
+  "submittedByEmail": zod.string().nullish().describe('Resolved email of the user who submitted this payment note.'),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
   "reference": zod.string().nullish(),
@@ -1901,6 +1905,8 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "createdAt": zod.coerce.date()
 }).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
   "submittedBy": zod.string().optional(),
+  "submittedByName": zod.string().nullish().describe('Resolved display name (first + last) of the user who submitted this payment note.'),
+  "submittedByEmail": zod.string().nullish().describe('Resolved email of the user who submitted this payment note.'),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
   "reference": zod.string().nullish(),

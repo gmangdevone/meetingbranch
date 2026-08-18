@@ -939,12 +939,39 @@ router.get(
       for (const row of rows) contribMap.set(row.id, row);
     }
 
-    const withContribs = submissions.map((s) => ({
-      ...s,
-      contributions: s.contributionIds
-        .map((id) => contribMap.get(id))
-        .filter(Boolean),
-    }));
+    // Resolve submitter display name and email from the users table in one
+    // round-trip so organizers can see who logged each payment note.
+    const submitterIds = [...new Set(submissions.map((s) => s.submittedBy).filter(Boolean))];
+    const submitterMap = new Map<string, { name: string | null; email: string | null }>();
+    if (submitterIds.length > 0) {
+      const userRows = await db
+        .select({
+          id: usersTable.id,
+          firstName: usersTable.firstName,
+          lastName: usersTable.lastName,
+          email: usersTable.email,
+        })
+        .from(usersTable)
+        .where(inArray(usersTable.id, submitterIds));
+      for (const u of userRows) {
+        submitterMap.set(u.id, {
+          name: u.firstName ? `${u.firstName} ${u.lastName ?? ""}`.trim() : null,
+          email: u.email ?? null,
+        });
+      }
+    }
+
+    const withContribs = submissions.map((s) => {
+      const submitter = s.submittedBy ? submitterMap.get(s.submittedBy) : undefined;
+      return {
+        ...s,
+        submittedByName: submitter?.name ?? null,
+        submittedByEmail: submitter?.email ?? null,
+        contributions: s.contributionIds
+          .map((id) => contribMap.get(id))
+          .filter(Boolean),
+      };
+    });
 
     res.json(ListPaymentSubmissionsResponse.parse({ submissions: withContribs }));
   },

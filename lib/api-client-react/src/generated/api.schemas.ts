@@ -247,6 +247,16 @@ export interface PaymentSubmission {
   /** Resolved chip-in details for each id in contributionIds — contributor, amount, status, date. */
   contributions: SubmissionChipIn[];
   submittedBy?: string;
+  /**
+     * Resolved display name (first + last) of the user who submitted this payment note.
+     * @nullable
+     */
+  submittedByName?: string | null;
+  /**
+     * Resolved email of the user who submitted this payment note.
+     * @nullable
+     */
+  submittedByEmail?: string | null;
   method: PaymentMethod;
   amount: number;
   /** @nullable */

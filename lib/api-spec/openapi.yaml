@@ -2235,6 +2235,12 @@ components:
           description: "Resolved chip-in details for each id in contributionIds — contributor, amount, status, date."
         submittedBy:
           type: string
+        submittedByName:
+          type: ["string", "null"]
+          description: "Resolved display name (first + last) of the user who submitted this payment note."
+        submittedByEmail:
+          type: ["string", "null"]
+          description: "Resolved email of the user who submitted this payment note."
         method:
           $ref: "#/components/schemas/PaymentMethod"
         amount:
