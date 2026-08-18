@@ -166,7 +166,7 @@ describe.skipIf(!hasDb)(
       await seed();
       // Make TARGET own a reunion of their own.
       await db.insert(reunionsTable).values({
-        code: "ZZ99999",
+        code: `Z${RUN.toString().slice(-6)}`,
         name: `Owned by target ${RUN}`,
         startDate: "2026-09-01",
         endDate: "2026-09-02",

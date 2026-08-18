@@ -344,10 +344,36 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <div className="flex flex-col gap-6 mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="bg-muted/50 border rounded-3xl p-6">
                   <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-6">Payment Info</h3>
-                  {reunion.fees.length === 0 ? (
+                  {reunion.fees.length === 0 && myPendingChipIns.length === 0 ? (
                     <p className="text-foreground font-medium">This reunion is free to attend!</p>
                   ) : (
                     <div className="flex flex-col gap-4">
+                      {/* Pending standalone chip-ins — always shown when present, regardless of
+                          whether the member also has registrations. A paid registration can
+                          coexist with a pending chip-in. */}
+                      {myPendingChipIns.length > 0 && (
+                        <>
+                          {myPendingChipIns.map((c) => (
+                            <div key={c.id} className="pb-4 border-b">
+                              <span className="text-muted-foreground text-sm block mb-3">
+                                Fund chip-in — {format(new Date(c.createdAt), "MMM d, yyyy")}
+                              </span>
+                              <div className="flex justify-between items-baseline gap-3">
+                                <span className="font-bold">Chip-in amount</span>
+                                <span className="font-bold tabular-nums">${c.amount}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {/* Only show chip-in subtotal when there are no registrations;
+                              the account-total row covers it when registrations exist. */}
+                          {myActiveRegistrations.length === 0 && (
+                            <div className="flex justify-between items-baseline gap-3 pb-4 border-b">
+                              <span className="font-bold">Total due</span>
+                              <span className="font-serif text-xl font-bold tabular-nums">${myPendingChipInsTotal}</span>
+                            </div>
+                          )}
+                        </>
+                      )}
                       {myActiveRegistrations.map((reg) => {
                         const applicableFees = reunion.fees.filter((fee) =>
                           feeApplies(fee, reg.selectedFeeIds ?? []),
@@ -420,46 +446,54 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                           </div>
                         </div>
                       )}
-                      <div className="pb-4 border-b">
-                        {myRegistration && (
-                          <button
-                            type="button"
-                            onClick={() => setShowAllFees((v) => !v)}
-                            aria-expanded={showAllFees}
-                            className="flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
-                          >
-                            {showAllFees ? "Hide" : "Show"} all fees
-                            <ChevronDown className={`w-4 h-4 transition-transform ${showAllFees ? "rotate-180" : ""}`} />
-                          </button>
-                        )}
-                        {(!myRegistration || showAllFees) && (
-                          <div className={`flex flex-col gap-3 ${myRegistration ? "mt-4" : ""}`}>
-                            {reunion.fees.map((fee) => (
-                              <div key={fee.id} className="flex justify-between items-start gap-3">
-                                <span className="text-muted-foreground">
-                                  {fee.label}
-                                  {fee.isOptional && (
-                                    <span className="ml-1 text-xs text-muted-foreground/70">(optional)</span>
-                                  )}
-                                  <span className="block text-xs text-muted-foreground/70">
-                                    {describeFee(fee)}
+                      {reunion.fees.length > 0 && (
+                        <div className="pb-4 border-b">
+                          {myRegistration && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllFees((v) => !v)}
+                              aria-expanded={showAllFees}
+                              className="flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
+                            >
+                              {showAllFees ? "Hide" : "Show"} all fees
+                              <ChevronDown className={`w-4 h-4 transition-transform ${showAllFees ? "rotate-180" : ""}`} />
+                            </button>
+                          )}
+                          {(!myRegistration || showAllFees) && (
+                            <div className={`flex flex-col gap-3 ${myRegistration ? "mt-4" : ""}`}>
+                              {reunion.fees.map((fee) => (
+                                <div key={fee.id} className="flex justify-between items-start gap-3">
+                                  <span className="text-muted-foreground">
+                                    {fee.label}
+                                    {fee.isOptional && (
+                                      <span className="ml-1 text-xs text-muted-foreground/70">(optional)</span>
+                                    )}
+                                    <span className="block text-xs text-muted-foreground/70">
+                                      {describeFee(fee)}
+                                    </span>
                                   </span>
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>
-                        <div className="font-mono bg-background border px-3 py-2 rounded-lg font-bold">
-                          {reunion.paymentHandle}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      {reunion.paymentUrl && (
-                        <a href={reunion.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-bold text-sm hover:underline flex items-center">
-                          Pay Online <ArrowRight className="ml-1 w-3 h-3" />
-                        </a>
+                      )}
+                      {/* Payment handle — shown whenever the member owes anything
+                          (has fees to pay or has pending standalone chip-ins). */}
+                      {(reunion.fees.length > 0 || myPendingChipIns.length > 0) && (
+                        <>
+                          <div>
+                            <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>
+                            <div className="font-mono bg-background border px-3 py-2 rounded-lg font-bold">
+                              {reunion.paymentHandle}
+                            </div>
+                          </div>
+                          {reunion.paymentUrl && (
+                            <a href={reunion.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-bold text-sm hover:underline flex items-center">
+                              Pay Online <ArrowRight className="ml-1 w-3 h-3" />
+                            </a>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
