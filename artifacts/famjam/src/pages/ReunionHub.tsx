@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, getGetSponsorshipFundQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
@@ -139,6 +139,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetMyContributionsQueryKey(reunion.id) });
+        queryClient.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunion.id) });
         setShowThankYou(true);
         setTimeout(() => {
           setIsSponsorDialogOpen(false);
