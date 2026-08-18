@@ -636,6 +636,69 @@ describe("quotedCost validation", () => {
   });
 });
 
+describe("service date validation", () => {
+  it("rejects end date without a start date on create", async () => {
+    authAs(OWNER);
+    const res = await createVendor({
+      name: "DJ Booth",
+      category: "entertainment",
+      serviceEndDate: "2026-08-15",
+    });
+    expect(res.status).toBe(400);
+    expect(state.rows.vendors).toHaveLength(2); // nothing created
+  });
+
+  it("rejects end date before start date on create", async () => {
+    authAs(OWNER);
+    const res = await createVendor({
+      name: "DJ Booth",
+      category: "entertainment",
+      serviceDate: "2026-08-15",
+      serviceEndDate: "2026-08-10",
+    });
+    expect(res.status).toBe(400);
+    expect(state.rows.vendors).toHaveLength(2); // nothing created
+  });
+
+  it("PUT merges serviceEndDate with vendor's existing serviceDate and rejects invalid windows", async () => {
+    authAs(OWNER);
+    // Give the seeded vendor a start date directly in the fake store.
+    const vendorInState = (state.rows.vendors ?? []).find((v) => v.id === VENDOR_ID)!;
+    vendorInState.serviceDate = "2026-08-10";
+
+    // serviceEndDate before the stored serviceDate → rejected.
+    const bad = await updateVendor(VENDOR_ID, { serviceEndDate: "2026-08-09" });
+    expect(bad.status).toBe(400);
+    expect(vendorRow(VENDOR_ID)?.serviceEndDate).toBeUndefined();
+
+    // serviceEndDate equal to the stored serviceDate → accepted (same-day window).
+    const sameDay = await updateVendor(VENDOR_ID, { serviceEndDate: "2026-08-10" });
+    expect(sameDay.status).toBe(200);
+    expect(sameDay.body.serviceEndDate).toBe("2026-08-10");
+  });
+
+  it("PUT that sets only serviceEndDate is rejected when the vendor has no existing serviceDate", async () => {
+    authAs(OWNER);
+    // VENDOR_ID has no serviceDate in seed; sending only serviceEndDate must be rejected.
+    const res = await updateVendor(VENDOR_ID, { serviceEndDate: "2026-08-20" });
+    expect(res.status).toBe(400);
+    expect(vendorRow(VENDOR_ID)?.serviceEndDate).toBeUndefined();
+  });
+
+  it("accepts a valid multi-day service window on create", async () => {
+    authAs(OWNER);
+    const res = await createVendor({
+      name: "Bouncy Castle",
+      category: "entertainment",
+      serviceDate: "2026-08-14",
+      serviceEndDate: "2026-08-16",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.serviceDate).toBe("2026-08-14");
+    expect(res.body.serviceEndDate).toBe("2026-08-16");
+  });
+});
+
 describe("contract create/delete on own reunion", () => {
   it("creates a contract tied to the vendor's reunion", async () => {
     authAs(POWER);
