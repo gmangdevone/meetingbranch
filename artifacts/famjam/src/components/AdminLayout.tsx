@@ -26,7 +26,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <aside className="hidden md:flex flex-col w-64 bg-card border-r fixed top-0 bottom-0 z-10">
         <div className="p-6 border-b">
           <Link href="/" className="flex items-center gap-2 text-primary font-serif font-bold text-2xl">
-            FamJam '27
+            Meeting Branch
           </Link>
           <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-1">Admin Portal</div>
         </div>

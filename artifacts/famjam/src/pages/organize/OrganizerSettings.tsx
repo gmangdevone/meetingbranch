@@ -1501,7 +1501,7 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
       </form>
       {error && <p className="text-sm text-destructive font-medium">{error}</p>}
       <p className="text-xs text-muted-foreground">
-        They need a FamJam account already — ask them to sign in once, then add them by the email on
+        They need a Meeting Branch account already — ask them to sign in once, then add them by the email on
         their account. You can change their areas any time.
       </p>
     </div>

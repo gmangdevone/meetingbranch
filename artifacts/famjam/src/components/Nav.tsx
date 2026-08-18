@@ -96,7 +96,7 @@ export function Nav() {
         style={{ background: "var(--fj-bg)", borderBottom: "1px solid var(--fj-line)", backdropFilter: "blur(8px)" }}>
         <div className="flex items-center gap-2.5">
           <Link href="/" style={{ color: "var(--fj-brand)", fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: "1.5rem", letterSpacing: "-0.5px" }}>
-            FamJam
+            Meeting Branch
           </Link>
           <DevBadge />
         </div>

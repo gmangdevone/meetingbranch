@@ -168,7 +168,7 @@ export function AdminArea() {
         </div>
         <div>
           <h1 className="font-serif text-4xl font-bold text-foreground">Platform Admin</h1>
-          <p className="text-muted-foreground">Global control for FamJam.</p>
+          <p className="text-muted-foreground">Global control for Meeting Branch.</p>
         </div>
       </div>
 

@@ -33,7 +33,7 @@ interface SendConfirmationEmailParams {
 
 // Verified sender configured in Brevo — override with BREVO_FROM_EMAIL env var if needed
 const FROM_EMAIL = process.env.BREVO_FROM_EMAIL ?? "noreply@famjam.app";
-const FROM_NAME = "FamJam";
+const FROM_NAME = "Meeting Branch";
 
 function formatDateRange(startDate: string, endDate: string): string {
   const parse = (s: string) => {
@@ -94,7 +94,7 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FamJam Registration Confirmation</title>
+  <title>Meeting Branch Registration Confirmation</title>
 </head>
 <body style="margin:0;padding:0;background:#f3f4f6;font-family:Georgia,serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
@@ -104,7 +104,7 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
 
           <tr>
             <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:40px 32px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;letter-spacing:-0.5px;">🎉 FamJam</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:28px;letter-spacing:-0.5px;">🎉 Meeting Branch</h1>
               <p style="margin:8px 0 0;color:#e0d7ff;font-size:15px;">${reunion.name} · ${dateRange}</p>
             </td>
           </tr>
@@ -175,7 +175,7 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
 
           <tr>
             <td style="background:#f9fafb;padding:20px 32px;text-align:center;border-top:1px solid #e5e7eb;">
-              <p style="margin:0;color:#9ca3af;font-size:12px;">FamJam · ${reunion.name}</p>
+              <p style="margin:0;color:#9ca3af;font-size:12px;">Meeting Branch · ${reunion.name}</p>
             </td>
           </tr>
 

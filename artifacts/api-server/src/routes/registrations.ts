@@ -418,7 +418,7 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
       // Managed accounts share a synthetic contact email and can never sign
       // in, so they are not valid transfer targets.
       res.status(400).json({
-        error: "No account found with that email. Ask them to sign in to FamJam first.",
+        error: "No account found with that email. Ask them to sign in to Meeting Branch first.",
       });
       return;
     }

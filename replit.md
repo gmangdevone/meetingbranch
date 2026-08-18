@@ -1,4 +1,4 @@
-# FamJam – Lacey Family Reunion 2027
+# Meeting Branch – Lacey Family Reunion 2027
 
 A mobile-first family reunion web app for the Lacey Family Reunion (July 16–19, 2027). Participants register, view the schedule, read announcements, and receive email confirmations with a Cash App payment link.
 
@@ -19,7 +19,7 @@ This route is a one-time bootstrap: it promotes the first signed-in user to admi
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
-- `pnpm --filter @workspace/famjam run dev` — run the FamJam web app (port 19634)
+- `pnpm --filter @workspace/famjam run dev` — run the Meeting Branch web app (port 19634)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run typecheck:libs` — rebuild lib declarations (run after changing lib/* schemas)
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec

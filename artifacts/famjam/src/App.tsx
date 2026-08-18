@@ -302,7 +302,7 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: "Welcome to FamJam",
+            title: "Welcome to Meeting Branch",
             subtitle: "Sign in to access your family account",
           },
         },

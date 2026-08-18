@@ -1099,7 +1099,7 @@ router.post("/reunions/:reunionId/organizers", ...manage, requireReunionOwner, a
 
   if (!user) {
     res.status(404).json({
-      error: "No FamJam account found with that email. Ask them to sign in once first.",
+      error: "No Meeting Branch account found with that email. Ask them to sign in once first.",
     });
     return;
   }
