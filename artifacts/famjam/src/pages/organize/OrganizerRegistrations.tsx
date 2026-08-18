@@ -87,7 +87,12 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     const map = new Map<number, NonNullable<typeof paymentSubmissionsData>["submissions"]>();
     for (const s of paymentSubmissionsData?.submissions ?? []) {
       // A submission can cover several registrations; show it under each one.
-      const covered = s.registrationIds?.length ? s.registrationIds : [s.registrationId];
+      // Contribution-only submissions have no registration and are skipped here.
+      const covered = s.registrationIds?.length
+        ? s.registrationIds
+        : s.registrationId != null
+          ? [s.registrationId]
+          : [];
       for (const regId of covered) {
         const list = map.get(regId) ?? [];
         list.push(s);
@@ -97,6 +102,15 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     return map;
   }, [paymentSubmissionsData]);
   const [submissionsRegId, setSubmissionsRegId] = useState<number | null>(null);
+  // Submissions that cover ONLY standalone fund chip-ins — they have no
+  // registration row to appear under, so they get their own section.
+  const chipInOnlySubmissions = useMemo(
+    () =>
+      (paymentSubmissionsData?.submissions ?? []).filter(
+        (s) => !s.registrationIds?.length && s.registrationId == null,
+      ),
+    [paymentSubmissionsData],
+  );
 
   // Dialog state
   const [cancelReg, setCancelReg] = useState<any>(null);
@@ -452,6 +466,49 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         </div>
       </div>
 
+      {chipInOnlySubmissions.length > 0 && (
+        <div className="bg-card border shadow-sm rounded-3xl p-6">
+          <h2 className="font-serif text-2xl font-bold mb-1">Fund Chip-in Payments</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Payment notes covering only standalone fund chip-ins. Confirm the money arrived,
+            then mark the chip-in paid on the Sponsorship page.
+          </p>
+          <div className="divide-y">
+            {chipInOnlySubmissions.map((s) => (
+              <div key={s.id} className="py-4 first:pt-0 last:pb-0 space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-bold uppercase tracking-wide text-sm">
+                    {s.method === "cashapp" ? "Cash App" : s.method === "zelle" ? "Zelle" : s.method === "check" ? "Check" : "Cash"}
+                  </span>
+                  <span className="font-bold text-lg tabular-nums">${s.amount}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")} — covers{" "}
+                  {s.contributionIds.length} chip-in{s.contributionIds.length === 1 ? "" : "s"}
+                </p>
+                {s.reference && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">
+                      {s.method === "cashapp" ? "Their $cashtag: " : s.method === "zelle" ? "Their Zelle ID: " : s.method === "cash" ? "Given to: " : "Check #: "}
+                    </span>
+                    <span className="font-mono font-bold">{s.reference}</span>
+                  </p>
+                )}
+                {s.givenDate && (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Date given: </span>
+                    <span className="font-bold">{s.givenDate}</span>
+                  </p>
+                )}
+                {s.note && (
+                  <p className="text-sm bg-muted/50 border rounded-lg px-3 py-2 whitespace-pre-wrap">{s.note}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Dialog open={submissionsRegId !== null} onOpenChange={(open) => { if (!open) setSubmissionsRegId(null); }}>
         <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -476,6 +533,11 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 {(s.registrationIds?.length ?? 0) > 1 && (
                   <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
                     Covers {s.registrationIds.length} registrations in one payment
+                  </p>
+                )}
+                {(s.contributionIds?.length ?? 0) > 0 && (
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400">
+                    Also covers {s.contributionIds.length} fund chip-in{s.contributionIds.length === 1 ? "" : "s"} — mark {s.contributionIds.length === 1 ? "it" : "them"} paid on the Sponsorship page
                   </p>
                 )}
                 {s.reference && (

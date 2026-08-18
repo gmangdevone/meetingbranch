@@ -34,6 +34,7 @@ vi.mock("drizzle-orm", () => ({
   and: (...parts: unknown[]) => ({ kind: "and", parts }),
   asc: (col: string) => ({ kind: "asc", col }),
   desc: (col: string) => ({ kind: "desc", col }),
+  inArray: (col: string, vals: unknown[]) => ({ kind: "inArray", col, vals }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     kind: "sql",
     strings: Array.from(strings),
@@ -81,13 +82,29 @@ vi.mock("@workspace/db", () => {
     announcements: ["id", "reunionId", "title", "body", "pinned", "createdAt"],
     schedule_items: ["id", "reunionId", "day", "sortOrder"],
     app_settings: ["id"],
+    payment_submissions: [
+      "id",
+      "reunionId",
+      "registrationId",
+      "registrationIds",
+      "contributionIds",
+      "submittedBy",
+      "method",
+      "reference",
+      "givenDate",
+      "note",
+      "amount",
+      "createdAt",
+    ],
     sponsorship_contributions: [
       "id",
       "reunionId",
+      "registrationId",
       "contributorUserId",
       "contributorName",
       "amount",
       "source",
+      "paymentStatus",
       "createdAt",
     ],
     sponsorship_allocations: [
@@ -130,6 +147,10 @@ vi.mock("@workspace/db", () => {
     if (expr.kind === "eq") {
       const [t, f] = String(expr.col).split(".");
       return scoped[t]?.[f] === resolve(expr.val, scoped);
+    }
+    if (expr.kind === "inArray") {
+      const [t, f] = String(expr.col).split(".");
+      return (expr.vals as unknown[]).some((v) => scoped[t]?.[f] === resolve(v, scoped));
     }
     if (expr.kind === "sql") {
       const s: string[] = expr.strings;
@@ -213,6 +234,9 @@ vi.mock("@workspace/db", () => {
       return this;
     }
     groupBy() {
+      return this;
+    }
+    for() {
       return this;
     }
     limit(n: number) {
@@ -399,6 +423,7 @@ vi.mock("@workspace/db", () => {
     appSettingsTable: "app_settings",
     sponsorshipContributionsTable: "sponsorship_contributions",
     sponsorshipAllocationsTable: "sponsorship_allocations",
+    paymentSubmissionsTable: "payment_submissions",
   };
   for (const [exportName, tableName] of Object.entries(tableExports)) {
     tokens[exportName] = makeToken(tableName, tables[tableName as keyof typeof tables]);
@@ -471,6 +496,7 @@ function seed(roles: string[]) {
     app_settings: [],
     sponsorship_contributions: [],
     sponsorship_allocations: [],
+    payment_submissions: [],
   };
   state.seq = 1000;
 }
@@ -753,10 +779,12 @@ describe("sponsorship fund works end-to-end for authorized organizers", () => {
       {
         id: 900,
         reunionId: REUNION_ID,
+        registrationId: null,
         contributorUserId: OUTSIDER,
         contributorName: "Aunt X",
         amount: 100,
         source: "direct",
+        paymentStatus: "paid",
         createdAt: new Date("2026-02-01").toISOString(),
       },
     ];
@@ -973,28 +1001,34 @@ describe("GET /sponsorship/my-contributions — member contribution history", ()
       {
         id: 901,
         reunionId: REUNION_ID,
+        registrationId: null,
         contributorUserId: MEMBER,
         contributorName: "Aunt X",
         amount: 50,
         source: "direct",
+        paymentStatus: "pending",
         createdAt: new Date("2026-03-01").toISOString(),
       },
       {
         id: 902,
         reunionId: REUNION_ID,
+        registrationId: null,
         contributorUserId: MEMBER,
         contributorName: null,
         amount: 75,
         source: "direct",
+        paymentStatus: "pending",
         createdAt: new Date("2026-03-02").toISOString(),
       },
       {
         id: 903,
         reunionId: REUNION_ID,
+        registrationId: null,
         contributorUserId: OTHER,
         contributorName: "Uncle Y",
         amount: 200,
         source: "direct",
+        paymentStatus: "pending",
         createdAt: new Date("2026-03-03").toISOString(),
       },
     ];
@@ -1173,5 +1207,252 @@ describe("owner assigns and updates co-organizer roles", () => {
       .put(`/api/reunions/${REUNION_ID}/organizers/${OWNER}/roles`)
       .send({ roles: ["reports"] });
     expect(res.status).toBe(400);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// PATCH /sponsorship/contributions/:contributionId/payment — power_user gated
+// and POST /contribution-payment-submissions — member chip-in payments.
+// ──────────────────────────────────────────────────────────────────────────────
+describe("PATCH /sponsorship/contributions/:id/payment — mark chip-ins paid", () => {
+  function seedChipIn(roles: string[], overrides: Record<string, unknown> = {}) {
+    seed(roles);
+    state.rows.sponsorship_contributions = [
+      {
+        id: 910,
+        reunionId: REUNION_ID,
+        registrationId: null,
+        contributorUserId: OUTSIDER,
+        contributorName: "Aunt X",
+        amount: 100,
+        source: "direct",
+        paymentStatus: "pending",
+        createdAt: new Date("2026-02-01").toISOString(),
+        ...overrides,
+      },
+    ];
+  }
+
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  it("lets a power_user co-organizer mark a chip-in paid, and the fund balance updates", async () => {
+    seedChipIn(["power_user"]);
+    authAs(CO);
+    // Pending chip-ins are excluded from the balance.
+    let res = await app().get(`/api/reunions/${REUNION_ID}/sponsorship`);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ balance: 0, totalContributed: 0, totalPending: 100 });
+
+    res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/910/payment`)
+      .send({ paymentStatus: "paid" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ balance: 100, totalContributed: 100, totalPending: 0 });
+    expect(state.rows.sponsorship_contributions[0].paymentStatus).toBe("paid");
+  });
+
+  it("forbids a co-organizer WITHOUT power_user with 403", async () => {
+    seedChipIn(["registration"]);
+    authAs(CO);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/910/payment`)
+      .send({ paymentStatus: "paid" });
+    expect(res.status).toBe(403);
+    expect(state.rows.sponsorship_contributions[0].paymentStatus).toBe("pending");
+  });
+
+  it("forbids a plain member with 403", async () => {
+    seedChipIn([]);
+    authAs(OUTSIDER);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/910/payment`)
+      .send({ paymentStatus: "paid" });
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 404 for a contribution in a different reunion", async () => {
+    seedChipIn(["power_user"], { reunionId: 99999 });
+    authAs(CO);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/910/payment`)
+      .send({ paymentStatus: "paid" });
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects an invalid status with 400", async () => {
+    seedChipIn(["power_user"]);
+    authAs(CO);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/910/payment`)
+      .send({ paymentStatus: "refunded" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /contribution-payment-submissions — chip-in-only payments", () => {
+  const MY_CHIP = 920;
+  const OTHER_CHIP = 921;
+  const PAID_CHIP = 922;
+  const ATTACHED_CHIP = 923;
+
+  function seedChipIns() {
+    seed([]);
+    state.rows.registrations = [
+      {
+        id: 601,
+        reunionId: REUNION_ID,
+        userId: OUTSIDER,
+        branchName: "North",
+        attendeeCount: 1,
+        paymentStatus: "pending",
+        status: "active",
+      },
+    ];
+    state.rows.sponsorship_contributions = [
+      { id: MY_CHIP, reunionId: REUNION_ID, registrationId: null, contributorUserId: OUTSIDER, contributorName: "X", amount: 40, source: "direct", paymentStatus: "pending", createdAt: new Date("2026-02-01").toISOString() },
+      { id: OTHER_CHIP, reunionId: REUNION_ID, registrationId: null, contributorUserId: CO, contributorName: "C", amount: 60, source: "direct", paymentStatus: "pending", createdAt: new Date("2026-02-02").toISOString() },
+      { id: PAID_CHIP, reunionId: REUNION_ID, registrationId: null, contributorUserId: OUTSIDER, contributorName: "X", amount: 25, source: "direct", paymentStatus: "paid", createdAt: new Date("2026-02-03").toISOString() },
+      { id: ATTACHED_CHIP, reunionId: REUNION_ID, registrationId: 601, contributorUserId: OUTSIDER, contributorName: "X", amount: 15, source: "registration", paymentStatus: "pending", createdAt: new Date("2026-02-04").toISOString() },
+    ];
+  }
+
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  const post = (body: Record<string, unknown>) =>
+    app().post(`/api/reunions/${REUNION_ID}/contribution-payment-submissions`).send(body);
+
+  it("saves a chip-in-only payment submission with no registration", async () => {
+    seedChipIns();
+    authAs(OUTSIDER);
+    const res = await post({ method: "check", amount: 40, contributionIds: [MY_CHIP] });
+    expect(res.status).toBe(201);
+    expect(res.body.registrationId).toBeNull();
+    expect(res.body.registrationIds).toEqual([]);
+    expect(res.body.contributionIds).toEqual([MY_CHIP]);
+    expect(state.rows.payment_submissions).toHaveLength(1);
+  });
+
+  it("rejects an empty contributionIds list with 400", async () => {
+    seedChipIns();
+    authAs(OUTSIDER);
+    const res = await post({ method: "check", amount: 40, contributionIds: [] });
+    expect(res.status).toBe(400);
+    expect(state.rows.payment_submissions).toHaveLength(0);
+  });
+
+  it("forbids covering someone else's chip-in with 403", async () => {
+    seedChipIns();
+    authAs(OUTSIDER);
+    const res = await post({ method: "check", amount: 60, contributionIds: [OTHER_CHIP] });
+    expect(res.status).toBe(403);
+    expect(state.rows.payment_submissions).toHaveLength(0);
+  });
+
+  it("rejects an already-paid chip-in with 400", async () => {
+    seedChipIns();
+    authAs(OUTSIDER);
+    const res = await post({ method: "check", amount: 25, contributionIds: [PAID_CHIP] });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a chip-in attached to a registration with 400", async () => {
+    seedChipIns();
+    authAs(OUTSIDER);
+    const res = await post({ method: "check", amount: 15, contributionIds: [ATTACHED_CHIP] });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects cash without a given date with 400 (method-specific validation)", async () => {
+    seedChipIns();
+    authAs(OUTSIDER);
+    const res = await post({ method: "cash", amount: 40, reference: "Aunt D", contributionIds: [MY_CHIP] });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 401 when unauthenticated", async () => {
+    seedChipIns();
+    state.auth = { userId: null, sessionClaims: null };
+    const res = await post({ method: "check", amount: 40, contributionIds: [MY_CHIP] });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe("fund overdraw guard on status reversals", () => {
+  it("blocks moving a paid chip-in back to pending once the money was allocated", async () => {
+    seed(["power_user"]);
+    state.rows.sponsorship_contributions = [
+      {
+        id: 930,
+        reunionId: REUNION_ID,
+        registrationId: null,
+        contributorUserId: OUTSIDER,
+        contributorName: "Aunt X",
+        amount: 100,
+        source: "direct",
+        paymentStatus: "paid",
+        createdAt: new Date("2026-02-01").toISOString(),
+      },
+    ];
+    state.rows.sponsorship_allocations = [
+      {
+        id: 940,
+        reunionId: REUNION_ID,
+        registrationId: 601,
+        amount: 100,
+        fundedFrom: "fund",
+        sponsorName: null,
+        note: null,
+        createdBy: OWNER,
+        createdAt: new Date("2026-02-02").toISOString(),
+      },
+    ];
+    authAs(CO);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/930/payment`)
+      .send({ paymentStatus: "pending" });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("contribution payment PATCH is restricted to standalone direct chip-ins", () => {
+  function seedLinked(source: string, registrationId: number | null, paymentStatus: string) {
+    seed(["power_user"]);
+    state.rows.sponsorship_contributions = [
+      {
+        id: 950,
+        reunionId: REUNION_ID,
+        registrationId,
+        contributorUserId: OUTSIDER,
+        contributorName: "Aunt X",
+        amount: 80,
+        source,
+        paymentStatus,
+        createdAt: new Date("2026-02-01").toISOString(),
+      },
+    ];
+  }
+
+  it("rejects marking a registration-source chip-in paid with 400", async () => {
+    seedLinked("registration", 601, "pending");
+    authAs(CO);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/950/payment`)
+      .send({ paymentStatus: "paid" });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_contributions[0].paymentStatus).toBe("pending");
+  });
+
+  it("rejects reversing a cancellation donation with 400", async () => {
+    seedLinked("cancellation", 601, "paid");
+    authAs(CO);
+    const res = await app()
+      .patch(`/api/reunions/${REUNION_ID}/sponsorship/contributions/950/payment`)
+      .send({ paymentStatus: "pending" });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_contributions[0].paymentStatus).toBe("paid");
   });
 });

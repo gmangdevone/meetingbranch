@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { OrganizerLayout } from "./OrganizerLayout";
-import { useGetSponsorshipFund, getGetSponsorshipFundQueryKey, useListReunionRegistrations, getListReunionRegistrationsQueryKey, useCreateSponsorshipAllocation } from "@workspace/api-client-react";
+import { useGetSponsorshipFund, getGetSponsorshipFundQueryKey, useListReunionRegistrations, getListReunionRegistrationsQueryKey, useCreateSponsorshipAllocation, useUpdateContributionPayment } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Heart, Info, Plus, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -29,6 +29,19 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
   const activeRegistrations = registrations?.filter(r => r.status === 'active') || [];
   
   const allocateMutation = useCreateSponsorshipAllocation();
+  const contributionPaymentMutation = useUpdateContributionPayment();
+
+  const handleContributionStatus = (contributionId: number, paymentStatus: "pending" | "paid" | "waived") => {
+    contributionPaymentMutation.mutate(
+      { reunionId, contributionId, data: { paymentStatus } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
+          toast({ title: "Contribution updated" });
+        },
+      },
+    );
+  };
   
   const [isSponsorOpen, setIsSponsorOpen] = useState(false);
   const [regId, setRegId] = useState("");
@@ -189,7 +202,14 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
               <div className="bg-card border shadow-sm rounded-3xl p-6">
                 <h3 className="font-bold text-muted-foreground mb-2">Total Contributed</h3>
                 <div className="font-serif text-4xl font-bold text-foreground">${fund.totalContributed}</div>
-                <p className="text-sm text-muted-foreground mt-2">All-time pooled funds</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Received funds only
+                  {fund.totalPending > 0 && (
+                    <span className="block text-amber-600 dark:text-amber-400 font-semibold">
+                      +${fund.totalPending} pledged, not yet received
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="bg-card border shadow-sm rounded-3xl p-6">
                 <h3 className="font-bold text-muted-foreground mb-2">Total Allocated</h3>
@@ -237,7 +257,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                     <div className="text-center py-10 text-muted-foreground">No contributions received yet.</div>
                   ) : (
                     fund.contributions.map(cont => (
-                      <div key={cont.id} className="p-4 border rounded-2xl flex justify-between items-center bg-muted/20">
+                      <div key={cont.id} className="p-4 border rounded-2xl flex justify-between items-center bg-muted/20 gap-3">
                         <div>
                           <div className="font-bold">{cont.contributorName || 'Anonymous'}</div>
                           <div className="text-xs text-muted-foreground mt-1">
@@ -247,7 +267,33 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                             Source: {cont.source.replace('_', ' ')}
                           </div>
                         </div>
-                        <div className="font-bold text-lg text-green-600">+${cont.amount}</div>
+                        <div className="flex flex-col items-end gap-2">
+                          <div className={`font-bold text-lg ${cont.paymentStatus === 'paid' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                            +${cont.amount}
+                          </div>
+                          {cont.source !== 'direct' ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              {cont.source === 'registration'
+                                ? `${cont.paymentStatus} · settled with registration`
+                                : 'paid · from cancelled registration'}
+                            </span>
+                          ) : (
+                            <Select
+                              value={cont.paymentStatus}
+                              onValueChange={(v) => handleContributionStatus(cont.id, v as "pending" | "paid" | "waived")}
+                              disabled={contributionPaymentMutation.isPending}
+                            >
+                              <SelectTrigger className="h-7 w-[110px] rounded-lg text-xs font-bold">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="paid">Paid</SelectItem>
+                                <SelectItem value="waived">Waived</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
                       </div>
                     ))
                   )}

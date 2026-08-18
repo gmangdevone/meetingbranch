@@ -92,17 +92,6 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
     0,
   );
-  // Account-level payment status: pending if anything is still owed; otherwise
-  // "waived" only when EVERY registration was waived, else "paid".
-  const allSettled = myActiveRegistrations.every(
-    (r) => r.paymentStatus === "paid" || r.paymentStatus === "waived",
-  );
-  const myPaymentStatus = !allSettled
-    ? "pending"
-    : myActiveRegistrations.every((r) => r.paymentStatus === "waived")
-      ? "waived"
-      : "paid";
-
   const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
     query: { 
       enabled: isSignedIn && !!reunion?.id,
@@ -119,10 +108,31 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     (r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived",
   );
   const myUnpaidRegistrationIds = new Set(myUnpaidRegistrations.map((r) => r.id));
-  // Outstanding amount: only registrations that are still unpaid (not paid/waived),
-  // plus fund chip-ins pledged with those SAME registrations. A chip-in attached
-  // to an already-paid registration was settled with that payment, so it must
-  // not keep inflating the amount due.
+  // Standalone chip-ins (no registration) behave like registrations: they are
+  // due while pending and organizers mark them paid on the sponsorship page.
+  const myPendingChipIns = (myContributionsData?.contributions ?? []).filter(
+    (c) => c.registrationId == null && c.paymentStatus === "pending",
+  );
+  const myPendingChipInsTotal = myPendingChipIns.reduce((sum, c) => sum + c.amount, 0);
+  // Account-level payment status: pending while any registration OR standalone
+  // chip-in is still owed; otherwise "waived" only when EVERY registration was
+  // waived, else "paid".
+  const allSettled = myUnpaidRegistrations.length === 0 && myPendingChipIns.length === 0;
+  const mySettledObligations = [
+    ...myActiveRegistrations.map((r) => r.paymentStatus),
+    ...(myContributionsData?.contributions ?? [])
+      .filter((c) => c.registrationId == null)
+      .map((c) => c.paymentStatus),
+  ];
+  const myPaymentStatus = !allSettled
+    ? "pending"
+    : mySettledObligations.length > 0 && mySettledObligations.every((s) => s === "waived")
+      ? "waived"
+      : "paid";
+  // Outstanding amount: unpaid registrations, plus fund chip-ins pledged with
+  // those SAME registrations (a chip-in attached to an already-paid
+  // registration was settled with that payment), plus pending standalone
+  // chip-ins.
   const myOutstandingRegistrationsTotal = myUnpaidRegistrations.reduce(
     (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
     0,
@@ -132,7 +142,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     .reduce((sum, c) => sum + c.amount, 0);
   const myOutstandingTotal = allSettled
     ? 0
-    : myOutstandingRegistrationsTotal + myOutstandingContributionsTotal;
+    : myOutstandingRegistrationsTotal + myOutstandingContributionsTotal + myPendingChipInsTotal;
   const myFirstUnpaidRegistration = myUnpaidRegistrations[0];
 
   // Remember the last successfully visited reunion so the Home nav can return here;
@@ -220,7 +230,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           </div>
         )}
         <div className="relative z-10">
-          {myRegistration && (
+          {(myRegistration || (myContributionsData?.contributions.length ?? 0) > 0) && (
             <button
               type="button"
               onClick={revealPayments}
@@ -455,8 +465,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   )}
                 </div>
 
-                {isSignedIn && myFirstUnpaidRegistration && myPaymentStatus === "pending" && (
+                {isSignedIn &&
+                  (myFirstUnpaidRegistration || myPendingChipIns.length > 0) &&
+                  myPaymentStatus === "pending" && (
                   <SubmitPayment
+                    reunionId={reunion.id}
                     registrations={myUnpaidRegistrations.map((r) => ({
                       id: r.id,
                       label: `${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,
@@ -467,6 +480,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                         (myContributionsData?.contributions ?? [])
                           .filter((c) => c.registrationId === r.id)
                           .reduce((sum, c) => sum + c.amount, 0),
+                    }))}
+                    chipIns={myPendingChipIns.map((c) => ({
+                      id: c.id,
+                      label: `Fund chip-in — ${format(new Date(c.createdAt), "MMM d, yyyy")}`,
+                      amount: c.amount,
                     }))}
                     cashAppTag={reunion.cashAppTag ?? null}
                     checkPayee={reunion.checkPayee ?? null}
@@ -505,8 +523,21 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                 {format(new Date(contribution.createdAt), "MMM d, yyyy")}
                               </p>
                             </div>
-                            <span className="font-bold text-rose-600 text-lg">
-                              ${contribution.amount}
+                            <span className="flex items-center gap-2">
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                                  contribution.paymentStatus === "paid"
+                                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                    : contribution.paymentStatus === "waived"
+                                      ? "bg-muted text-muted-foreground"
+                                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                }`}
+                              >
+                                {contribution.paymentStatus}
+                              </span>
+                              <span className="font-bold text-rose-600 text-lg">
+                                ${contribution.amount}
+                              </span>
                             </span>
                           </div>
                         ))}

@@ -19,6 +19,8 @@ export interface PaymentSubmissionInput {
      * @minItems 1
      */
   registrationIds?: number[];
+  /** Standalone fund chip-ins (contribution ids with no registration) this payment also covers. */
+  contributionIds?: number[];
   /**
      * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
      * @nullable

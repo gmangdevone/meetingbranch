@@ -5,6 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { SponsorshipContributionPaymentStatus } from './sponsorshipContributionPaymentStatus';
 import type { SponsorshipContributionSource } from './sponsorshipContributionSource';
 
 export interface SponsorshipContribution {
@@ -15,5 +16,7 @@ export interface SponsorshipContribution {
   contributorName?: string | null;
   amount: number;
   source: SponsorshipContributionSource;
+  /** Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance. */
+  paymentStatus: SponsorshipContributionPaymentStatus;
   createdAt: Date;
 }

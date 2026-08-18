@@ -141,6 +141,18 @@ export const SponsorshipContributionSource = {
   cancellation: 'cancellation',
 } as const;
 
+/**
+ * Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance.
+ */
+export type SponsorshipContributionPaymentStatus = typeof SponsorshipContributionPaymentStatus[keyof typeof SponsorshipContributionPaymentStatus];
+
+
+export const SponsorshipContributionPaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+  waived: 'waived',
+} as const;
+
 export interface SponsorshipContribution {
   id: number;
   /** @nullable */
@@ -149,6 +161,8 @@ export interface SponsorshipContribution {
   contributorName?: string | null;
   amount: number;
   source: SponsorshipContributionSource;
+  /** Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance. */
+  paymentStatus: SponsorshipContributionPaymentStatus;
   createdAt: string;
 }
 
@@ -178,6 +192,8 @@ export interface PaymentSubmissionInput {
      * @minItems 1
      */
   registrationIds?: number[];
+  /** Standalone fund chip-ins (contribution ids with no registration) this payment also covers. */
+  contributionIds?: number[];
   /**
      * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
      * @nullable
@@ -198,9 +214,15 @@ export interface PaymentSubmissionInput {
 export interface PaymentSubmission {
   id: number;
   reunionId: number;
-  registrationId: number;
-  /** All registrations this payment covers (always includes registrationId). */
+  /**
+     * Null for contribution-only submissions (standalone chip-in payments).
+     * @nullable
+     */
+  registrationId: number | null;
+  /** All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions). */
   registrationIds: number[];
+  /** Standalone fund chip-ins this payment covers. */
+  contributionIds: number[];
   submittedBy?: string;
   method: PaymentMethod;
   amount: number;
@@ -448,9 +470,12 @@ export interface SponsorshipAllocation {
 }
 
 export interface SponsorshipFund {
-  /** totalContributed minus fund-funded allocations */
+  /** totalContributed (paid only) minus fund-funded allocations */
   balance: number;
+  /** sum of contributions actually received (paymentStatus paid) */
   totalContributed: number;
+  /** sum of pledged contributions not yet received (paymentStatus pending) */
+  totalPending: number;
   /** total applied from the fund (excludes direct sponsorships) */
   totalAllocated: number;
   contributions: SponsorshipContribution[];

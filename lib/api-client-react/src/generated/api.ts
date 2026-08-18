@@ -3325,6 +3325,152 @@ export const useCreateSponsorshipContribution = <TError = ErrorType<ErrorRespons
       return useMutation(getCreateSponsorshipContributionMutationOptions(options));
     }
 
+export const getUpdateContributionPaymentUrl = (reunionId: number,
+    contributionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/sponsorship/contributions/${contributionId}/payment`
+}
+
+/**
+ * @summary Update payment status for a sponsorship contribution (power user only)
+ */
+export const updateContributionPayment = async (reunionId: number,
+    contributionId: number,
+    updatePaymentStatusInput: UpdatePaymentStatusInput, options?: RequestInit): Promise<SponsorshipFund> => {
+
+  return customFetch<SponsorshipFund>(getUpdateContributionPaymentUrl(reunionId,contributionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePaymentStatusInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateContributionPaymentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateContributionPayment>>, TError,{reunionId: number;contributionId: number;data: BodyType<UpdatePaymentStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateContributionPayment>>, TError,{reunionId: number;contributionId: number;data: BodyType<UpdatePaymentStatusInput>}, TContext> => {
+
+const mutationKey = ['updateContributionPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateContributionPayment>>, {reunionId: number;contributionId: number;data: BodyType<UpdatePaymentStatusInput>}> = (props) => {
+          const {reunionId,contributionId,data} = props ?? {};
+
+          return  updateContributionPayment(reunionId,contributionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateContributionPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof updateContributionPayment>>>
+    export type UpdateContributionPaymentMutationBody = BodyType<UpdatePaymentStatusInput>
+    export type UpdateContributionPaymentMutationError = ErrorType<void>
+
+    /**
+ * @summary Update payment status for a sponsorship contribution (power user only)
+ */
+export const useUpdateContributionPayment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateContributionPayment>>, TError,{reunionId: number;contributionId: number;data: BodyType<UpdatePaymentStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateContributionPayment>>,
+        TError,
+        {reunionId: number;contributionId: number;data: BodyType<UpdatePaymentStatusInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateContributionPaymentMutationOptions(options));
+    }
+
+export const getCreateContributionPaymentSubmissionUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/contribution-payment-submissions`
+}
+
+/**
+ * @summary Record a payment submission covering only standalone fund chip-ins (no registration)
+ */
+export const createContributionPaymentSubmission = async (reunionId: number,
+    paymentSubmissionInput: PaymentSubmissionInput, options?: RequestInit): Promise<PaymentSubmission> => {
+
+  return customFetch<PaymentSubmission>(getCreateContributionPaymentSubmissionUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(paymentSubmissionInput)
+  }
+);}
+
+
+
+
+
+export const getCreateContributionPaymentSubmissionMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createContributionPaymentSubmission>>, TError,{reunionId: number;data: BodyType<PaymentSubmissionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createContributionPaymentSubmission>>, TError,{reunionId: number;data: BodyType<PaymentSubmissionInput>}, TContext> => {
+
+const mutationKey = ['createContributionPaymentSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createContributionPaymentSubmission>>, {reunionId: number;data: BodyType<PaymentSubmissionInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createContributionPaymentSubmission(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateContributionPaymentSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof createContributionPaymentSubmission>>>
+    export type CreateContributionPaymentSubmissionMutationBody = BodyType<PaymentSubmissionInput>
+    export type CreateContributionPaymentSubmissionMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Record a payment submission covering only standalone fund chip-ins (no registration)
+ */
+export const useCreateContributionPaymentSubmission = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createContributionPaymentSubmission>>, TError,{reunionId: number;data: BodyType<PaymentSubmissionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createContributionPaymentSubmission>>,
+        TError,
+        {reunionId: number;data: BodyType<PaymentSubmissionInput>},
+        TContext
+      > => {
+      return useMutation(getCreateContributionPaymentSubmissionMutationOptions(options));
+    }
+
 export const getGetMyContributionsUrl = (reunionId: number,) => {
 
 

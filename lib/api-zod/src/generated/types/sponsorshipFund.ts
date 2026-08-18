@@ -9,9 +9,12 @@ import type { SponsorshipAllocation } from './sponsorshipAllocation';
 import type { SponsorshipContribution } from './sponsorshipContribution';
 
 export interface SponsorshipFund {
-  /** totalContributed minus fund-funded allocations */
+  /** totalContributed (paid only) minus fund-funded allocations */
   balance: number;
+  /** sum of contributions actually received (paymentStatus paid) */
   totalContributed: number;
+  /** sum of pledged contributions not yet received (paymentStatus pending) */
+  totalPending: number;
   /** total applied from the fund (excludes direct sponsorships) */
   totalAllocated: number;
   contributions: SponsorshipContribution[];

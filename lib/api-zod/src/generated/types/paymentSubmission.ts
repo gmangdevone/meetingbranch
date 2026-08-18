@@ -10,9 +10,15 @@ import type { PaymentMethod } from './paymentMethod';
 export interface PaymentSubmission {
   id: number;
   reunionId: number;
-  registrationId: number;
-  /** All registrations this payment covers (always includes registrationId). */
+  /**
+     * Null for contribution-only submissions (standalone chip-in payments).
+     * @nullable
+     */
+  registrationId: number | null;
+  /** All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions). */
   registrationIds: number[];
+  /** Standalone fund chip-ins this payment covers. */
+  contributionIds: number[];
   submittedBy?: string;
   method: PaymentMethod;
   amount: number;

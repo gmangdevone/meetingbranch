@@ -80,7 +80,22 @@ vi.mock("@workspace/db", () => {
       "id",
       "reunionId",
       "registrationId",
+      "contributorUserId",
+      "contributorName",
       "amount",
+      "source",
+      "paymentStatus",
+      "createdAt",
+    ],
+    sponsorship_allocations: [
+      "id",
+      "reunionId",
+      "registrationId",
+      "amount",
+      "fundedFrom",
+      "sponsorName",
+      "note",
+      "createdBy",
       "createdAt",
     ],
     payment_submissions: [
@@ -88,6 +103,7 @@ vi.mock("@workspace/db", () => {
       "reunionId",
       "registrationId",
       "registrationIds",
+      "contributionIds",
       "submittedBy",
       "method",
       "reference",
@@ -224,6 +240,33 @@ vi.mock("@workspace/db", () => {
           return (av < bv ? -1 : 1) * dir;
         });
       }
+      // Aggregate selects (sum/count via sql``) return one summary row.
+      const isAggregate =
+        this._proj &&
+        Object.values(this._proj).some(
+          (v) => v && typeof v === "object" && (v as any).kind === "sql",
+        );
+      if (isAggregate) {
+        const out: Record<string, unknown> = {};
+        for (const [alias, token] of Object.entries(this._proj!)) {
+          if (token && typeof token === "object" && (token as any).kind === "sql") {
+            const text = (token as any).strings.join("");
+            if (text.includes("sum(")) {
+              const col = (token as any).values[0];
+              out[alias] = scoped.reduce(
+                (s, row) => s + (Number(resolve(col, row)) || 0),
+                0,
+              );
+            } else {
+              out[alias] = scoped.length;
+            }
+          } else if (typeof token === "string" && token.includes(".")) {
+            const [t, f] = token.split(".");
+            out[alias] = scoped[0]?.[t]?.[f];
+          }
+        }
+        return Promise.resolve([out]);
+      }
       return Promise.resolve(scoped.map((s) => project(this._proj, s, this._table)));
     }
     then(onF: any, onR: any) {
@@ -332,6 +375,7 @@ vi.mock("@workspace/db", () => {
     update: (token: any) => new UpdateBuilder(token),
     delete: (token: any) => new DeleteBuilder(token),
     transaction: async (fn: (tx: any) => Promise<unknown>) => fn(db),
+    execute: async () => [],
   };
 
   const tokens: Record<string, unknown> = { db };
@@ -345,6 +389,7 @@ vi.mock("@workspace/db", () => {
     registrationFeesTable: "registration_fees",
     attendeesTable: "attendees",
     sponsorshipContributionsTable: "sponsorship_contributions",
+    sponsorshipAllocationsTable: "sponsorship_allocations",
     paymentSubmissionsTable: "payment_submissions",
   };
   for (const [exportName, tableName] of Object.entries(tableExports)) {
@@ -385,6 +430,12 @@ const REG_CANCELLED = 503;
 const REG_OTHER_REUNION = 504;
 // OTHER's active registration in REUNION_ID
 const REG_OTHER_USER = 505;
+// Sponsorship contributions
+const CONTRIB_MINE_PENDING = 901;
+const CONTRIB_MINE_PAID = 902;
+const CONTRIB_MINE_ATTACHED = 903;
+const CONTRIB_OTHER_USER = 904;
+const CONTRIB_OTHER_REUNION = 905;
 
 function authAs(userId: string | null) {
   state.auth = userId
@@ -471,6 +522,68 @@ function seed() {
         paymentStatus: "pending",
         status: "active",
         createdAt: new Date("2026-02-05").toISOString(),
+      },
+    ],
+    sponsorship_contributions: [
+      // MEMBER's standalone (no registration) pending chip-in — payable.
+      {
+        id: CONTRIB_MINE_PENDING,
+        reunionId: REUNION_ID,
+        registrationId: null,
+        contributorUserId: MEMBER,
+        contributorName: "M M",
+        amount: 40,
+        source: "direct",
+        paymentStatus: "pending",
+        createdAt: new Date("2026-02-10").toISOString(),
+      },
+      // MEMBER's standalone chip-in already paid — not payable again.
+      {
+        id: CONTRIB_MINE_PAID,
+        reunionId: REUNION_ID,
+        registrationId: null,
+        contributorUserId: MEMBER,
+        contributorName: "M M",
+        amount: 25,
+        source: "direct",
+        paymentStatus: "paid",
+        createdAt: new Date("2026-02-11").toISOString(),
+      },
+      // MEMBER's chip-in attached to a registration — settled with it.
+      {
+        id: CONTRIB_MINE_ATTACHED,
+        reunionId: REUNION_ID,
+        registrationId: REG_A,
+        contributorUserId: MEMBER,
+        contributorName: "M M",
+        amount: 15,
+        source: "registration",
+        paymentStatus: "pending",
+        createdAt: new Date("2026-02-12").toISOString(),
+      },
+      // OTHER user's standalone pending chip-in.
+      {
+        id: CONTRIB_OTHER_USER,
+        reunionId: REUNION_ID,
+        registrationId: null,
+        contributorUserId: OTHER,
+        contributorName: "T H",
+        amount: 60,
+        source: "direct",
+        paymentStatus: "pending",
+        createdAt: new Date("2026-02-13").toISOString(),
+      },
+      // MEMBER's chip-in in a DIFFERENT reunion.
+      {
+        id: CONTRIB_OTHER_REUNION,
+        reunionId: OTHER_REUNION_ID,
+        registrationId: null,
+        contributorUserId: MEMBER,
+        contributorName: "M M",
+        amount: 30,
+        source: "direct",
+        paymentStatus: "pending",
+        createdAt: new Date("2026-02-14").toISOString(),
       },
     ],
     payment_submissions: [],
@@ -565,11 +678,143 @@ describe("payment submission coverage: registrationIds", () => {
   });
 });
 
+describe("payment submission coverage: contributionIds", () => {
+  it("stores contributionIds when covering own pending standalone chip-ins", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, {
+      ...validCard,
+      contributionIds: [CONTRIB_MINE_PENDING],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.contributionIds).toEqual([CONTRIB_MINE_PENDING]);
+    expect(submissions()).toHaveLength(1);
+  });
+
+  it("defaults contributionIds to an empty list when omitted", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, { ...validCard });
+    expect(res.status).toBe(201);
+    expect(res.body.contributionIds).toEqual([]);
+  });
+
+  it("rejects a nonexistent contribution with 400", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, { ...validCard, contributionIds: [99999] });
+    expect(res.status).toBe(400);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects a contribution from a different reunion with 400", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, {
+      ...validCard,
+      contributionIds: [CONTRIB_OTHER_REUNION],
+    });
+    expect(res.status).toBe(400);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects a chip-in attached to a registration with 400", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, {
+      ...validCard,
+      contributionIds: [CONTRIB_MINE_ATTACHED],
+    });
+    expect(res.status).toBe(400);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects an already-paid chip-in with 400", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, {
+      ...validCard,
+      contributionIds: [CONTRIB_MINE_PAID],
+    });
+    expect(res.status).toBe(400);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("forbids covering another user's chip-in with 403", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, {
+      ...validCard,
+      contributionIds: [CONTRIB_OTHER_USER],
+    });
+    expect(res.status).toBe(403);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("lets a registration-managing organizer cover another user's chip-in", async () => {
+    authAs(REGISTRAR);
+    const res = await submit(REG_A, {
+      ...validCard,
+      contributionIds: [CONTRIB_OTHER_USER],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.contributionIds).toEqual([CONTRIB_OTHER_USER]);
+  });
+});
+
 describe("method-specific validation still applies", () => {
   it("rejects cashapp without a reference ($cashtag) with 400", async () => {
     authAs(MEMBER);
     const res = await submit(REG_A, { method: "cashapp", amount: 25 });
     expect(res.status).toBe(400);
     expect(submissions()).toHaveLength(0);
+  });
+});
+
+describe("POST /registrations/:id/transfer — fund solvency guard", () => {
+  it("rejects a payment transfer that would unpay a chip-in already spent from the fund", async () => {
+    seed();
+    // REG_A is paid and carries a paid registration-source chip-in that the
+    // organizers have already fully allocated from the fund.
+    const regA = state.rows.registrations.find((r: any) => r.id === REG_A)!;
+    regA.paymentStatus = "paid";
+    state.rows.sponsorship_contributions = [
+      {
+        id: 970,
+        reunionId: REUNION_ID,
+        registrationId: REG_A,
+        contributorUserId: MEMBER,
+        contributorName: null,
+        amount: 100,
+        source: "registration",
+        paymentStatus: "paid",
+        createdAt: new Date("2026-02-05").toISOString(),
+      },
+    ];
+    state.rows.sponsorship_allocations = [
+      {
+        id: 971,
+        reunionId: REUNION_ID,
+        registrationId: REG_B,
+        amount: 100,
+        fundedFrom: "fund",
+        sponsorName: null,
+        note: null,
+        createdBy: OWNER,
+        createdAt: new Date("2026-02-06").toISOString(),
+      },
+    ];
+    authAs(MEMBER);
+    const res = await request(buildApp())
+      .post(`/api/registrations/${REG_A}/transfer`)
+      .send({ kind: "payment", targetRegistrationId: REG_B });
+    expect(res.status).toBe(400);
+  });
+
+  it("allows a payment transfer when the fund stays solvent", async () => {
+    seed();
+    const regA = state.rows.registrations.find((r: any) => r.id === REG_A)!;
+    regA.paymentStatus = "paid";
+    state.rows.sponsorship_contributions = [];
+    state.rows.sponsorship_allocations = [];
+    authAs(MEMBER);
+    const res = await request(buildApp())
+      .post(`/api/registrations/${REG_A}/transfer`)
+      .send({ kind: "payment", targetRegistrationId: REG_B });
+    expect(res.status).toBe(200);
+    expect(state.rows.registrations.find((r: any) => r.id === REG_B)!.paymentStatus).toBe("paid");
   });
 });

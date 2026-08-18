@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { useCreatePaymentSubmission } from "@workspace/api-client-react";
+import {
+  useCreatePaymentSubmission,
+  useCreateContributionPaymentSubmission,
+} from "@workspace/api-client-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -26,29 +29,49 @@ export interface PayableRegistration {
   amount: number;
 }
 
+/** A pending standalone fund chip-in (no registration attached). */
+export interface PayableChipIn {
+  id: number;
+  label: string;
+  amount: number;
+}
+
 export function SubmitPayment({
+  reunionId,
   registrations,
+  chipIns = [],
   cashAppTag,
   checkPayee,
 }: {
+  reunionId: number;
   /** Unpaid registrations (each amount includes its own fund chip-ins). */
   registrations: PayableRegistration[];
+  /** Pending standalone fund chip-ins, payable like registrations. */
+  chipIns?: PayableChipIn[];
   cashAppTag: string | null;
   checkPayee: string | null;
 }) {
   const [method, setMethod] = useState<Method | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>(registrations.map((r) => r.id));
-  const selectedTotal = registrations
-    .filter((r) => selectedIds.includes(r.id))
-    .reduce((sum, r) => sum + r.amount, 0);
+  const [selectedChipInIds, setSelectedChipInIds] = useState<number[]>(chipIns.map((c) => c.id));
+  const computeSelectedTotal = (regIds: number[], chipInIds: number[]) =>
+    registrations.filter((r) => regIds.includes(r.id)).reduce((sum, r) => sum + r.amount, 0) +
+    chipIns.filter((c) => chipInIds.includes(c.id)).reduce((sum, c) => sum + c.amount, 0);
+  const selectedTotal = computeSelectedTotal(selectedIds, selectedChipInIds);
   const [amount, setAmount] = useState(String(selectedTotal > 0 ? selectedTotal : ""));
 
   const toggleRegistration = (id: number) => {
     setSelectedIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      const nextTotal = registrations
-        .filter((r) => next.includes(r.id))
-        .reduce((sum, r) => sum + r.amount, 0);
+      const nextTotal = computeSelectedTotal(next, selectedChipInIds);
+      setAmount(String(nextTotal > 0 ? nextTotal : ""));
+      return next;
+    });
+  };
+  const toggleChipIn = (id: number) => {
+    setSelectedChipInIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const nextTotal = computeSelectedTotal(selectedIds, next);
       setAmount(String(nextTotal > 0 ? nextTotal : ""));
       return next;
     });
@@ -60,6 +83,8 @@ export function SubmitPayment({
   const [error, setError] = useState<string | null>(null);
 
   const createSubmission = useCreatePaymentSubmission();
+  const createChipInSubmission = useCreateContributionPaymentSubmission();
+  const isSaving = createSubmission.isPending || createChipInSubmission.isPending;
 
   const methods: { id: Method; icon: React.ReactNode; available: boolean }[] = [
     { id: "cashapp", icon: <DollarSign className="w-4 h-4" />, available: !!cashAppTag },
@@ -81,43 +106,52 @@ export function SubmitPayment({
   const referenceRequired = method === "cashapp" || method === "zelle" || method === "cash";
   const canSubmit =
     !!method &&
-    selectedIds.length > 0 &&
+    selectedIds.length + selectedChipInIds.length > 0 &&
     validAmount &&
     (!referenceRequired || reference.trim().length > 0) &&
     (method !== "cash" || givenDate.trim().length > 0) &&
-    !createSubmission.isPending;
+    !isSaving;
 
   const handleSubmit = () => {
     if (!method || !canSubmit) return;
     setError(null);
-    createSubmission.mutate(
-      {
-        id: selectedIds[0],
-        data: {
-          method,
-          amount: amountNum,
-          registrationIds: selectedIds,
-          reference: reference.trim() || null,
-          givenDate: method === "cash" ? givenDate : null,
-          note: note.trim() || null,
-        },
+    const callbacks = {
+      onSuccess: () => {
+        setSubmitted(method);
+        if (method === "cashapp" && cashAppTag) {
+          // Deep link opens Cash App with the recipient and amount prefilled
+          window.open(
+            `https://cash.app/$${cashAppTag.replace(/^\$/, "")}/${amountNum}`,
+            "_blank",
+            "noopener",
+          );
+        }
       },
-      {
-        onSuccess: () => {
-          setSubmitted(method);
-          if (method === "cashapp" && cashAppTag) {
-            // Deep link opens Cash App with the recipient and amount prefilled
-            window.open(
-              `https://cash.app/$${cashAppTag.replace(/^\$/, "")}/${amountNum}`,
-              "_blank",
-              "noopener",
-            );
-          }
+      onError: (err: any) =>
+        setError(err?.error || "Could not save your payment details. Please try again."),
+    };
+    const data = {
+      method,
+      amount: amountNum,
+      reference: reference.trim() || null,
+      givenDate: method === "cash" ? givenDate : null,
+      note: note.trim() || null,
+    };
+    if (selectedIds.length > 0) {
+      createSubmission.mutate(
+        {
+          id: selectedIds[0],
+          data: { ...data, registrationIds: selectedIds, contributionIds: selectedChipInIds },
         },
-        onError: (err: any) =>
-          setError(err?.error || "Could not save your payment details. Please try again."),
-      },
-    );
+        callbacks,
+      );
+    } else {
+      // Chip-ins only — no registration to attach the payment to.
+      createChipInSubmission.mutate(
+        { reunionId, data: { ...data, contributionIds: selectedChipInIds } },
+        callbacks,
+      );
+    }
   };
 
   if (submitted) {
@@ -189,14 +223,14 @@ export function SubmitPayment({
         your account. Your status stays pending until an organizer confirms it.
       </p>
 
-      {registrations.length > 1 && (
+      {registrations.length + chipIns.length > 1 && (
         <div className="mb-5 space-y-2">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            Which registrations does this payment cover?
+            What does this payment cover?
           </p>
           {registrations.map((r) => (
             <label
-              key={r.id}
+              key={`reg-${r.id}`}
               className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors"
             >
               <span className="flex items-center gap-3">
@@ -211,9 +245,26 @@ export function SubmitPayment({
               <span className="font-bold tabular-nums">${r.amount}</span>
             </label>
           ))}
-          {selectedIds.length === 0 && (
+          {chipIns.map((c) => (
+            <label
+              key={`chip-${c.id}`}
+              className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedChipInIds.includes(c.id)}
+                  onChange={() => toggleChipIn(c.id)}
+                  className="w-4 h-4 accent-primary"
+                />
+                <span className="font-medium">{c.label}</span>
+              </span>
+              <span className="font-bold tabular-nums">${c.amount}</span>
+            </label>
+          ))}
+          {selectedIds.length + selectedChipInIds.length === 0 && (
             <p className="text-sm text-destructive font-medium">
-              Select at least one registration to pay.
+              Select at least one item to pay.
             </p>
           )}
         </div>
@@ -357,7 +408,7 @@ export function SubmitPayment({
             disabled={!canSubmit}
             onClick={handleSubmit}
           >
-            {createSubmission.isPending
+            {isSaving
               ? "Saving..."
               : method === "cashapp"
                 ? "Submit & Open Cash App"

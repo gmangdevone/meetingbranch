@@ -1038,6 +1038,71 @@ paths:
         "404":
           description: Reunion not found
 
+  /reunions/{reunionId}/sponsorship/contributions/{contributionId}/payment:
+    patch:
+      operationId: updateContributionPayment
+      tags: [manage]
+      summary: Update payment status for a sponsorship contribution (power user only)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: contributionId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePaymentStatusInput"
+      responses:
+        "200":
+          description: Updated fund balance and ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SponsorshipFund"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/contribution-payment-submissions:
+    post:
+      operationId: createContributionPaymentSubmission
+      tags: [reunions]
+      summary: Record a payment submission covering only standalone fund chip-ins (no registration)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentSubmissionInput"
+      responses:
+        "201":
+          description: Payment submission recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentSubmission"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
   /reunions/{reunionId}/sponsorship/my-contributions:
     get:
       operationId: getMyContributions
@@ -2109,6 +2174,11 @@ components:
             type: integer
           minItems: 1
           description: "All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted."
+        contributionIds:
+          type: array
+          items:
+            type: integer
+          description: "Standalone fund chip-ins (contribution ids with no registration) this payment also covers."
         reference:
           type: ["string", "null"]
           description: "Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check)."
@@ -2121,19 +2191,25 @@ components:
 
     PaymentSubmission:
       type: object
-      required: [id, reunionId, registrationId, registrationIds, method, amount, createdAt]
+      required: [id, reunionId, registrationId, registrationIds, contributionIds, method, amount, createdAt]
       properties:
         id:
           type: integer
         reunionId:
           type: integer
         registrationId:
-          type: integer
+          type: ["integer", "null"]
+          description: "Null for contribution-only submissions (standalone chip-in payments)."
         registrationIds:
           type: array
           items:
             type: integer
-          description: "All registrations this payment covers (always includes registrationId)."
+          description: "All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions)."
+        contributionIds:
+          type: array
+          items:
+            type: integer
+          description: "Standalone fund chip-ins this payment covers."
         submittedBy:
           type: string
         method:
@@ -2378,7 +2454,7 @@ components:
 
     SponsorshipContribution:
       type: object
-      required: [id, amount, source, createdAt]
+      required: [id, amount, source, paymentStatus, createdAt]
       properties:
         id:
           type: integer
@@ -2391,6 +2467,10 @@ components:
         source:
           type: string
           enum: [registration, direct, cancellation]
+        paymentStatus:
+          type: string
+          enum: [pending, paid, waived]
+          description: "Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance."
         createdAt:
           type: string
           format: date-time
@@ -2441,13 +2521,17 @@ components:
 
     SponsorshipFund:
       type: object
-      required: [balance, totalContributed, totalAllocated, contributions, allocations]
+      required: [balance, totalContributed, totalPending, totalAllocated, contributions, allocations]
       properties:
         balance:
           type: integer
-          description: totalContributed minus fund-funded allocations
+          description: totalContributed (paid only) minus fund-funded allocations
         totalContributed:
           type: integer
+          description: sum of contributions actually received (paymentStatus paid)
+        totalPending:
+          type: integer
+          description: sum of pledged contributions not yet received (paymentStatus pending)
         totalAllocated:
           type: integer
           description: total applied from the fund (excludes direct sponsorships)

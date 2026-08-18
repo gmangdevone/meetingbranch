@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, sql, and } from "drizzle-orm";
+import { eq, desc, asc, sql, and, inArray } from "drizzle-orm";
 import {
   db,
   reunionsTable,
@@ -50,6 +50,9 @@ import {
   CreateSponsorshipContributionBody,
   ListPaymentSubmissionsResponse,
   GetMyContributionsResponse,
+  UpdateContributionPaymentBody,
+  CreateContributionPaymentSubmissionBody,
+  CreateContributionPaymentSubmissionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
@@ -927,16 +930,48 @@ router.patch(
       res.status(400).json({ error: "Invalid input" });
       return;
     }
-    const [updated] = await db
-      .update(registrationsTable)
-      .set({ paymentStatus: body.data.paymentStatus })
-      .where(
-        and(
-          eq(registrationsTable.id, registrationId),
-          eq(registrationsTable.reunionId, req.managedReunion!.id),
-        ),
-      )
-      .returning();
+    // Registration-source chip-ins are settled together with their
+    // registration, so their status follows it in the same transaction. If
+    // reversing a paid status would leave the fund owing more than it has
+    // received (money already allocated), the whole change is rejected.
+    let updated;
+    try {
+      updated = await db.transaction(async (tx) => {
+        await lockReunion(tx, req.managedReunion!.id);
+        const [reg] = await tx
+          .update(registrationsTable)
+          .set({ paymentStatus: body.data.paymentStatus })
+          .where(
+            and(
+              eq(registrationsTable.id, registrationId),
+              eq(registrationsTable.reunionId, req.managedReunion!.id),
+            ),
+          )
+          .returning();
+        if (reg) {
+          await tx
+            .update(sponsorshipContributionsTable)
+            .set({ paymentStatus: body.data.paymentStatus })
+            .where(
+              and(
+                eq(sponsorshipContributionsTable.registrationId, reg.id),
+                eq(sponsorshipContributionsTable.source, "registration"),
+              ),
+            );
+          await assertFundNotOverdrawn(tx, req.managedReunion!.id);
+        }
+        return reg;
+      });
+    } catch (err) {
+      if (err instanceof FundBalanceError) {
+        res.status(400).json({
+          error:
+            "This change can't be saved: the fund chip-in tied to this registration was already spent from the sponsorship fund.",
+        });
+        return;
+      }
+      throw err;
+    }
     if (!updated) {
       res.status(404).json({ error: "Registration not found" });
       return;
@@ -1435,6 +1470,9 @@ router.post(
             contributorUserId: reg.userId,
             amount: paidAmount,
             source: "cancellation",
+            // The registration was already paid, so this donation is money
+            // the fund has actually received.
+            paymentStatus: "paid",
           });
         }
         const [row] = await tx
@@ -1484,6 +1522,56 @@ class FundBalanceError extends Error {
   }
 }
 
+class LinkedContributionError extends Error {
+  constructor() {
+    super("Contribution is settled through its registration or cancellation");
+  }
+}
+
+// Serialize all fund-affecting writes (allocations and contribution payment
+// status changes) on the reunion row, so two concurrent transactions can't
+// both validate against stale balances and overdraw the fund together.
+async function lockReunion(
+  tx: { execute: (q: unknown) => Promise<unknown> },
+  reunionId: number,
+) {
+  await tx.execute(sql`SELECT id FROM reunions WHERE id = ${reunionId} FOR UPDATE`);
+}
+
+// Inside a transaction that changes contribution payment statuses: reject the
+// change if it would leave the fund having spent more than it has received.
+async function assertFundNotOverdrawn(
+  tx: Pick<typeof db, "select">,
+  reunionId: number,
+) {
+  const [{ contributed }] = await tx
+    .select({
+      contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
+    })
+    .from(sponsorshipContributionsTable)
+    .where(
+      and(
+        eq(sponsorshipContributionsTable.reunionId, reunionId),
+        eq(sponsorshipContributionsTable.paymentStatus, "paid"),
+      ),
+    );
+  const [{ allocated }] = await tx
+    .select({
+      allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
+    })
+    .from(sponsorshipAllocationsTable)
+    .where(
+      and(
+        eq(sponsorshipAllocationsTable.reunionId, reunionId),
+        eq(sponsorshipAllocationsTable.fundedFrom, "fund"),
+      ),
+    );
+  const balance = contributed - allocated;
+  if (balance < 0) {
+    throw new FundBalanceError(balance);
+  }
+}
+
 async function buildSponsorshipFund(reunionId: number) {
   const [contributions, allocations] = await Promise.all([
     db
@@ -1515,7 +1603,14 @@ async function buildSponsorshipFund(reunionId: number) {
       .orderBy(desc(sponsorshipAllocationsTable.createdAt)),
   ]);
 
-  const totalContributed = contributions.reduce((s, c) => s + c.amount, 0);
+  // Only money actually received (paid) counts toward the fund; pending
+  // pledges are surfaced separately so organizers can't allocate them.
+  const totalContributed = contributions
+    .filter((c) => c.paymentStatus === "paid")
+    .reduce((s, c) => s + c.amount, 0);
+  const totalPending = contributions
+    .filter((c) => c.paymentStatus === "pending")
+    .reduce((s, c) => s + c.amount, 0);
   const totalAllocated = allocations
     .filter((a) => a.fundedFrom === "fund")
     .reduce((s, a) => s + a.amount, 0);
@@ -1523,6 +1618,7 @@ async function buildSponsorshipFund(reunionId: number) {
   return {
     balance: totalContributed - totalAllocated,
     totalContributed,
+    totalPending,
     totalAllocated,
     contributions,
     allocations: allocations.map((a) => ({
@@ -1603,7 +1699,12 @@ router.post(
               contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
             })
             .from(sponsorshipContributionsTable)
-            .where(eq(sponsorshipContributionsTable.reunionId, reunionId));
+            .where(
+              and(
+                eq(sponsorshipContributionsTable.reunionId, reunionId),
+                eq(sponsorshipContributionsTable.paymentStatus, "paid"),
+              ),
+            );
           const [{ allocated }] = await tx
             .select({
               allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
@@ -1711,6 +1812,169 @@ router.post(
       })
       .returning();
     res.status(201).json(created);
+  },
+);
+
+// PATCH /reunions/:reunionId/sponsorship/contributions/:contributionId/payment
+// Power users mark a contribution received (paid) / pending / waived. Only
+// paid contributions count toward the fund balance.
+router.patch(
+  "/reunions/:reunionId/sponsorship/contributions/:contributionId/payment",
+  ...manage,
+  requireReunionPermission("power_user"),
+  async (req, res): Promise<void> => {
+    const body = UpdateContributionPaymentBody.safeParse(req.body);
+    const contributionId = Number(req.params.contributionId);
+    if (!body.success || !Number.isInteger(contributionId)) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    let updated;
+    try {
+      updated = await db.transaction(async (tx) => {
+        await lockReunion(tx, req.managedReunion!.id);
+        // Only standalone direct chip-ins can be settled here. Registration-
+        // source chip-ins follow their registration's payment status, and
+        // cancellation donations are already-received money — mutating either
+        // through this route would desync the fund from reality.
+        const [existing] = await tx
+          .select()
+          .from(sponsorshipContributionsTable)
+          .where(
+            and(
+              eq(sponsorshipContributionsTable.id, contributionId),
+              eq(sponsorshipContributionsTable.reunionId, req.managedReunion!.id),
+            ),
+          );
+        if (!existing) return undefined;
+        if (existing.source !== "direct" || existing.registrationId !== null) {
+          throw new LinkedContributionError();
+        }
+        const [row] = await tx
+          .update(sponsorshipContributionsTable)
+          .set({ paymentStatus: body.data.paymentStatus })
+          .where(eq(sponsorshipContributionsTable.id, contributionId))
+          .returning();
+        // Reversing paid → pending/waived must not overdraw money already
+        // allocated from the fund.
+        if (row) {
+          await assertFundNotOverdrawn(tx, req.managedReunion!.id);
+        }
+        return row;
+      });
+    } catch (err) {
+      if (err instanceof FundBalanceError) {
+        res.status(400).json({
+          error:
+            "This chip-in was already spent from the sponsorship fund, so it can't be moved back to pending or waived.",
+        });
+        return;
+      }
+      if (err instanceof LinkedContributionError) {
+        res.status(400).json({
+          error:
+            "This chip-in is settled with its registration — update the registration's payment status instead.",
+        });
+        return;
+      }
+      throw err;
+    }
+    if (!updated) {
+      res.status(404).json({ error: "Contribution not found" });
+      return;
+    }
+    res.json(await buildSponsorshipFund(req.managedReunion!.id));
+  },
+);
+
+// POST /reunions/:reunionId/contribution-payment-submissions
+// Payment submission that covers ONLY standalone fund chip-ins — for members
+// whose only amount due is a chip-in with no registration. Informational,
+// like registration payment submissions: never flips any payment status.
+router.post(
+  "/reunions/:reunionId/contribution-payment-submissions",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const body = CreateContributionPaymentSubmissionBody.safeParse(req.body);
+    const reunionId = Number(req.params.reunionId);
+    if (!body.success || !Number.isInteger(reunionId)) {
+      res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    const userId = (req as any).userId as string;
+    const contributionIds = [...new Set(body.data.contributionIds ?? [])];
+    if (contributionIds.length === 0) {
+      res.status(400).json({ error: "Select at least one fund chip-in to pay." });
+      return;
+    }
+    if (body.data.registrationIds?.length) {
+      res
+        .status(400)
+        .json({ error: "Use the registration payment route when paying registrations." });
+      return;
+    }
+    const covered = await db
+      .select()
+      .from(sponsorshipContributionsTable)
+      .where(inArray(sponsorshipContributionsTable.id, contributionIds));
+    if (covered.length !== contributionIds.length) {
+      res.status(400).json({ error: "One or more fund chip-ins were not found." });
+      return;
+    }
+    for (const c of covered) {
+      if (c.reunionId !== reunionId) {
+        // Same "not found" shape as a nonexistent id: outsiders can't
+        // distinguish other reunions' chip-ins from missing ones.
+        res.status(400).json({ error: "One or more fund chip-ins were not found." });
+        return;
+      }
+      // Ownership first, so callers can't probe another member's chip-in
+      // state via the different error messages below.
+      if (c.contributorUserId !== userId) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+      if (c.registrationId !== null) {
+        res.status(400).json({ error: "Invalid fund chip-in for this payment." });
+        return;
+      }
+      if (c.paymentStatus !== "pending") {
+        res.status(400).json({ error: "That fund chip-in is already settled." });
+        return;
+      }
+    }
+
+    const { method, amount, reference, givenDate, note } = body.data;
+    if (!Number.isInteger(amount)) {
+      res.status(400).json({ error: "Amount must be a whole-dollar number." });
+      return;
+    }
+    if ((method === "cashapp" || method === "zelle" || method === "cash") && !reference?.trim()) {
+      const label =
+        method === "cashapp" ? "your $cashtag" : method === "zelle" ? "your Zelle ID" : "who received the cash";
+      res.status(400).json({ error: `Please include ${label}.` });
+      return;
+    }
+    if (method === "cash" && !/^\d{4}-\d{2}-\d{2}$/.test(givenDate ?? "")) {
+      res.status(400).json({ error: "Please include the date the cash was given (YYYY-MM-DD)." });
+      return;
+    }
+    const [created] = await db
+      .insert(paymentSubmissionsTable)
+      .values({
+        reunionId,
+        registrationId: null,
+        registrationIds: [],
+        contributionIds,
+        submittedBy: userId,
+        method,
+        amount,
+        reference: reference || null,
+        givenDate: givenDate || null,
+        note: note || null,
+      })
+      .returning();
+    res.status(201).json(CreateContributionPaymentSubmissionResponse.parse(created));
   },
 );
 

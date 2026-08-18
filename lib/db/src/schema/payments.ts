@@ -28,12 +28,16 @@ export const paymentSubmissionsTable = pgTable("payment_submissions", {
   reunionId: integer("reunion_id")
     .notNull()
     .references(() => reunionsTable.id, { onDelete: "cascade" }),
-  registrationId: integer("registration_id")
-    .notNull()
-    .references(() => registrationsTable.id, { onDelete: "cascade" }),
-  // All registrations this payment covers (always includes registrationId).
+  // Null for contribution-only submissions (a standalone fund chip-in with no
+  // registration attached).
+  registrationId: integer("registration_id").references(() => registrationsTable.id, {
+    onDelete: "cascade",
+  }),
+  // All registrations this payment covers (includes registrationId when set).
   // One transaction can pay for several of an account's registrations.
   registrationIds: integer("registration_ids").array().notNull(),
+  // Standalone fund chip-ins (sponsorship_contributions ids) this payment covers.
+  contributionIds: integer("contribution_ids").array().notNull().default([]),
   // Clerk user id of the submitter
   submittedBy: text("submitted_by").notNull(),
   method: paymentMethodEnum("method").notNull(),

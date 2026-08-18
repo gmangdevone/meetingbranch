@@ -1,6 +1,6 @@
 import { pgTable, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { reunionsTable } from "./reunions";
-import { registrationsTable } from "./registrations";
+import { registrationsTable, paymentStatusEnum } from "./registrations";
 
 /**
  * Sponsorship fund: contributions flow IN (from registrants, standalone
@@ -41,6 +41,11 @@ export const sponsorshipContributionsTable = pgTable("sponsorship_contributions"
   contributorName: text("contributor_name"),
   amount: integer("amount").notNull(),
   source: contributionSourceEnum("source").notNull(),
+  // Pledged money is "pending" until an organizer confirms it arrived.
+  // Registration-source chip-ins are settled together with their registration;
+  // standalone (direct) chip-ins are marked paid on the sponsorship page.
+  // Only "paid" contributions count toward the fund balance.
+  paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

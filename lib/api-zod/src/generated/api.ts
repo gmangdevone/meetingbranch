@@ -1298,8 +1298,9 @@ export const GetSponsorshipFundParams = zod.object({
 })
 
 export const GetSponsorshipFundResponse = zod.object({
-  "balance": zod.number().describe('totalContributed minus fund-funded allocations'),
-  "totalContributed": zod.number(),
+  "balance": zod.number().describe('totalContributed (paid only) minus fund-funded allocations'),
+  "totalContributed": zod.number().describe('sum of contributions actually received (paymentStatus paid)'),
+  "totalPending": zod.number().describe('sum of pledged contributions not yet received (paymentStatus pending)'),
   "totalAllocated": zod.number().describe('total applied from the fund (excludes direct sponsorships)'),
   "contributions": zod.array(zod.object({
   "id": zod.number(),
@@ -1307,6 +1308,7 @@ export const GetSponsorshipFundResponse = zod.object({
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
   "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']).describe('Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance.'),
   "createdAt": zod.coerce.date()
 })),
   "allocations": zod.array(zod.object({
@@ -1343,8 +1345,9 @@ export const CreateSponsorshipAllocationBody = zod.object({
 })
 
 export const CreateSponsorshipAllocationResponse = zod.object({
-  "balance": zod.number().describe('totalContributed minus fund-funded allocations'),
-  "totalContributed": zod.number(),
+  "balance": zod.number().describe('totalContributed (paid only) minus fund-funded allocations'),
+  "totalContributed": zod.number().describe('sum of contributions actually received (paymentStatus paid)'),
+  "totalPending": zod.number().describe('sum of pledged contributions not yet received (paymentStatus pending)'),
   "totalAllocated": zod.number().describe('total applied from the fund (excludes direct sponsorships)'),
   "contributions": zod.array(zod.object({
   "id": zod.number(),
@@ -1352,6 +1355,7 @@ export const CreateSponsorshipAllocationResponse = zod.object({
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
   "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']).describe('Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance.'),
   "createdAt": zod.coerce.date()
 })),
   "allocations": zod.array(zod.object({
@@ -1390,6 +1394,85 @@ export const CreateSponsorshipContributionResponse = zod.object({
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
   "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']).describe('Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance.'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update payment status for a sponsorship contribution (power user only)
+ */
+export const UpdateContributionPaymentParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "contributionId": zod.coerce.number()
+})
+
+export const UpdateContributionPaymentBody = zod.object({
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived'])
+})
+
+export const UpdateContributionPaymentResponse = zod.object({
+  "balance": zod.number().describe('totalContributed (paid only) minus fund-funded allocations'),
+  "totalContributed": zod.number().describe('sum of contributions actually received (paymentStatus paid)'),
+  "totalPending": zod.number().describe('sum of pledged contributions not yet received (paymentStatus pending)'),
+  "totalAllocated": zod.number().describe('total applied from the fund (excludes direct sponsorships)'),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number().nullish(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']).describe('Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance.'),
+  "createdAt": zod.coerce.date()
+})),
+  "allocations": zod.array(zod.object({
+  "id": zod.number(),
+  "registrationId": zod.number(),
+  "registrantName": zod.string().nullish(),
+  "registrantEmail": zod.string().nullish(),
+  "branchName": zod.string().nullish(),
+  "amount": zod.number(),
+  "fundedFrom": zod.enum(['fund', 'direct']),
+  "sponsorName": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Record a payment submission covering only standalone fund chip-ins (no registration)
+ */
+export const CreateContributionPaymentSubmissionParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+
+export const CreateContributionPaymentSubmissionBody = zod.object({
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "amount": zod.number().min(1).describe('Whole-dollar amount the registrant says they are paying.'),
+  "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
+  "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
+  "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
+  "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
+  "note": zod.string().nullish().describe('Free-form note from the registrant.')
+})
+
+export const CreateContributionPaymentSubmissionResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
+  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
+  "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
+  "submittedBy": zod.string().optional(),
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "amount": zod.number(),
+  "reference": zod.string().nullish(),
+  "givenDate": zod.string().nullish(),
+  "note": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -1408,6 +1491,7 @@ export const GetMyContributionsResponse = zod.object({
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
   "source": zod.enum(['registration', 'direct', 'cancellation']),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']).describe('Pledged money is pending until an organizer confirms it arrived. Only paid contributions count toward the fund balance.'),
   "createdAt": zod.coerce.date()
 }))
 })
@@ -1759,6 +1843,7 @@ export const CreatePaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number().min(1).describe('Whole-dollar amount the registrant says they are paying.'),
   "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
+  "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
   "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
   "note": zod.string().nullish().describe('Free-form note from the registrant.')
@@ -1767,8 +1852,9 @@ export const CreatePaymentSubmissionBody = zod.object({
 export const CreatePaymentSubmissionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
-  "registrationId": zod.number(),
-  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (always includes registrationId).'),
+  "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
+  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
+  "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
@@ -1790,8 +1876,9 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "submissions": zod.array(zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
-  "registrationId": zod.number(),
-  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (always includes registrationId).'),
+  "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
+  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
+  "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),

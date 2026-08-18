@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import {
   db,
   registrationsTable,
@@ -11,6 +11,7 @@ import {
   reunionFeesTable,
   reunionOrganizersTable,
   sponsorshipContributionsTable,
+  sponsorshipAllocationsTable,
   paymentSubmissionsTable,
 } from "@workspace/db";
 import { and } from "drizzle-orm";
@@ -460,6 +461,11 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
     // re-checked inside the transaction so a race cannot double-move a payment.
     try {
       await db.transaction(async (tx) => {
+        // Serialize with fund allocations and other status changes so the
+        // solvency check below can't validate against stale balances.
+        await tx.execute(
+          sql`SELECT id FROM reunions WHERE id = ${reg.reunionId} FOR UPDATE`,
+        );
         const [source] = await tx
           .update(registrationsTable)
           .set({ paymentStatus: "pending" })
@@ -485,11 +491,65 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
         if (!source || !received) {
           throw new Error("PAYMENT_TRANSFER_CONFLICT");
         }
+        // Registration-source chip-ins are settled together with their
+        // registration, so they must follow the payment move.
+        await tx
+          .update(sponsorshipContributionsTable)
+          .set({ paymentStatus: "pending" })
+          .where(
+            and(
+              eq(sponsorshipContributionsTable.registrationId, reg.id),
+              eq(sponsorshipContributionsTable.source, "registration"),
+            ),
+          );
+        await tx
+          .update(sponsorshipContributionsTable)
+          .set({ paymentStatus: "paid" })
+          .where(
+            and(
+              eq(sponsorshipContributionsTable.registrationId, target.id),
+              eq(sponsorshipContributionsTable.source, "registration"),
+            ),
+          );
+        // Moving the source's chip-in back to pending must not leave the
+        // fund having spent more than it has received.
+        const [{ contributed }] = await tx
+          .select({
+            contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
+          })
+          .from(sponsorshipContributionsTable)
+          .where(
+            and(
+              eq(sponsorshipContributionsTable.reunionId, reg.reunionId),
+              eq(sponsorshipContributionsTable.paymentStatus, "paid"),
+            ),
+          );
+        const [{ allocated }] = await tx
+          .select({
+            allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
+          })
+          .from(sponsorshipAllocationsTable)
+          .where(
+            and(
+              eq(sponsorshipAllocationsTable.reunionId, reg.reunionId),
+              eq(sponsorshipAllocationsTable.fundedFrom, "fund"),
+            ),
+          );
+        if (contributed - allocated < 0) {
+          throw new Error("FUND_OVERDRAWN");
+        }
       });
     } catch (err) {
       if (err instanceof Error && err.message === "PAYMENT_TRANSFER_CONFLICT") {
         res.status(409).json({
           error: "The payment could not be transferred — one of the registrations changed. Refresh and try again.",
+        });
+        return;
+      }
+      if (err instanceof Error && err.message === "FUND_OVERDRAWN") {
+        res.status(400).json({
+          error:
+            "This payment can't be transferred: its fund chip-in was already spent from the sponsorship fund.",
         });
         return;
       }
@@ -580,6 +640,46 @@ router.post(
       }
     }
 
+    // Standalone fund chip-ins this payment also covers: each must be a
+    // pending, registration-less contribution in the same reunion, owned by
+    // the submitter (or the submitter must have manage rights).
+    const contributionIds = [...new Set(body.data.contributionIds ?? [])];
+    if (contributionIds.length > 0) {
+      const coveredContributions = await db
+        .select()
+        .from(sponsorshipContributionsTable)
+        .where(inArray(sponsorshipContributionsTable.id, contributionIds));
+      if (coveredContributions.length !== contributionIds.length) {
+        res.status(400).json({ error: "One or more fund chip-ins were not found." });
+        return;
+      }
+      for (const c of coveredContributions) {
+        if (c.reunionId !== registration.reunionId) {
+          // Same "not found" shape as a nonexistent id: outsiders can't
+          // distinguish other reunions' chip-ins from missing ones.
+          res.status(400).json({ error: "One or more fund chip-ins were not found." });
+          return;
+        }
+        // Ownership first, so callers can't probe another member's chip-in
+        // state via the different error messages below.
+        if (c.contributorUserId !== userId) {
+          canManage ??= await canManageRegistrations(userId, registration.reunionId);
+          if (!canManage) {
+            res.status(403).json({ error: "Forbidden" });
+            return;
+          }
+        }
+        if (c.registrationId !== null) {
+          res.status(400).json({ error: "Invalid fund chip-in for this payment." });
+          return;
+        }
+        if (c.paymentStatus !== "pending") {
+          res.status(400).json({ error: "That fund chip-in is already settled." });
+          return;
+        }
+      }
+    }
+
     const { method, amount, reference, givenDate, note } = body.data;
     // Method-specific validation the OpenAPI shape can't express:
     // whole-dollar amounts only, and each method's reconciliation key.
@@ -603,6 +703,7 @@ router.post(
         reunionId: registration.reunionId,
         registrationId: registration.id,
         registrationIds: coveredIds,
+        contributionIds,
         submittedBy: userId,
         method,
         amount,
