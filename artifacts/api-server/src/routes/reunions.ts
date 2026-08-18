@@ -773,7 +773,7 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
   // Shared default contact email derived from the reunion's family name.
   const slug =
     reunion.name.toLowerCase().replace(/[^a-z0-9]+/g, "") || "family";
-  const defaultEmail = `${slug}@famjam.cg`;
+  const defaultEmail = `${slug}@coppergram.com`;
   const managedUserId = `managed_${crypto.randomUUID()}`;
 
   const created = await db.transaction(async (tx) => {

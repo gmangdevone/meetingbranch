@@ -32,7 +32,7 @@ interface SendConfirmationEmailParams {
 }
 
 // Verified sender configured in Brevo — override with BREVO_FROM_EMAIL env var if needed
-const FROM_EMAIL = process.env.BREVO_FROM_EMAIL ?? "noreply@famjam.app";
+const FROM_EMAIL = process.env.BREVO_FROM_EMAIL ?? "gigsetapp@coppergram.com";
 const FROM_NAME = "Meeting Branch";
 
 function formatDateRange(startDate: string, endDate: string): string {
