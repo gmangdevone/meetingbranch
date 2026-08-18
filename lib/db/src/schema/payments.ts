@@ -31,6 +31,9 @@ export const paymentSubmissionsTable = pgTable("payment_submissions", {
   registrationId: integer("registration_id")
     .notNull()
     .references(() => registrationsTable.id, { onDelete: "cascade" }),
+  // All registrations this payment covers (always includes registrationId).
+  // One transaction can pay for several of an account's registrations.
+  registrationIds: integer("registration_ids").array().notNull(),
   // Clerk user id of the submitter
   submittedBy: text("submitted_by").notNull(),
   method: paymentMethodEnum("method").notNull(),

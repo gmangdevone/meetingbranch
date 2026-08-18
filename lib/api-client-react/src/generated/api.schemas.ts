@@ -174,6 +174,11 @@ export interface PaymentSubmissionInput {
      */
   amount: number;
   /**
+     * All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.
+     * @minItems 1
+     */
+  registrationIds?: number[];
+  /**
      * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
      * @nullable
      */
@@ -194,6 +199,8 @@ export interface PaymentSubmission {
   id: number;
   reunionId: number;
   registrationId: number;
+  /** All registrations this payment covers (always includes registrationId). */
+  registrationIds: number[];
   submittedBy?: string;
   method: PaymentMethod;
   amount: number;

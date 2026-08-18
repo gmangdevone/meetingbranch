@@ -2103,6 +2103,12 @@ components:
           type: integer
           minimum: 1
           description: "Whole-dollar amount the registrant says they are paying."
+        registrationIds:
+          type: array
+          items:
+            type: integer
+          minItems: 1
+          description: "All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted."
         reference:
           type: ["string", "null"]
           description: "Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check)."
@@ -2115,7 +2121,7 @@ components:
 
     PaymentSubmission:
       type: object
-      required: [id, reunionId, registrationId, method, amount, createdAt]
+      required: [id, reunionId, registrationId, registrationIds, method, amount, createdAt]
       properties:
         id:
           type: integer
@@ -2123,6 +2129,11 @@ components:
           type: integer
         registrationId:
           type: integer
+        registrationIds:
+          type: array
+          items:
+            type: integer
+          description: "All registrations this payment covers (always includes registrationId)."
         submittedBy:
           type: string
         method:

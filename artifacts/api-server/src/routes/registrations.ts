@@ -542,6 +542,44 @@ router.post(
       return;
     }
 
+    // Which registrations does this payment cover? Defaults to just the path
+    // registration; when provided it must include it, and every covered
+    // registration must be active, in the same reunion, and belong to the same
+    // account (unless the submitter can manage registrations).
+    const requestedIds = body.data.registrationIds ?? [registration.id];
+    const coveredIds = [...new Set(requestedIds)];
+    if (!coveredIds.includes(registration.id)) {
+      res.status(400).json({ error: "registrationIds must include the registration being paid." });
+      return;
+    }
+    const coveredRegistrations = await db
+      .select()
+      .from(registrationsTable)
+      .where(inArray(registrationsTable.id, coveredIds));
+    if (coveredRegistrations.length !== coveredIds.length) {
+      res.status(400).json({ error: "One or more registrations were not found." });
+      return;
+    }
+    let canManage: boolean | null = registration.userId === userId ? null : true;
+    for (const covered of coveredRegistrations) {
+      if (covered.reunionId !== registration.reunionId) {
+        res.status(400).json({ error: "All registrations must belong to the same reunion." });
+        return;
+      }
+      if (covered.status !== "active") {
+        res.status(400).json({ error: "Cancelled registrations cannot record payments." });
+        return;
+      }
+      if (covered.userId !== userId) {
+        // Covering someone else's registration requires manage rights.
+        canManage ??= await canManageRegistrations(userId, registration.reunionId);
+        if (!canManage) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+      }
+    }
+
     const { method, amount, reference, givenDate, note } = body.data;
     // Method-specific validation the OpenAPI shape can't express:
     // whole-dollar amounts only, and each method's reconciliation key.
@@ -564,6 +602,7 @@ router.post(
       .values({
         reunionId: registration.reunionId,
         registrationId: registration.id,
+        registrationIds: coveredIds,
         submittedBy: userId,
         method,
         amount,

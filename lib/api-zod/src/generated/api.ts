@@ -1754,9 +1754,11 @@ export const CreatePaymentSubmissionParams = zod.object({
 
 
 
+
 export const CreatePaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number().min(1).describe('Whole-dollar amount the registrant says they are paying.'),
+  "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
   "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
   "note": zod.string().nullish().describe('Free-form note from the registrant.')
@@ -1766,6 +1768,7 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "registrationId": zod.number(),
+  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (always includes registrationId).'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),
@@ -1788,6 +1791,7 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "registrationId": zod.number(),
+  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (always includes registrationId).'),
   "submittedBy": zod.string().optional(),
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number(),

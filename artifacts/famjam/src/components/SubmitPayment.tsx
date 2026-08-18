@@ -20,19 +20,44 @@ const METHOD_LABELS: Record<Method, string> = {
  * the payment status — it stays Pending until an organizer confirms receipt
  * and marks the account Paid (or Waived).
  */
+export interface PayableRegistration {
+  id: number;
+  label: string;
+  amount: number;
+}
+
 export function SubmitPayment({
-  registrationId,
-  totalDue,
+  registrations,
+  extraDue = 0,
   cashAppTag,
   checkPayee,
 }: {
-  registrationId: number;
-  totalDue: number;
+  /** Unpaid registrations the user can cover with this payment. */
+  registrations: PayableRegistration[];
+  /** Additional amount owed regardless of selection (e.g. fund chip-ins). */
+  extraDue?: number;
   cashAppTag: string | null;
   checkPayee: string | null;
 }) {
   const [method, setMethod] = useState<Method | null>(null);
-  const [amount, setAmount] = useState(String(totalDue > 0 ? totalDue : ""));
+  const [selectedIds, setSelectedIds] = useState<number[]>(registrations.map((r) => r.id));
+  const selectedTotal =
+    registrations
+      .filter((r) => selectedIds.includes(r.id))
+      .reduce((sum, r) => sum + r.amount, 0) + extraDue;
+  const [amount, setAmount] = useState(String(selectedTotal > 0 ? selectedTotal : ""));
+
+  const toggleRegistration = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const nextTotal =
+        registrations
+          .filter((r) => next.includes(r.id))
+          .reduce((sum, r) => sum + r.amount, 0) + extraDue;
+      setAmount(String(nextTotal > 0 ? nextTotal : ""));
+      return next;
+    });
+  };
   const [reference, setReference] = useState("");
   const [givenDate, setGivenDate] = useState("");
   const [note, setNote] = useState("");
@@ -61,6 +86,7 @@ export function SubmitPayment({
   const referenceRequired = method === "cashapp" || method === "zelle" || method === "cash";
   const canSubmit =
     !!method &&
+    selectedIds.length > 0 &&
     validAmount &&
     (!referenceRequired || reference.trim().length > 0) &&
     (method !== "cash" || givenDate.trim().length > 0) &&
@@ -71,10 +97,11 @@ export function SubmitPayment({
     setError(null);
     createSubmission.mutate(
       {
-        id: registrationId,
+        id: selectedIds[0],
         data: {
           method,
           amount: amountNum,
+          registrationIds: selectedIds,
           reference: reference.trim() || null,
           givenDate: method === "cash" ? givenDate : null,
           note: note.trim() || null,
@@ -166,6 +193,36 @@ export function SubmitPayment({
         Choose how you're paying and add your details so the organizers can match your payment to
         your account. Your status stays pending until an organizer confirms it.
       </p>
+
+      {registrations.length > 1 && (
+        <div className="mb-5 space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            Which registrations does this payment cover?
+          </p>
+          {registrations.map((r) => (
+            <label
+              key={r.id}
+              className="flex items-center justify-between gap-3 rounded-xl border bg-background px-4 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(r.id)}
+                  onChange={() => toggleRegistration(r.id)}
+                  className="w-4 h-4 accent-primary"
+                />
+                <span className="font-medium">{r.label}</span>
+              </span>
+              <span className="font-bold tabular-nums">${r.amount}</span>
+            </label>
+          ))}
+          {selectedIds.length === 0 && (
+            <p className="text-sm text-destructive font-medium">
+              Select at least one registration to pay.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-5">
         {methods

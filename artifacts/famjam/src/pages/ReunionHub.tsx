@@ -125,10 +125,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const myOutstandingTotal = allSettled
     ? 0
     : myOutstandingRegistrationsTotal + myContributionsTotal;
-  // Attach payment submissions to a registration that still owes, not just the first one.
-  const myFirstUnpaidRegistration = myActiveRegistrations.find(
+  // Registrations that still owe — these are the ones a payment can cover.
+  const myUnpaidRegistrations = myActiveRegistrations.filter(
     (r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived",
   );
+  const myFirstUnpaidRegistration = myUnpaidRegistrations[0];
 
   // Remember the last successfully visited reunion so the Home nav can return here;
   // forget it if the code turns out to be invalid.
@@ -452,8 +453,12 @@ export function ReunionHub({ params }: { params: { code: string } }) {
 
                 {isSignedIn && myFirstUnpaidRegistration && myPaymentStatus === "pending" && (
                   <SubmitPayment
-                    registrationId={myFirstUnpaidRegistration.id}
-                    totalDue={myOutstandingTotal}
+                    registrations={myUnpaidRegistrations.map((r) => ({
+                      id: r.id,
+                      label: `${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,
+                      amount: computeTotal(reunion.fees, r.attendees, r.selectedFeeIds ?? []),
+                    }))}
+                    extraDue={myContributionsTotal}
                     cashAppTag={reunion.cashAppTag ?? null}
                     checkPayee={reunion.checkPayee ?? null}
                   />

@@ -86,9 +86,13 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const submissionsByRegistration = useMemo(() => {
     const map = new Map<number, NonNullable<typeof paymentSubmissionsData>["submissions"]>();
     for (const s of paymentSubmissionsData?.submissions ?? []) {
-      const list = map.get(s.registrationId) ?? [];
-      list.push(s);
-      map.set(s.registrationId, list);
+      // A submission can cover several registrations; show it under each one.
+      const covered = s.registrationIds?.length ? s.registrationIds : [s.registrationId];
+      for (const regId of covered) {
+        const list = map.get(regId) ?? [];
+        list.push(s);
+        map.set(regId, list);
+      }
     }
     return map;
   }, [paymentSubmissionsData]);
@@ -469,6 +473,11 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 <p className="text-xs text-muted-foreground">
                   Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
+                {(s.registrationIds?.length ?? 0) > 1 && (
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                    Covers {s.registrationIds.length} registrations in one payment
+                  </p>
+                )}
                 {s.reference && (
                   <p className="text-sm">
                     <span className="text-muted-foreground">

@@ -11,6 +11,8 @@ export interface PaymentSubmission {
   id: number;
   reunionId: number;
   registrationId: number;
+  /** All registrations this payment covers (always includes registrationId). */
+  registrationIds: number[];
   submittedBy?: string;
   method: PaymentMethod;
   amount: number;
