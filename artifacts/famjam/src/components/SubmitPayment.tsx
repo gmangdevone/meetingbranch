@@ -28,32 +28,27 @@ export interface PayableRegistration {
 
 export function SubmitPayment({
   registrations,
-  extraDue = 0,
   cashAppTag,
   checkPayee,
 }: {
-  /** Unpaid registrations the user can cover with this payment. */
+  /** Unpaid registrations (each amount includes its own fund chip-ins). */
   registrations: PayableRegistration[];
-  /** Additional amount owed regardless of selection (e.g. fund chip-ins). */
-  extraDue?: number;
   cashAppTag: string | null;
   checkPayee: string | null;
 }) {
   const [method, setMethod] = useState<Method | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>(registrations.map((r) => r.id));
-  const selectedTotal =
-    registrations
-      .filter((r) => selectedIds.includes(r.id))
-      .reduce((sum, r) => sum + r.amount, 0) + extraDue;
+  const selectedTotal = registrations
+    .filter((r) => selectedIds.includes(r.id))
+    .reduce((sum, r) => sum + r.amount, 0);
   const [amount, setAmount] = useState(String(selectedTotal > 0 ? selectedTotal : ""));
 
   const toggleRegistration = (id: number) => {
     setSelectedIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      const nextTotal =
-        registrations
-          .filter((r) => next.includes(r.id))
-          .reduce((sum, r) => sum + r.amount, 0) + extraDue;
+      const nextTotal = registrations
+        .filter((r) => next.includes(r.id))
+        .reduce((sum, r) => sum + r.amount, 0);
       setAmount(String(nextTotal > 0 ? nextTotal : ""));
       return next;
     });

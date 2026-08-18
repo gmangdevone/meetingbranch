@@ -114,21 +114,25 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     0,
   );
   const myTotalDue = myAccountTotal + myContributionsTotal;
-  // Outstanding amount: only registrations that are still unpaid (not paid/waived),
-  // plus fund contributions while the account isn't fully settled.
-  const myOutstandingRegistrationsTotal = myActiveRegistrations
-    .filter((r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived")
-    .reduce(
-      (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
-      0,
-    );
-  const myOutstandingTotal = allSettled
-    ? 0
-    : myOutstandingRegistrationsTotal + myContributionsTotal;
   // Registrations that still owe — these are the ones a payment can cover.
   const myUnpaidRegistrations = myActiveRegistrations.filter(
     (r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived",
   );
+  const myUnpaidRegistrationIds = new Set(myUnpaidRegistrations.map((r) => r.id));
+  // Outstanding amount: only registrations that are still unpaid (not paid/waived),
+  // plus fund chip-ins pledged with those SAME registrations. A chip-in attached
+  // to an already-paid registration was settled with that payment, so it must
+  // not keep inflating the amount due.
+  const myOutstandingRegistrationsTotal = myUnpaidRegistrations.reduce(
+    (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
+    0,
+  );
+  const myOutstandingContributionsTotal = (myContributionsData?.contributions ?? [])
+    .filter((c) => c.registrationId != null && myUnpaidRegistrationIds.has(c.registrationId))
+    .reduce((sum, c) => sum + c.amount, 0);
+  const myOutstandingTotal = allSettled
+    ? 0
+    : myOutstandingRegistrationsTotal + myOutstandingContributionsTotal;
   const myFirstUnpaidRegistration = myUnpaidRegistrations[0];
 
   // Remember the last successfully visited reunion so the Home nav can return here;
@@ -456,9 +460,14 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                     registrations={myUnpaidRegistrations.map((r) => ({
                       id: r.id,
                       label: `${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,
-                      amount: computeTotal(reunion.fees, r.attendees, r.selectedFeeIds ?? []),
+                      // A registration's line includes any fund chip-in pledged with it,
+                      // so selecting it pays both together.
+                      amount:
+                        computeTotal(reunion.fees, r.attendees, r.selectedFeeIds ?? []) +
+                        (myContributionsData?.contributions ?? [])
+                          .filter((c) => c.registrationId === r.id)
+                          .reduce((sum, c) => sum + c.amount, 0),
                     }))}
-                    extraDue={myContributionsTotal}
                     cashAppTag={reunion.cashAppTag ?? null}
                     checkPayee={reunion.checkPayee ?? null}
                   />
