@@ -80,4 +80,5 @@ This route is a one-time bootstrap: it promotes the first signed-in user to admi
 - Clerk dev-key warning in console is normal in development — expected behavior, not a bug
 - `BREVO_API_KEY` must be set as a secret and `BREVO_FROM_EMAIL` as an env var for confirmation emails to send; if missing, emails are skipped with a warning log but registrations still save
 - The verified sender (`BREVO_FROM_EMAIL`) must be added in Brevo → Senders & IPs before emails will deliver
+- **Brevo sender domain — coppergram.com**: the domain `coppergram.com` is verified in Brevo as an authorized sender domain. The default FROM address is `gigsetapp@coppergram.com`; override with `BREVO_FROM_EMAIL` (must stay on the `coppergram.com` domain or another Brevo-verified domain). The `GET /healthz/email-sender` endpoint confirms the configured domain is on the allowlist at runtime. The old `famjam.app` domain is **not** verified in Brevo and must not be used as a sender.
 - First-run admin setup: visit `/api/admin/setup` while signed in — promotes the first user to admin, then permanently closes

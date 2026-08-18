@@ -31,8 +31,38 @@ interface SendConfirmationEmailParams {
   reunion: ReunionInfo;
 }
 
-// Verified sender configured in Brevo — override with BREVO_FROM_EMAIL env var if needed
-const FROM_EMAIL = process.env.BREVO_FROM_EMAIL ?? "gigsetapp@coppergram.com";
+// Domains that are verified senders in Brevo — any override must belong to one of these.
+export const ALLOWED_SENDER_DOMAINS = ["coppergram.com"];
+
+/**
+ * Returns the configured FROM address at call time so the value reflects
+ * any process.env mutation (e.g. vi.stubEnv in tests).
+ * An empty-string BREVO_FROM_EMAIL is treated as unset and falls back to
+ * the hard-coded default so misconfigured environments don't slip through.
+ */
+export function getFromEmail(): string {
+  return process.env.BREVO_FROM_EMAIL || "gigsetapp@coppergram.com";
+}
+
+/**
+ * Returns true when `email` is a well-formed address whose domain is in the
+ * ALLOWED_SENDER_DOMAINS allowlist (Brevo-verified sender).
+ *
+ * Rejects malformed addresses including:
+ *  - no `@` sign
+ *  - empty local part (e.g. "@coppergram.com")
+ *  - multiple `@` signs (e.g. "x@coppergram.com@evil.test")
+ *  - empty domain segment
+ */
+export function isSenderDomainAllowed(email: string): boolean {
+  const parts = email.split("@");
+  // Must have exactly two parts: local-part and domain.
+  if (parts.length !== 2) return false;
+  const [localPart, domain] = parts;
+  if (!localPart || !domain) return false;
+  return ALLOWED_SENDER_DOMAINS.includes(domain.toLowerCase());
+}
+
 const FROM_NAME = "Meeting Branch";
 
 function formatDateRange(startDate: string, endDate: string): string {
@@ -199,8 +229,26 @@ export async function sendRegistrationConfirmation(
     return;
   }
 
+  // Resolve the sender address at send-time so env-var changes take effect
+  // without a server restart, and validate against the Brevo allowlist before
+  // touching the network.
+  const fromEmail = getFromEmail();
+  if (!isSenderDomainAllowed(fromEmail)) {
+    logger.error(
+      {
+        fromEmail,
+        allowedDomains: ALLOWED_SENDER_DOMAINS,
+        to: params.toEmail,
+        registrationId: params.registrationId,
+      },
+      "Sender domain is not on the Brevo-verified allowlist — aborting email send to avoid bounce. " +
+        "Update BREVO_FROM_EMAIL to a verified domain.",
+    );
+    return;
+  }
+
   const payload = {
-    sender: { name: FROM_NAME, email: FROM_EMAIL },
+    sender: { name: FROM_NAME, email: fromEmail },
     to: [{ email: params.toEmail, name: params.toName }],
     subject: `You're registered for ${params.reunion.name}! 🎉`,
     htmlContent: buildEmailHtml(params),
