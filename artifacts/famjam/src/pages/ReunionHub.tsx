@@ -114,6 +114,21 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     0,
   );
   const myTotalDue = myAccountTotal + myContributionsTotal;
+  // Outstanding amount: only registrations that are still unpaid (not paid/waived),
+  // plus fund contributions while the account isn't fully settled.
+  const myOutstandingRegistrationsTotal = myActiveRegistrations
+    .filter((r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived")
+    .reduce(
+      (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
+      0,
+    );
+  const myOutstandingTotal = allSettled
+    ? 0
+    : myOutstandingRegistrationsTotal + myContributionsTotal;
+  // Attach payment submissions to a registration that still owes, not just the first one.
+  const myFirstUnpaidRegistration = myActiveRegistrations.find(
+    (r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived",
+  );
 
   // Remember the last successfully visited reunion so the Home nav can return here;
   // forget it if the code turns out to be invalid.
@@ -210,7 +225,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-sm font-bold uppercase tracking-widest text-white/70">
                 Your Total Due
                 <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
-                  ${myPaymentStatus === "pending" ? myTotalDue : 0}
+                  ${myPaymentStatus === "pending" ? myOutstandingTotal : 0}
                 </span>
               </p>
               <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
@@ -435,10 +450,10 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   )}
                 </div>
 
-                {isSignedIn && myRegistration && myPaymentStatus === "pending" && (
+                {isSignedIn && myFirstUnpaidRegistration && myPaymentStatus === "pending" && (
                   <SubmitPayment
-                    registrationId={myRegistration.id}
-                    totalDue={myTotalDue}
+                    registrationId={myFirstUnpaidRegistration.id}
+                    totalDue={myOutstandingTotal}
                     cashAppTag={reunion.cashAppTag ?? null}
                     checkPayee={reunion.checkPayee ?? null}
                   />
