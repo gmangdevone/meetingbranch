@@ -639,7 +639,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <div className="mt-6 pt-6 border-t">
                 <Dialog open={isSponsorDialogOpen} onOpenChange={setIsSponsorDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full rounded-xl bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100 hover:text-rose-700 dark:bg-rose-950/30 dark:border-rose-900/50 dark:hover:bg-rose-900/40">
+                    <Button className="w-full rounded-xl bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 hover:text-white dark:bg-blue-600 dark:border-blue-500 dark:hover:bg-blue-500">
                       <Heart className="w-4 h-4 mr-2" /> Chip in to Fund
                     </Button>
                   </DialogTrigger>
