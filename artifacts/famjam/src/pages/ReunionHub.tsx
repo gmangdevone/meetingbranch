@@ -355,12 +355,17 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                         <>
                           {myPendingChipIns.map((c) => (
                             <div key={c.id} className="pb-4 border-b">
-                              <span className="text-muted-foreground text-sm block mb-3">
-                                Fund chip-in — {format(new Date(c.createdAt), "MMM d, yyyy")}
-                              </span>
+                               <div className="flex items-center justify-between gap-3 mb-3">
+                                 <span className="text-muted-foreground text-sm">
+                                   Fund chip-in — {format(new Date(c.createdAt), "MMM d, yyyy")}
+                                 </span>
+                                 <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                   Pending
+                                 </span>
+                               </div>
                               <div className="flex justify-between items-baseline gap-3">
                                 <span className="font-bold">Chip-in amount</span>
-                                <span className="font-bold tabular-nums">${c.amount}</span>
+                                 <span className="font-bold tabular-nums text-red-600 dark:text-red-400">${c.amount}</span>
                               </div>
                             </div>
                           ))}
@@ -382,10 +387,23 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                         const flatFees = applicableFees.filter((f) => f.chargeType === "flat");
                         return (
                           <div key={reg.id} className="pb-4 border-b">
-                            <span className="text-muted-foreground text-sm block mb-3">
-                              {reg.branchName} registration ({reg.attendeeCount}{" "}
-                              {reg.attendeeCount === 1 ? "attendee" : "attendees"})
-                            </span>
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                              <span className="text-muted-foreground text-sm">
+                                {reg.branchName} registration ({reg.attendeeCount}{" "}
+                                {reg.attendeeCount === 1 ? "attendee" : "attendees"})
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                                  reg.paymentStatus === "paid"
+                                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                    : reg.paymentStatus === "waived"
+                                      ? "bg-muted text-muted-foreground"
+                                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                }`}
+                              >
+                                {reg.paymentStatus}
+                              </span>
+                            </div>
                             <div className="flex flex-col gap-3">
                               {reg.attendees.map((attendee, i) => (
                                 <div key={i}>
@@ -418,7 +436,15 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                               ))}
                               <div className="flex justify-between items-baseline gap-3 pt-2 border-t">
                                 <span className="font-medium text-muted-foreground">Registration total</span>
-                                <span className="font-bold tabular-nums">
+                                 <span
+                                   className={`font-bold tabular-nums ${
+                                     reg.paymentStatus === "pending"
+                                       ? "text-red-600 dark:text-red-400"
+                                       : reg.paymentStatus === "paid"
+                                         ? "text-green-600 dark:text-green-400"
+                                         : "text-muted-foreground"
+                                   }`}
+                                 >
                                   ${computeTotal(reunion.fees, reg.attendees, reg.selectedFeeIds ?? [])}
                                 </span>
                               </div>
@@ -441,8 +467,16 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                             </>
                           )}
                           <div className="flex justify-between items-baseline gap-3">
-                            <span className="font-bold">Account total due</span>
-                            <span className="font-serif text-xl font-bold tabular-nums">${myTotalDue}</span>
+                            <span className="font-bold">Amount still due</span>
+                            <span
+                              className={`font-serif text-xl font-bold tabular-nums ${
+                                myOutstandingTotal > 0
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-green-600 dark:text-green-400"
+                              }`}
+                            >
+                              ${myOutstandingTotal}
+                            </span>
                           </div>
                         </div>
                       )}
@@ -569,15 +603,23 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                               >
                                 {contribution.paymentStatus}
                               </span>
-                              <span className="font-bold text-rose-600 text-lg">
+                              <span
+                                className={`font-bold text-lg ${
+                                  contribution.paymentStatus === "paid"
+                                    ? "text-green-600 dark:text-green-400"
+                                    : contribution.paymentStatus === "waived"
+                                      ? "text-muted-foreground"
+                                      : "text-red-600 dark:text-red-400"
+                                }`}
+                              >
                                 ${contribution.amount}
                               </span>
                             </span>
                           </div>
                         ))}
                         <div className="flex justify-between items-center pt-4 mt-1">
-                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Total</span>
-                          <span className="font-bold text-xl text-rose-600">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Total recorded</span>
+                          <span className="font-bold text-xl text-foreground">
                             ${myContributionsData.contributions.reduce((sum, c) => sum + c.amount, 0)}
                           </span>
                         </div>

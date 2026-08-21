@@ -36,6 +36,7 @@ import { Checkbox } from "../../components/ui/checkbox";
 import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { format } from "date-fns";
+import { computeTotal } from "../../lib/fees";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
@@ -356,18 +357,24 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <th className="px-4 py-3">Attendees</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Check-in</th>
+                  <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3 rounded-tr-xl">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {isLoading ? (
-                  <tr><td colSpan={7} className="text-center py-8">Loading...</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8">Loading...</td></tr>
                 ) : filteredRegistrations.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
                 ) : (
                   filteredRegistrations.map((reg) => {
                     const isCancelled = reg.status === 'cancelled';
+                    const registrationTotal = computeTotal(
+                      reunion?.fees ?? [],
+                      reg.attendees,
+                      reg.selectedFeeIds ?? [],
+                    );
                     return (
                     <tr key={reg.id} className={`hover:bg-muted/30 transition-colors ${isCancelled ? 'opacity-60 bg-muted/10' : ''}`}>
                       <td className="px-4 py-4">
@@ -412,6 +419,19 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                             </Button>
                           );
                         })()}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span
+                          className={`font-bold tabular-nums ${
+                            isCancelled || reg.paymentStatus === 'waived'
+                              ? 'text-muted-foreground'
+                              : reg.paymentStatus === 'paid'
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          ${registrationTotal}
+                        </span>
                       </td>
                       <td className="px-4 py-4">
                         {isCancelled ? (

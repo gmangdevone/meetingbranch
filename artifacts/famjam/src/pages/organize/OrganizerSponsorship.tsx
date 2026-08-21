@@ -268,7 +268,15 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <div className={`font-bold text-lg ${cont.paymentStatus === 'paid' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                          <div
+                            className={`font-bold text-lg ${
+                              cont.paymentStatus === 'paid'
+                                ? 'text-green-600 dark:text-green-400'
+                                : cont.paymentStatus === 'waived'
+                                  ? 'text-muted-foreground'
+                                  : 'text-red-600 dark:text-red-400'
+                            }`}
+                          >
                             +${cont.amount}
                           </div>
                           {cont.source !== 'direct' ? (
