@@ -484,8 +484,7 @@ describe("GET /reunions/:reunionId/payment-submissions — submitter name resolu
     expect(res.status).toBe(200);
     const sub = res.body.submissions.find((s: any) => s.id === SUB_NULL_SUBMITTER);
     expect(sub).toBeDefined();
-    // submittedBy null from DB must be coerced to undefined — not present in JSON
-    expect(sub.submittedBy).toBeUndefined();
+    expect(sub.submittedBy).toBeNull();
     expect(sub.submittedByName).toBeNull();
     expect(sub.submittedByEmail).toBeNull();
   });

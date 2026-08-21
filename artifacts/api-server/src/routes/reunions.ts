@@ -965,9 +965,6 @@ router.get(
       const submitter = s.submittedBy ? submitterMap.get(s.submittedBy) : undefined;
       return {
         ...s,
-        // The DB column is nullable; coerce null → undefined so the Zod
-        // schema (string | undefined, never null) does not throw a 500.
-        submittedBy: s.submittedBy ?? undefined,
         submittedByName: submitter?.name ?? null,
         submittedByEmail: submitter?.email ?? null,
         contributions: s.contributionIds
