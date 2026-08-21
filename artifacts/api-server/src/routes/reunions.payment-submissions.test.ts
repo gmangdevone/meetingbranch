@@ -349,6 +349,7 @@ const REUNION_ID  = 10;
 
 const SUB_WITH_SUBMITTER  = 201; // payment_submission submitted by SUBMITTER (user row exists)
 const SUB_WITH_GHOST      = 202; // payment_submission submitted by GHOST_ID (user row absent)
+const SUB_NULL_SUBMITTER  = 203; // payment_submission with submittedBy = null (legacy/bulk-import row)
 
 function authAs(userId: string) {
   state.auth = { userId, sessionClaims: { userId } };
@@ -421,7 +422,20 @@ function seed() {
         amount: 50,
         createdAt: new Date("2026-03-02").toISOString(),
       },
-
+      {
+        id: SUB_NULL_SUBMITTER,
+        reunionId: REUNION_ID,
+        registrationId: null,
+        registrationIds: [],
+        contributionIds: [],
+        submittedBy: null, // legacy / bulk-import row — DB column is nullable
+        method: "cash",
+        reference: null,
+        givenDate: null,
+        note: "Imported record with no submitter",
+        amount: 25,
+        createdAt: new Date("2026-03-03").toISOString(),
+      },
     ],
     announcements: [],
     schedule_items: [],
@@ -463,12 +477,25 @@ describe("GET /reunions/:reunionId/payment-submissions — submitter name resolu
     expect(sub.submittedByEmail).toBeNull();
   });
 
-  it("returns both submissions in the response", async () => {
+  it("returns 200 (not 500) when a submission has a null submittedBy in the DB", async () => {
     authAs(OWNER);
     const res = await getSubmissions();
 
     expect(res.status).toBe(200);
-    expect(res.body.submissions).toHaveLength(2);
+    const sub = res.body.submissions.find((s: any) => s.id === SUB_NULL_SUBMITTER);
+    expect(sub).toBeDefined();
+    // submittedBy null from DB must be coerced to undefined — not present in JSON
+    expect(sub.submittedBy).toBeUndefined();
+    expect(sub.submittedByName).toBeNull();
+    expect(sub.submittedByEmail).toBeNull();
+  });
+
+  it("returns all submissions in the response", async () => {
+    authAs(OWNER);
+    const res = await getSubmissions();
+
+    expect(res.status).toBe(200);
+    expect(res.body.submissions).toHaveLength(3);
   });
 
   it("returns 401 when the caller is not authenticated", async () => {
