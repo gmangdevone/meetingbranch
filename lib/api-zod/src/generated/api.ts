@@ -233,7 +233,7 @@ export const ListMyReunionsResponseItem = zod.object({
   "isOwner": zod.boolean(),
   "isAdmin": zod.boolean(),
   "canManageOrganizers": zod.boolean().describe('True only for the owner or a platform admin (add\/remove organizers, assign roles, transfer ownership).'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set.')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set.')
 }).optional().describe('The current viewer\'s permissions for this reunion. Populated by the manage detail endpoint (GET \/reunions\/{reunionId}); omitted elsewhere.')
 })
 export const ListMyReunionsResponse = zod.array(ListMyReunionsResponseItem)
@@ -370,7 +370,7 @@ export const GetReunionResponse = zod.object({
   "isOwner": zod.boolean(),
   "isAdmin": zod.boolean(),
   "canManageOrganizers": zod.boolean().describe('True only for the owner or a platform admin (add\/remove organizers, assign roles, transfer ownership).'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set.')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set.')
 }).optional().describe('The current viewer\'s permissions for this reunion. Populated by the manage detail endpoint (GET \/reunions\/{reunionId}); omitted elsewhere.')
 })
 
@@ -1519,7 +1519,7 @@ export const ListReunionOrganizersResponseItem = zod.object({
   "firstName": zod.string().nullish(),
   "lastName": zod.string().nullish(),
   "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
 })
 export const ListReunionOrganizersResponse = zod.array(ListReunionOrganizersResponseItem)
 
@@ -1533,7 +1533,7 @@ export const AddReunionOrganizerParams = zod.object({
 
 export const AddReunionOrganizerBody = zod.object({
   "email": zod.string(),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).optional().describe('Roles to grant the new co-organizer. Defaults to none.')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).optional().describe('Roles to grant the new co-organizer. Defaults to none.')
 })
 
 export const AddReunionOrganizerResponse = zod.object({
@@ -1542,7 +1542,7 @@ export const AddReunionOrganizerResponse = zod.object({
   "firstName": zod.string().nullish(),
   "lastName": zod.string().nullish(),
   "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
 })
 
 
@@ -1566,7 +1566,7 @@ export const UpdateOrganizerRolesParams = zod.object({
 })
 
 export const UpdateOrganizerRolesBody = zod.object({
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).'))
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).'))
 })
 
 export const UpdateOrganizerRolesResponse = zod.object({
@@ -1575,7 +1575,7 @@ export const UpdateOrganizerRolesResponse = zod.object({
   "firstName": zod.string().nullish(),
   "lastName": zod.string().nullish(),
   "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
 })
 
 
@@ -1599,7 +1599,7 @@ export const TransferReunionOwnershipResponseItem = zod.object({
   "firstName": zod.string().nullish(),
   "lastName": zod.string().nullish(),
   "isOwner": zod.boolean().describe('True for the reunion creator\/owner; false for added co-organizers'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('The roles granted to this co-organizer. Empty for the owner (whose access is implicit and full).')
 })
 export const TransferReunionOwnershipResponse = zod.array(TransferReunionOwnershipResponseItem)
 
@@ -1918,7 +1918,7 @@ export const ListPaymentSubmissionsResponse = zod.object({
 
 
 /**
- * @summary List vendors for a reunion, with their contracts (power_user organizers)
+ * @summary List vendors for a reunion, with their contracts (Scout organizers)
  */
 export const ListVendorsParams = zod.object({
   "reunionId": zod.coerce.number()
@@ -1958,7 +1958,7 @@ export const ListVendorsResponse = zod.object({
 
 
 /**
- * @summary Add a vendor to evaluate (power_user organizers)
+ * @summary Add a vendor to evaluate (Scout organizers)
  */
 export const CreateVendorParams = zod.object({
   "reunionId": zod.coerce.number()
@@ -2017,7 +2017,7 @@ export const CreateVendorResponse = zod.object({
 
 
 /**
- * @summary Update a vendor; setting status to approved records the approval time (power_user organizers)
+ * @summary Update a vendor; setting status to approved records the approval time (Scout organizers)
  */
 export const UpdateVendorParams = zod.object({
   "reunionId": zod.coerce.number(),
@@ -2078,7 +2078,7 @@ export const UpdateVendorResponse = zod.object({
 
 
 /**
- * @summary Remove a vendor and its contracts (power_user organizers)
+ * @summary Remove a vendor and its contracts (Scout organizers)
  */
 export const DeleteVendorParams = zod.object({
   "reunionId": zod.coerce.number(),
@@ -2089,7 +2089,7 @@ export const DeleteVendorResponse = zod.void()
 
 
 /**
- * @summary Attach an uploaded contract file to a vendor (power_user organizers)
+ * @summary Attach an uploaded contract file to a vendor (Scout organizers)
  */
 export const CreateVendorContractParams = zod.object({
   "reunionId": zod.coerce.number(),
@@ -2117,7 +2117,7 @@ export const CreateVendorContractResponse = zod.object({
 
 
 /**
- * @summary Remove a contract from a vendor (power_user organizers)
+ * @summary Remove a contract from a vendor (Scout organizers)
  */
 export const DeleteVendorContractParams = zod.object({
   "reunionId": zod.coerce.number(),
@@ -2296,7 +2296,7 @@ export const AdminListReunionsResponseItem = zod.object({
   "isOwner": zod.boolean(),
   "isAdmin": zod.boolean(),
   "canManageOrganizers": zod.boolean().describe('True only for the owner or a platform admin (add\/remove organizers, assign roles, transfer ownership).'),
-  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'power_user']).describe('A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set.')
+  "roles": zod.array(zod.enum(['registration', 'announcements', 'schedule', 'branches', 'reports', 'scout', 'power_user']).describe('A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).')).describe('Effective roles for the current viewer. Owners and platform admins receive every role; co-organizers receive their assigned set.')
 }).optional().describe('The current viewer\'s permissions for this reunion. Populated by the manage detail endpoint (GET \/reunions\/{reunionId}); omitted elsewhere.')
 })
 export const AdminListReunionsResponse = zod.array(AdminListReunionsResponseItem)

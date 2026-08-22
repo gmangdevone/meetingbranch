@@ -4521,7 +4521,7 @@ export const getListVendorsUrl = (reunionId: number,) => {
 }
 
 /**
- * @summary List vendors for a reunion, with their contracts (power_user organizers)
+ * @summary List vendors for a reunion, with their contracts (Scout organizers)
  */
 export const listVendors = async (reunionId: number, options?: RequestInit): Promise<VendorList> => {
 
@@ -4568,7 +4568,7 @@ export type ListVendorsQueryError = ErrorType<void>
 
 
 /**
- * @summary List vendors for a reunion, with their contracts (power_user organizers)
+ * @summary List vendors for a reunion, with their contracts (Scout organizers)
  */
 
 export function useListVendors<TData = Awaited<ReturnType<typeof listVendors>>, TError = ErrorType<void>>(
@@ -4598,7 +4598,7 @@ export const getCreateVendorUrl = (reunionId: number,) => {
 }
 
 /**
- * @summary Add a vendor to evaluate (power_user organizers)
+ * @summary Add a vendor to evaluate (Scout organizers)
  */
 export const createVendor = async (reunionId: number,
     vendorInput: VendorInput, options?: RequestInit): Promise<Vendor> => {
@@ -4648,7 +4648,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateVendorMutationError = ErrorType<ErrorResponse | void>
 
     /**
- * @summary Add a vendor to evaluate (power_user organizers)
+ * @summary Add a vendor to evaluate (Scout organizers)
  */
 export const useCreateVendor = <TError = ErrorType<ErrorResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVendor>>, TError,{reunionId: number;data: BodyType<VendorInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -4671,7 +4671,7 @@ export const getUpdateVendorUrl = (reunionId: number,
 }
 
 /**
- * @summary Update a vendor; setting status to approved records the approval time (power_user organizers)
+ * @summary Update a vendor; setting status to approved records the approval time (Scout organizers)
  */
 export const updateVendor = async (reunionId: number,
     vendorId: number,
@@ -4722,7 +4722,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateVendorMutationError = ErrorType<ErrorResponse | void>
 
     /**
- * @summary Update a vendor; setting status to approved records the approval time (power_user organizers)
+ * @summary Update a vendor; setting status to approved records the approval time (Scout organizers)
  */
 export const useUpdateVendor = <TError = ErrorType<ErrorResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVendor>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -4745,7 +4745,7 @@ export const getDeleteVendorUrl = (reunionId: number,
 }
 
 /**
- * @summary Remove a vendor and its contracts (power_user organizers)
+ * @summary Remove a vendor and its contracts (Scout organizers)
  */
 export const deleteVendor = async (reunionId: number,
     vendorId: number, options?: RequestInit): Promise<void> => {
@@ -4795,7 +4795,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteVendorMutationError = ErrorType<void>
 
     /**
- * @summary Remove a vendor and its contracts (power_user organizers)
+ * @summary Remove a vendor and its contracts (Scout organizers)
  */
 export const useDeleteVendor = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVendor>>, TError,{reunionId: number;vendorId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -4818,7 +4818,7 @@ export const getCreateVendorContractUrl = (reunionId: number,
 }
 
 /**
- * @summary Attach an uploaded contract file to a vendor (power_user organizers)
+ * @summary Attach an uploaded contract file to a vendor (Scout organizers)
  */
 export const createVendorContract = async (reunionId: number,
     vendorId: number,
@@ -4869,7 +4869,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateVendorContractMutationError = ErrorType<ErrorResponse | void>
 
     /**
- * @summary Attach an uploaded contract file to a vendor (power_user organizers)
+ * @summary Attach an uploaded contract file to a vendor (Scout organizers)
  */
 export const useCreateVendorContract = <TError = ErrorType<ErrorResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVendorContract>>, TError,{reunionId: number;vendorId: number;data: BodyType<VendorContractInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -4893,7 +4893,7 @@ export const getDeleteVendorContractUrl = (reunionId: number,
 }
 
 /**
- * @summary Remove a contract from a vendor (power_user organizers)
+ * @summary Remove a contract from a vendor (Scout organizers)
  */
 export const deleteVendorContract = async (reunionId: number,
     vendorId: number,
@@ -4944,7 +4944,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteVendorContractMutationError = ErrorType<void>
 
     /**
- * @summary Remove a contract from a vendor (power_user organizers)
+ * @summary Remove a contract from a vendor (Scout organizers)
  */
 export const useDeleteVendorContract = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVendorContract>>, TError,{reunionId: number;vendorId: number;contractId: number}, TContext>, request?: SecondParameter<typeof customFetch>}

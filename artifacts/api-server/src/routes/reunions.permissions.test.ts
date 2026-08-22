@@ -434,6 +434,7 @@ vi.mock("@workspace/db", () => {
     "schedule",
     "branches",
     "reports",
+    "scout",
     "power_user",
   ];
   return tokens;
@@ -749,7 +750,7 @@ describe("owner and platform admin bypass all role checks", () => {
     const res = await app().get(`/api/reunions/${REUNION_ID}`);
     expect(res.body.viewer).toMatchObject({ isOwner: true, canManageOrganizers: true });
     expect(res.body.viewer.roles.sort()).toEqual(
-      ["announcements", "branches", "power_user", "registration", "reports", "schedule"],
+      ["announcements", "branches", "power_user", "registration", "reports", "schedule", "scout"],
     );
   });
 });
@@ -1150,11 +1151,11 @@ describe("owner assigns and updates co-organizer roles", () => {
     authAs(OWNER);
     const res = await app()
       .post(`/api/reunions/${REUNION_ID}/organizers`)
-      .send({ email: "co@example.com", roles: ["announcements", "schedule"] });
+      .send({ email: "co@example.com", roles: ["announcements", "scout"] });
     expect(res.status).toBe(201);
-    expect(res.body.roles.sort()).toEqual(["announcements", "schedule"]);
+    expect(res.body.roles.sort()).toEqual(["announcements", "scout"]);
     const row = state.rows.reunion_organizers.find((r) => r.userId === CO);
-    expect((row?.roles as string[]).sort()).toEqual(["announcements", "schedule"]);
+    expect((row?.roles as string[]).sort()).toEqual(["announcements", "scout"]);
   });
 
   it("updates an existing co-organizer's roles", async () => {
@@ -1162,15 +1163,15 @@ describe("owner assigns and updates co-organizer roles", () => {
     authAs(OWNER);
     const res = await app()
       .put(`/api/reunions/${REUNION_ID}/organizers/${CO}/roles`)
-      .send({ roles: ["reports", "power_user"] });
+      .send({ roles: ["reports", "scout"] });
     expect(res.status).toBe(200);
-    expect(res.body.roles.sort()).toEqual(["power_user", "reports"]);
+    expect(res.body.roles.sort()).toEqual(["reports", "scout"]);
     const row = state.rows.reunion_organizers.find((r) => r.userId === CO);
-    expect((row?.roles as string[]).sort()).toEqual(["power_user", "reports"]);
+    expect((row?.roles as string[]).sort()).toEqual(["reports", "scout"]);
   });
 
   it("allows clearing a co-organizer back to zero roles (revocation-to-none)", async () => {
-    seed(["registration", "reports"]);
+    seed(["scout"]);
     authAs(OWNER);
     const res = await app()
       .put(`/api/reunions/${REUNION_ID}/organizers/${CO}/roles`)

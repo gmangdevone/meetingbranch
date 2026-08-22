@@ -91,6 +91,14 @@ vi.mock("@workspace/api-client-react", () => {
     useCreateFee: noopMutation,
     useUpdateFee: noopMutation,
     useDeleteFee: noopMutation,
+    // Vendors
+    useListVendors: () => ({ data: { vendors: [] }, isLoading: false }),
+    getListVendorsQueryKey: (id: number) => ["vendors", id],
+    useCreateVendor: noopMutation,
+    useUpdateVendor: noopMutation,
+    useDeleteVendor: noopMutation,
+    useCreateVendorContract: noopMutation,
+    useDeleteVendorContract: noopMutation,
   };
 });
 
@@ -108,6 +116,7 @@ import { OrganizerAnnouncements } from "./OrganizerAnnouncements";
 import { OrganizerSchedule } from "./OrganizerSchedule";
 import { OrganizerBranches } from "./OrganizerBranches";
 import { OrganizerSettings } from "./OrganizerSettings";
+import { OrganizerVendors } from "./OrganizerVendors";
 
 function makeViewer(overrides: Partial<ReunionViewerPermissions>): ReunionViewerPermissions {
   return {
@@ -152,6 +161,7 @@ const PAGES: Array<{
   { name: "Announcements", Component: OrganizerAnnouncements, role: "announcements", otherRole: "schedule", heading: "Announcements" },
   { name: "Schedule", Component: OrganizerSchedule, role: "schedule", otherRole: "announcements", heading: "Schedule Itinerary" },
   { name: "Branches", Component: OrganizerBranches, role: "branches", otherRole: "schedule", heading: "Family Branches" },
+  { name: "Vendors", Component: OrganizerVendors, role: "scout", otherRole: "power_user", heading: "Vendors" },
   { name: "Settings", Component: OrganizerSettings, role: "power_user", otherRole: "reports", heading: "Settings" },
 ];
 

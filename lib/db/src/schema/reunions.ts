@@ -88,6 +88,7 @@ export const reunionBranchesTable = pgTable("reunion_branches", {
  * - schedule:      create/edit/delete schedule items
  * - branches:      create/edit/delete branches
  * - reports:       view reporting
+ * - scout:         manage vendors, approvals, service details, and contracts
  * - power_user:    edit reunion details, payment info, and fees & dues
  *   (NOT managing organizers/roles or transferring ownership — those stay owner-only)
  */
@@ -97,6 +98,7 @@ export const reunionRoleEnum = pgEnum("reunion_role", [
   "schedule",
   "branches",
   "reports",
+  "scout",
   "power_user",
 ]);
 

@@ -1348,9 +1348,9 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
         <h2 className="font-serif text-2xl font-bold">Organizers</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Give each co-organizer only the areas they should manage — registrations, announcements,
-          schedule, branches, reports, or Power User access to reunion details and fees. As the
-          owner you always have full access, and you can hand off ownership with "Make owner"
-          (you'll stay on as a co-organizer afterward).
+          schedule, branches, reports, Scout access to vendors, or Power User access to reunion
+          details and fees. As the owner you always have full access, and you can hand off
+          ownership with "Make owner" (you'll stay on as a co-organizer afterward).
         </p>
       </div>
 

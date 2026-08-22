@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { ReunionViewerPermissions } from "@workspace/api-client-react";
-import { viewerHasRole, viewerHasAnyRole, FULL_ACCESS_VIEWER } from "./roles";
+import { viewerHasRole, viewerHasAnyRole, FULL_ACCESS_VIEWER, ROLE_OPTIONS } from "./roles";
 
 function viewer(overrides: Partial<ReunionViewerPermissions>): ReunionViewerPermissions {
   return {
@@ -35,6 +35,17 @@ describe("viewerHasRole", () => {
   it("treats a missing viewer as full access (never locks the owner out)", () => {
     expect(viewerHasRole(undefined, "power_user")).toBe(true);
     expect(FULL_ACCESS_VIEWER.roles).toContain("power_user");
+    expect(FULL_ACCESS_VIEWER.roles).toContain("scout");
+  });
+});
+
+describe("ROLE_OPTIONS", () => {
+  it("describes Scout as the vendor-management role", () => {
+    expect(ROLE_OPTIONS).toContainEqual({
+      value: "scout",
+      label: "Scout",
+      description: "Manage vendors, approvals, service details, and contracts.",
+    });
   });
 });
 

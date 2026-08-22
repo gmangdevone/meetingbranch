@@ -66,6 +66,7 @@ const ALL_AREAS = [
   "Announcements",
   "Schedule",
   "Branches",
+  "Vendors",
   "Settings",
 ];
 
@@ -109,6 +110,21 @@ describe("OrganizerLayout nav filtering", () => {
     );
 
     expect(screen.queryByRole("link", { name: "Settings" })).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "Vendors" })).toBeNull();
+  });
+
+  it("shows the Vendors link only to a Scout co-organizer", () => {
+    setReunion(makeViewer({ roles: ["scout"] }));
+
+    render(
+      <OrganizerLayout reunionId={1}>
+        <div>content</div>
+      </OrganizerLayout>,
+    );
+
+    expect(screen.queryByRole("link", { name: "Vendors" })).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "Settings" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Sponsorship" })).toBeNull();
   });
 
   it("shows every area to the owner", () => {

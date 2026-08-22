@@ -339,6 +339,7 @@ vi.mock("@workspace/db", () => {
     "schedule",
     "branches",
     "reports",
+    "scout",
     "power_user",
   ];
   return tokens;

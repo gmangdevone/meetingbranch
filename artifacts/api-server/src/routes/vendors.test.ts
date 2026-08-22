@@ -4,7 +4,7 @@ import request from "supertest";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Vendors area authorization & data scoping. Only organizers holding the
-// power_user role (or the owner / a platform admin) may see or change vendors;
+// scout role (or the owner / a platform admin) may see or change vendors;
 // vendors and contracts are strictly scoped to their reunion; approving a
 // vendor stamps approvedAt and un-approving clears it; quotedCost must be
 // whole dollars. Drives the real Express handlers + middleware against an
@@ -339,6 +339,7 @@ vi.mock("@workspace/db", () => {
     "schedule",
     "branches",
     "reports",
+    "scout",
     "power_user",
   ];
   return tokens;
@@ -354,8 +355,10 @@ function buildApp(): Express {
 }
 
 const OWNER = "user_owner"; // owns REUNION_ID
-const POWER = "user_power"; // co-organizer with power_user
-const CO_NO_POWER = "user_limited"; // co-organizer WITHOUT power_user
+const ADMIN = "user_admin"; // platform admin, not an organizer
+const SCOUT = "user_scout"; // co-organizer with scout
+const POWER = "user_power"; // co-organizer with power_user but not scout
+const CO_NO_SCOUT = "user_limited"; // co-organizer without scout
 const MEMBER = "user_member"; // plain user, not an organizer
 const OTHER_OWNER = "user_other_owner"; // owns OTHER_REUNION_ID only
 const REUNION_ID = 300;
@@ -376,8 +379,10 @@ function seed() {
   state.rows = {
     users: [
       { id: OWNER, email: "owner@example.com", firstName: "O", lastName: "W", isAdmin: false },
+      { id: ADMIN, email: "admin@example.com", firstName: "A", lastName: "D", isAdmin: true },
+      { id: SCOUT, email: "scout@example.com", firstName: "S", lastName: "C", isAdmin: false },
       { id: POWER, email: "power@example.com", firstName: "P", lastName: "U", isAdmin: false },
-      { id: CO_NO_POWER, email: "co@example.com", firstName: "C", lastName: "O", isAdmin: false },
+      { id: CO_NO_SCOUT, email: "co@example.com", firstName: "C", lastName: "O", isAdmin: false },
       { id: MEMBER, email: "m@example.com", firstName: "M", lastName: "M", isAdmin: false },
       { id: OTHER_OWNER, email: "oo@example.com", firstName: "X", lastName: "Y", isAdmin: false },
     ],
@@ -398,8 +403,9 @@ function seed() {
       },
     ],
     reunion_organizers: [
-      { id: 1, reunionId: REUNION_ID, userId: POWER, roles: ["power_user"] },
-      { id: 2, reunionId: REUNION_ID, userId: CO_NO_POWER, roles: ["registration", "schedule"] },
+      { id: 1, reunionId: REUNION_ID, userId: SCOUT, roles: ["scout"] },
+      { id: 2, reunionId: REUNION_ID, userId: POWER, roles: ["power_user"] },
+      { id: 3, reunionId: REUNION_ID, userId: CO_NO_SCOUT, roles: ["registration", "schedule"] },
     ],
     vendors: [
       {
@@ -495,29 +501,40 @@ describe("who can enter the vendors area", () => {
     expect(state.rows.vendor_contracts).toHaveLength(2);
   });
 
-  it("blocks a co-organizer WITHOUT power_user with 403", async () => {
-    authAs(CO_NO_POWER);
+  it("blocks a co-organizer without Scout with 403", async () => {
+    authAs(CO_NO_SCOUT);
     expect((await listVendors()).status).toBe(403);
     expect((await updateVendor(VENDOR_ID, { status: "approved" })).status).toBe(403);
     expect((await deleteVendor(VENDOR_ID)).status).toBe(403);
     expect(vendorRow(VENDOR_ID)?.status).toBe("prospect");
   });
 
-  it("lets the owner and a power_user co-organizer list vendors", async () => {
+  it("blocks a Power User who does not also hold Scout", async () => {
+    authAs(POWER);
+    expect((await listVendors()).status).toBe(403);
+    expect((await createVendor({ name: "X", category: "venue" })).status).toBe(403);
+  });
+
+  it("lets the owner, a platform admin, and a Scout co-organizer list vendors", async () => {
     authAs(OWNER);
     const owner = await listVendors();
     expect(owner.status).toBe(200);
     expect(owner.body.vendors).toHaveLength(1);
     expect(owner.body.vendors[0].id).toBe(VENDOR_ID);
 
-    authAs(POWER);
-    const power = await listVendors();
-    expect(power.status).toBe(200);
-    expect(power.body.vendors.map((v: any) => v.id)).toEqual([VENDOR_ID]);
+    authAs(ADMIN);
+    const admin = await listVendors();
+    expect(admin.status).toBe(200);
+    expect(admin.body.vendors.map((v: any) => v.id)).toEqual([VENDOR_ID]);
+
+    authAs(SCOUT);
+    const scout = await listVendors();
+    expect(scout.status).toBe(200);
+    expect(scout.body.vendors.map((v: any) => v.id)).toEqual([VENDOR_ID]);
   });
 
-  it("keeps a power_user of one reunion out of another reunion's vendors", async () => {
-    authAs(POWER); // power_user on REUNION_ID only
+  it("keeps a Scout of one reunion out of another reunion's vendors", async () => {
+    authAs(SCOUT); // Scout on REUNION_ID only
     const res = await listVendors(OTHER_REUNION_ID);
     expect(res.status).toBe(403);
   });
@@ -568,7 +585,7 @@ describe("cross-reunion scoping", () => {
 
 describe("approval lifecycle", () => {
   it("approving stamps approvedAt", async () => {
-    authAs(POWER);
+    authAs(SCOUT);
     const res = await updateVendor(VENDOR_ID, { status: "approved" });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("approved");
@@ -577,7 +594,7 @@ describe("approval lifecycle", () => {
   });
 
   it("moving an approved vendor back to prospect clears approvedAt", async () => {
-    authAs(POWER);
+    authAs(SCOUT);
     await updateVendor(VENDOR_ID, { status: "approved" });
     const res = await updateVendor(VENDOR_ID, { status: "prospect" });
     expect(res.status).toBe(200);
@@ -701,7 +718,7 @@ describe("service date validation", () => {
 
 describe("contract create/delete on own reunion", () => {
   it("creates a contract tied to the vendor's reunion", async () => {
-    authAs(POWER);
+    authAs(SCOUT);
     const res = await createContract(VENDOR_ID, {
       fileName: "signed.pdf",
       objectPath: "/objects/contracts/signed.pdf",
@@ -709,7 +726,7 @@ describe("contract create/delete on own reunion", () => {
     expect(res.status).toBe(201);
     expect(res.body.vendorId).toBe(VENDOR_ID);
     expect(res.body.reunionId).toBe(REUNION_ID);
-    expect(res.body.uploadedBy).toBe(POWER);
+    expect(res.body.uploadedBy).toBe(SCOUT);
   });
 
   it("rejects a contract whose objectPath is outside /objects/", async () => {

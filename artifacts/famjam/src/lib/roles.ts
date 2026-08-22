@@ -36,6 +36,11 @@ export const ROLE_OPTIONS: {
     description: "View reporting and analytics.",
   },
   {
+    value: "scout",
+    label: "Scout",
+    description: "Manage vendors, approvals, service details, and contracts.",
+  },
+  {
     value: "power_user",
     label: "Power User",
     description: "Edit reunion details, payment info, and fees & dues.",

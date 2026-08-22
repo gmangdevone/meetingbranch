@@ -59,7 +59,7 @@ export function OrganizerLayout({
     { href: `${baseUrl}/branches`, label: "Branches", icon: List, role: "branches" },
     { href: `${baseUrl}/polls`, label: "Polls", icon: Vote },
     { href: `${baseUrl}/sponsorship`, label: "Sponsorship", icon: Heart, role: "power_user" },
-    { href: `${baseUrl}/vendors`, label: "Vendors", icon: Briefcase, role: "power_user" },
+    { href: `${baseUrl}/vendors`, label: "Vendors", icon: Briefcase, role: "scout" },
     { href: `${baseUrl}/settings`, label: "Settings", icon: Settings, role: "power_user" },
   ];
 

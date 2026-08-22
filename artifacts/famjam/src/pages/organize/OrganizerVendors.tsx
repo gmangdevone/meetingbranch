@@ -168,7 +168,7 @@ function formToInput(f: VendorFormState): VendorInput {
 export function OrganizerVendors({ params }: { params: { reunionId: string } }) {
   const reunionId = Number(params.reunionId);
   return (
-    <OrganizerLayout reunionId={reunionId} requiredRole="power_user">
+    <OrganizerLayout reunionId={reunionId} requiredRole="scout">
       <VendorsContent reunionId={reunionId} />
     </OrganizerLayout>
   );

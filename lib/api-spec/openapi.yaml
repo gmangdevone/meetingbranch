@@ -1535,7 +1535,7 @@ paths:
     get:
       operationId: listVendors
       tags: [reunions]
-      summary: List vendors for a reunion, with their contracts (power_user organizers)
+      summary: List vendors for a reunion, with their contracts (Scout organizers)
       security:
         - clerkAuth: []
       parameters:
@@ -1554,7 +1554,7 @@ paths:
     post:
       operationId: createVendor
       tags: [reunions]
-      summary: Add a vendor to evaluate (power_user organizers)
+      summary: Add a vendor to evaluate (Scout organizers)
       security:
         - clerkAuth: []
       parameters:
@@ -1587,7 +1587,7 @@ paths:
     put:
       operationId: updateVendor
       tags: [reunions]
-      summary: Update a vendor; setting status to approved records the approval time (power_user organizers)
+      summary: Update a vendor; setting status to approved records the approval time (Scout organizers)
       security:
         - clerkAuth: []
       parameters:
@@ -1623,7 +1623,7 @@ paths:
     delete:
       operationId: deleteVendor
       tags: [reunions]
-      summary: Remove a vendor and its contracts (power_user organizers)
+      summary: Remove a vendor and its contracts (Scout organizers)
       security:
         - clerkAuth: []
       parameters:
@@ -1645,7 +1645,7 @@ paths:
     post:
       operationId: createVendorContract
       tags: [reunions]
-      summary: Attach an uploaded contract file to a vendor (power_user organizers)
+      summary: Attach an uploaded contract file to a vendor (Scout organizers)
       security:
         - clerkAuth: []
       parameters:
@@ -1683,7 +1683,7 @@ paths:
     delete:
       operationId: deleteVendorContract
       tags: [reunions]
-      summary: Remove a contract from a vendor (power_user organizers)
+      summary: Remove a contract from a vendor (Scout organizers)
       security:
         - clerkAuth: []
       parameters:
@@ -2726,11 +2726,12 @@ components:
 
     ReunionRole:
       type: string
-      enum: [registration, announcements, schedule, branches, reports, power_user]
+      enum: [registration, announcements, schedule, branches, reports, scout, power_user]
       description: >-
-        A delegable management area a co-organizer can be granted. power_user
-        covers editing reunion details, payment, and fees & dues (but not
-        managing organizers or transferring ownership, which stay owner-only).
+        A delegable management area a co-organizer can be granted. scout covers
+        vendor management. power_user covers editing reunion details, payment,
+        and fees & dues (but not managing organizers or transferring ownership,
+        which stay owner-only).
 
     ReunionOrganizer:
       type: object

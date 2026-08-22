@@ -7,7 +7,7 @@
  */
 
 /**
- * A delegable management area a co-organizer can be granted. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).
+ * A delegable management area a co-organizer can be granted. scout covers vendor management. power_user covers editing reunion details, payment, and fees & dues (but not managing organizers or transferring ownership, which stay owner-only).
  */
 export type ReunionRole = typeof ReunionRole[keyof typeof ReunionRole];
 
@@ -18,5 +18,6 @@ export const ReunionRole = {
   schedule: 'schedule',
   branches: 'branches',
   reports: 'reports',
+  scout: 'scout',
   power_user: 'power_user',
 } as const;

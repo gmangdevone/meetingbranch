@@ -17,14 +17,14 @@ import {
 } from "../middlewares/requireReunionManager";
 
 /**
- * Vendors area: organizers with the power_user role evaluate venues, parks,
+ * Vendors area: organizers with the scout role evaluate venues, parks,
  * caterers, suppliers, etc., compare quoted costs, attach uploaded contracts,
  * and approve the vendor of choice. Approving a vendor stamps approvedAt;
  * moving it back to prospect/rejected clears it.
  */
 const router: IRouter = Router();
 
-const manage = [attachAuth, requireReunionManager, requireReunionPermission("power_user")] as const;
+const manage = [attachAuth, requireReunionManager, requireReunionPermission("scout")] as const;
 
 async function loadVendor(reunionId: number, vendorId: number) {
   if (!Number.isInteger(vendorId)) return null;
