@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Vote, ArrowLeft, CheckCircle2, Info } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
+import { eventCodePath } from "../lib/eventCode";
 import { Button } from "../components/ui/button";
 
 export function ReunionPolls({ params }: { params: { code: string } }) {
@@ -81,7 +82,7 @@ export function ReunionPolls({ params }: { params: { code: string } }) {
   return (
     <div className="max-w-3xl mx-auto flex flex-col gap-8 py-8 pb-16">
       <div>
-        <Link href={`/r/${reunion.code}`} className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-4">
+        <Link href={eventCodePath(reunion.code)} className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-4">
           <ArrowLeft className="w-4 h-4 mr-1" /> Back to {reunion.name}
         </Link>
         <h1 className="font-serif text-4xl font-bold flex items-center gap-3">

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { CalendarDays, Clock, MapPin, ArrowLeft } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
+import { eventCodePath } from "../lib/eventCode";
 
 export function ReunionSchedule({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
@@ -52,7 +53,7 @@ export function ReunionSchedule({ params }: { params: { code: string } }) {
     <div className="max-w-3xl mx-auto py-8">
       <Button 
         variant="ghost" 
-        onClick={() => setLocation(`/r/${reunion.code}`)} 
+        onClick={() => setLocation(eventCodePath(reunion.code))}
         className="mb-6 -ml-4 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub

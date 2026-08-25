@@ -80,7 +80,7 @@ export function OrganizerLayout({
         <div className="sticky top-24 bg-card border shadow-sm rounded-3xl p-4 flex flex-col gap-2">
           <div className="mb-4 px-4 pt-2 pb-4 border-b">
             <h2 className="font-bold text-lg truncate" title={reunion.name}>{reunion.name}</h2>
-            <div className="text-xs text-muted-foreground font-mono mt-1">Code: {reunion.code}</div>
+            <div className="text-xs text-muted-foreground font-mono mt-1">Event Code: {reunion.code}</div>
           </div>
 
           <nav className="flex flex-col gap-1">

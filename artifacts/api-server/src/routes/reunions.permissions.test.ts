@@ -473,7 +473,7 @@ function seed(roles: string[]) {
     reunions: [
       {
         id: REUNION_ID,
-        code: "ABC1234",
+        code: "ABC1234*",
         name: "Test Reunion",
         startDate: "2026-08-01",
         endDate: "2026-08-03",
@@ -752,6 +752,72 @@ describe("owner and platform admin bypass all role checks", () => {
     expect(res.body.viewer.roles.sort()).toEqual(
       ["announcements", "branches", "power_user", "registration", "reports", "schedule", "scout"],
     );
+  });
+});
+
+describe("event code management", () => {
+  beforeEach(() => {
+    state.auth = null;
+  });
+
+  it("lets a Power User normalize and update the event code", async () => {
+    seed(["power_user"]);
+    authAs(CO);
+
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}`)
+      .send({ code: "  family27*  " });
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe("FAMILY27*");
+    expect(state.rows.reunions[0].code).toBe("FAMILY27*");
+  });
+
+  it("rejects an event code that does not meet the format", async () => {
+    seed(["power_user"]);
+    authAs(CO);
+
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}`)
+      .send({ code: "ABCDEFG" });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("one number");
+    expect(state.rows.reunions[0].code).toBe("ABC1234*");
+  });
+
+  it("rejects an event code that another event already uses", async () => {
+    seed(["power_user"]);
+    state.rows.reunions.push({
+      id: 201,
+      code: "TAKEN27*",
+      name: "Other Reunion",
+      startDate: "2026-09-01",
+      endDate: "2026-09-03",
+      paymentHandle: "@other",
+      paymentUrl: null,
+      registrationsOpen: true,
+      organizerId: OUTSIDER,
+      createdAt: new Date("2026-01-02").toISOString(),
+    });
+    authAs(CO);
+
+    const res = await app()
+      .put(`/api/reunions/${REUNION_ID}`)
+      .send({ code: "taken27*" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe("That event code is already in use.");
+    expect(state.rows.reunions[0].code).toBe("ABC1234*");
+  });
+
+  it("looks up a special-character event code case-insensitively", async () => {
+    seed([]);
+
+    const res = await app().get("/api/reunions/by-code/abc1234*");
+
+    expect(res.status).toBe(200);
+    expect(res.body.code).toBe("ABC1234*");
   });
 });
 

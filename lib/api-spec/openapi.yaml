@@ -232,13 +232,16 @@ paths:
     get:
       operationId: getReunionByCode
       tags: [reunions]
-      summary: Public lookup of a reunion by its 7-character code
+      summary: Public lookup of an event by its event code
       parameters:
         - name: code
           in: path
           required: true
           schema:
             type: string
+            minLength: 7
+            maxLength: 32
+            pattern: '^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$'
       responses:
         "200":
           description: Reunion detail with branches
@@ -294,6 +297,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reunion"
+        "400":
+          description: Invalid event code or settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Event code is already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: Forbidden
         "404":
@@ -2595,6 +2610,10 @@ components:
           type: integer
         code:
           type: string
+          minLength: 7
+          maxLength: 32
+          pattern: '^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$'
+          description: "Unique event code containing a letter, number, and URL-safe special character."
         name:
           type: string
         startDate:
@@ -2854,6 +2873,12 @@ components:
       type: object
       description: "Partial update — only provided fields are changed."
       properties:
+        code:
+          type: string
+          minLength: 7
+          maxLength: 32
+          pattern: '^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$'
+          description: "Unique event code. Letters are normalized to uppercase."
         name:
           type: string
           minLength: 1

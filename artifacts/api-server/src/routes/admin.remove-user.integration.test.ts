@@ -98,7 +98,7 @@ async function seed() {
   const [reunion] = await db
     .insert(reunionsTable)
     .values({
-      code: RUN.slice(-7).toUpperCase(),
+      code: `R${RUN.slice(-6).toUpperCase()}*`,
       name: `Integration Test Reunion ${RUN}`,
       startDate: "2026-08-01",
       endDate: "2026-08-03",
@@ -166,7 +166,7 @@ describe.skipIf(!hasDb)(
       await seed();
       // Make TARGET own a reunion of their own.
       await db.insert(reunionsTable).values({
-        code: `Z${RUN.toString().slice(-6)}`,
+        code: `Z${RUN.toString().slice(-6)}*`,
         name: `Owned by target ${RUN}`,
         startDate: "2026-09-01",
         endDate: "2026-09-02",

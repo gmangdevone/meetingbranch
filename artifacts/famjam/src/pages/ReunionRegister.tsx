@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Skeleton } from "../components/ui/skeleton";
 import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
+import { eventCodePath } from "../lib/eventCode";
 import { computeTotal, computeFeeAmount, feeApplies, describeFee } from "../lib/fees";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
@@ -204,7 +205,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
         <p className="text-lg text-muted-foreground mb-8">
           The organizer has closed registration for {reunion.name}. If you think this is a mistake or you still need to register, please reach out to them directly.
         </p>
-        <Button onClick={() => setLocation(`/r/${reunion.code}`)} variant="outline" className="rounded-full">
+        <Button onClick={() => setLocation(eventCodePath(reunion.code))} variant="outline" className="rounded-full">
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub
         </Button>
       </div>
@@ -215,7 +216,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
     <div className="max-w-3xl mx-auto py-8">
       <Button 
         variant="ghost" 
-        onClick={() => setLocation(`/r/${reunion.code}`)} 
+        onClick={() => setLocation(eventCodePath(reunion.code))}
         className="mb-6 -ml-4 text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub

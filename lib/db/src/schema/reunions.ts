@@ -1,39 +1,53 @@
-import { pgTable, integer, text, timestamp, unique, boolean, pgEnum, jsonb } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgTable, integer, text, timestamp, unique, boolean, pgEnum, jsonb, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 
-export const reunionsTable = pgTable("reunions", {
-  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  // Unique 7-character alphanumeric join code
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  // ISO date strings (YYYY-MM-DD) to avoid timezone drift
-  startDate: text("start_date").notNull(),
-  endDate: text("end_date").notNull(),
-  paymentHandle: text("payment_handle").notNull(),
-  paymentUrl: text("payment_url"),
-  // When false, new registrations are rejected (organizers can toggle anytime).
-  registrationsOpen: boolean("registrations_open").notNull().default(true),
-  allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
-  heroImageUrl: text("hero_image_url"),
-  // Ordered hero slideshow images (object paths, max 5 enforced at the API).
-  // Empty array means "use heroImageUrl (legacy single image) or the default look".
-  heroImageUrls: text("hero_image_urls").array().notNull().default([]),
-  // Seconds between hero slides (3–8, enforced at the API).
-  heroRotationSeconds: integer("hero_rotation_seconds").notNull().default(3),
-  // Payment method configuration (all optional; a method is offered to
-  // registrants when its recipient info is set — Zelle/cash are always offered)
-  cashAppTag: text("cash_app_tag"),
-  checkPayee: text("check_payee"),
-  scheduleCardImageUrl: text("schedule_card_image_url"),
-  announcementsCardImageUrl: text("announcements_card_image_url"),
-  pollsCardImageUrl: text("polls_card_image_url"),
-  organizerId: text("organizer_id")
-    .notNull()
-    .references(() => usersTable.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const reunionsTable = pgTable(
+  "reunions",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    // Unique, URL-safe event code (minimum 7 characters; letter, number, special).
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    // ISO date strings (YYYY-MM-DD) to avoid timezone drift
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    paymentHandle: text("payment_handle").notNull(),
+    paymentUrl: text("payment_url"),
+    // When false, new registrations are rejected (organizers can toggle anytime).
+    registrationsOpen: boolean("registrations_open").notNull().default(true),
+    allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
+    heroImageUrl: text("hero_image_url"),
+    // Ordered hero slideshow images (object paths, max 5 enforced at the API).
+    // Empty array means "use heroImageUrl (legacy single image) or the default look".
+    heroImageUrls: text("hero_image_urls").array().notNull().default([]),
+    // Seconds between hero slides (3–8, enforced at the API).
+    heroRotationSeconds: integer("hero_rotation_seconds").notNull().default(3),
+    // Payment method configuration (all optional; a method is offered to
+    // registrants when its recipient info is set — Zelle/cash are always offered)
+    cashAppTag: text("cash_app_tag"),
+    checkPayee: text("check_payee"),
+    scheduleCardImageUrl: text("schedule_card_image_url"),
+    announcementsCardImageUrl: text("announcements_card_image_url"),
+    pollsCardImageUrl: text("polls_card_image_url"),
+    organizerId: text("organizer_id")
+      .notNull()
+      .references(() => usersTable.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "reunions_code_format_check",
+      sql`char_length(${table.code}) between 7 and 32
+        and ${table.code} ~ '[A-Za-z]'
+        and ${table.code} ~ '[0-9]'
+        and ${table.code} ~ '[*._~-]'
+        and ${table.code} ~ '^[A-Za-z0-9*._~-]+$'`,
+    ),
+  ],
+);
 
 // How a fee is applied: once per attendee, or a flat amount per household/registration.
 export const feeChargeTypeEnum = pgEnum("fee_charge_type", ["per_person", "flat"]);

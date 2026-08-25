@@ -10,6 +10,7 @@ import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { eventCodePath } from "../lib/eventCode";
 
 export function RegistrationDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
@@ -156,13 +157,13 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             </div>
             
             <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-              <Button onClick={() => setLocation(`/r/${reg.reunionCode}`)} variant="outline" className="rounded-xl w-full sm:w-auto">
+              <Button onClick={() => setLocation(eventCodePath(reg.reunionCode!))} variant="outline" className="rounded-xl w-full sm:w-auto">
                 Go to Reunion Hub
               </Button>
 
               {!isCancelled && canEdit && (
                 <Button
-                  onClick={() => setLocation(`/r/${reg.reunionCode}/register/edit/${reg.id}`)}
+                  onClick={() => setLocation(eventCodePath(reg.reunionCode!, `/register/edit/${reg.id}`))}
                   variant="outline"
                   className="rounded-xl w-full sm:w-auto"
                 >
@@ -262,7 +263,7 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
               <p className="font-mono text-xl font-bold mb-4">{/* Fallback generic text since we don't have reunion info directly on reg object without fetching reunion */}
                  See Reunion Hub for payment details
               </p>
-              <Button onClick={() => setLocation(`/r/${reg.reunionCode}`)} className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
+              <Button onClick={() => setLocation(eventCodePath(reg.reunionCode!))} className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
                 View Payment Instructions
               </Button>
             </div>

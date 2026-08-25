@@ -380,7 +380,7 @@ function seed() {
     reunions: [
       {
         id: REUNION_ID,
-        code: "TEST001",
+        code: "TEST001*",
         name: "Test Reunion",
         organizerId: OWNER,
         registrationsOpen: true,

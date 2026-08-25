@@ -5,6 +5,7 @@ import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
+import { eventCodePath } from "./lib/eventCode";
 import { useGetMyAccess, getGetMyAccessQueryKey, useListMyRegistrations, useListMyReunions } from "@workspace/api-client-react";
 
 import { Layout } from "./components/Layout";
@@ -177,7 +178,7 @@ function PostLoginLanding() {
 
   if (joined.size === 1) {
     const only = joined.values().next().value!;
-    return <Redirect to={`/r/${only.code}`} />;
+    return <Redirect to={eventCodePath(only.code)} />;
   }
 
   return (
@@ -190,7 +191,7 @@ function PostLoginLanding() {
         {[...joined.values()].map((r) => (
           <Link
             key={r.code}
-            href={`/r/${r.code}`}
+            href={eventCodePath(r.code)}
             className="bg-card border shadow-sm rounded-3xl p-6 flex items-center justify-between gap-4 hover:border-primary/50 hover:shadow-md transition-all group"
           >
             <div>

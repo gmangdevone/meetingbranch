@@ -389,14 +389,14 @@ function seed() {
     reunions: [
       {
         id: REUNION_ID,
-        code: "ABC1234",
+        code: "ABC1234*",
         name: "Test Reunion",
         organizerId: OWNER,
         createdAt: new Date("2026-01-01").toISOString(),
       },
       {
         id: OTHER_REUNION_ID,
-        code: "ZZZ9999",
+        code: "ZZZ9999*",
         name: "Other Reunion",
         organizerId: OTHER_OWNER,
         createdAt: new Date("2026-01-02").toISOString(),

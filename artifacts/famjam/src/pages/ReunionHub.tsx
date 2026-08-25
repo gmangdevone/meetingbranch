@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/react";
 import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
+import { eventCodePath } from "../lib/eventCode";
 import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
@@ -206,10 +207,10 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       <div className="max-w-xl mx-auto py-20 text-center">
         <h1 className="font-serif text-5xl font-bold mb-4">Reunion Not Found</h1>
         <p className="text-lg text-muted-foreground mb-8">
-          We couldn't find a reunion with the code <span className="font-mono font-bold bg-muted px-2 py-1 rounded">{code}</span>.
+          We couldn't find a reunion with the Event Code <span className="font-mono font-bold bg-muted px-2 py-1 rounded">{code}</span>.
         </p>
         <Button onClick={() => setLocation("/join")} variant="outline" size="lg" className="rounded-full">
-          Try another code
+          Try another Event Code
         </Button>
       </div>
     );
@@ -316,7 +317,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             </p>
             
             {reunion.registrationsOpen ? (
-              <Link href={`/r/${reunion.code}/register`} className="block w-full">
+              <Link href={eventCodePath(reunion.code, "/register")} className="block w-full">
                 <Button className="w-full rounded-2xl py-8 text-xl font-bold shadow-md hover:-translate-y-1 transition-all group">
                   <Edit3 className="mr-3 w-6 h-6 group-hover:rotate-12 transition-transform" />
                   Register My Household
@@ -633,7 +634,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <HubCard
-              href={`/r/${reunion.code}/schedule`}
+              href={eventCodePath(reunion.code, "/schedule")}
               imageUrl={reunion.scheduleCardImageUrl}
               defaultClassName="bg-secondary/10 border-secondary/20 hover:bg-secondary/20"
               iconClassName="bg-secondary text-secondary-foreground"
@@ -644,7 +645,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               linkLabel="View Itinerary"
             />
             <HubCard
-              href={`/r/${reunion.code}/announcements`}
+              href={eventCodePath(reunion.code, "/announcements")}
               imageUrl={reunion.announcementsCardImageUrl}
               defaultClassName="bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/20"
               iconClassName="bg-amber-500 text-white"
@@ -655,7 +656,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               linkLabel="Read News"
             />
             <HubCard
-              href={`/r/${reunion.code}/polls`}
+              href={eventCodePath(reunion.code, "/polls")}
               imageUrl={reunion.pollsCardImageUrl}
               className="md:col-span-2"
               defaultClassName="bg-primary/5 border-primary/20 hover:bg-primary/10"
@@ -748,7 +749,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       </div>
 
       <p className="text-center text-sm text-muted-foreground">
-        Reunion Code: <span className="font-mono font-bold tracking-widest">{reunion.code}</span>
+        Event Code: <span className="font-mono font-bold tracking-widest">{reunion.code}</span>
       </p>
     </div>
   );

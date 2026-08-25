@@ -132,7 +132,7 @@ function setSummary(viewer: ReunionViewerPermissions) {
   hoisted.summary = {
     reunion: {
       id: 1,
-      code: "ABC1234",
+      code: "ABC1234*",
       name: "Test Reunion",
       startDate: "2027-07-01",
       endDate: "2027-07-03",

@@ -261,7 +261,7 @@ export function AdminArea() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-muted/50 text-xs text-muted-foreground uppercase">
                     <tr>
-                      <th className="px-4 py-3">Name / Code</th>
+                      <th className="px-4 py-3">Name / Event Code</th>
                       <th className="px-4 py-3">Dates</th>
                       <th className="px-4 py-3 text-right">Action</th>
                     </tr>

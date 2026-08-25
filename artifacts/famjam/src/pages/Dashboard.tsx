@@ -11,6 +11,7 @@ import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
+import { eventCodePath } from "../lib/eventCode";
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -70,7 +71,7 @@ export function Dashboard() {
           </div>
           <div>
             <h3 className="font-bold text-lg text-foreground">Join a Reunion</h3>
-            <p className="text-muted-foreground text-sm">Enter a code to RSVP for an event.</p>
+            <p className="text-muted-foreground text-sm">Enter an Event Code to RSVP for an event.</p>
           </div>
         </Link>
       </div>
@@ -93,7 +94,7 @@ export function Dashboard() {
               <CalendarDays className="w-8 h-8 text-muted-foreground" />
             </div>
             <h3 className="font-bold text-lg mb-2">No registrations yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">You haven't RSVP'd to any family reunions. Join one using a family code.</p>
+            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">You haven't RSVP'd to any family reunions. Join one using an Event Code.</p>
             <Link href="/join" className="text-primary font-bold hover:underline">Join a Reunion</Link>
           </div>
         ) : (
@@ -126,7 +127,7 @@ export function Dashboard() {
                   <Link href={`/registrations/${reg.id}`} className="flex-1 text-center py-2 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded-xl font-medium transition-colors">
                     View Details
                   </Link>
-                  <Link href={`/r/${reg.reunionCode}`} className="flex-1 text-center py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl font-medium transition-colors">
+                  <Link href={eventCodePath(reg.reunionCode!)} className="flex-1 text-center py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl font-medium transition-colors">
                     Reunion Hub
                   </Link>
                 </div>

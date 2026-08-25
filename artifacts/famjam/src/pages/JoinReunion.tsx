@@ -5,15 +5,16 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Search } from "lucide-react";
 import { saveLastReunionCode } from "../lib/lastReunion";
+import { eventCodePath, isValidEventCode, normalizeEventCode } from "../lib/eventCode";
 
 export function JoinReunion() {
   const [, setLocation] = useLocation();
   const [code, setCode] = useState("");
   const [submittedCode, setSubmittedCode] = useState("");
 
-  const { data: reunion, isLoading, isError, error } = useGetReunionByCode(submittedCode, {
+  const { data: reunion, isLoading, isError } = useGetReunionByCode(submittedCode, {
     query: { 
-      enabled: submittedCode.length === 7,
+      enabled: isValidEventCode(submittedCode),
       retry: false
     , queryKey: getGetReunionByCodeQueryKey(submittedCode) }
   });
@@ -22,14 +23,14 @@ export function JoinReunion() {
   useEffect(() => {
     if (reunion) {
       saveLastReunionCode(reunion.code);
-      setLocation(`/r/${reunion.code}`);
+      setLocation(eventCodePath(reunion.code));
     }
   }, [reunion, setLocation]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanCode = code.trim().toUpperCase();
-    if (cleanCode.length === 7) {
+    const cleanCode = normalizeEventCode(code);
+    if (isValidEventCode(cleanCode)) {
       setSubmittedCode(cleanCode);
     }
   };
@@ -42,32 +43,35 @@ export function JoinReunion() {
       
       <h1 className="font-serif text-4xl font-bold mb-4 text-center">Join a Reunion</h1>
       <p className="text-lg text-muted-foreground text-center mb-10">
-        Enter the 7-character code provided by your reunion organizer to RSVP and view the itinerary.
+        Enter the Event Code provided by your reunion organizer to RSVP and view the itinerary.
       </p>
 
       <form onSubmit={handleSubmit} className="w-full bg-card border shadow-sm rounded-3xl p-8">
         <div className="mb-6">
           <Input
             value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="e.g. ABCDEFG"
-            className="text-center font-mono text-3xl py-8 tracking-widest rounded-2xl bg-muted/50 border-2 focus:border-primary focus:ring-primary uppercase placeholder:normal-case placeholder:tracking-normal placeholder:text-xl"
-            maxLength={7}
+            onChange={(e) => setCode(normalizeEventCode(e.target.value))}
+            placeholder="e.g. FAMILY-2027"
+            className="text-center font-mono text-xl sm:text-2xl py-8 tracking-widest rounded-2xl bg-muted/50 border-2 focus:border-primary focus:ring-primary uppercase placeholder:normal-case placeholder:tracking-normal placeholder:text-base sm:placeholder:text-xl"
+            maxLength={32}
             autoFocus
           />
+          <p className="mt-3 text-sm text-muted-foreground text-center">
+            7–32 characters; include a letter, number, and one of * . _ ~ -.
+          </p>
         </div>
 
         <Button 
           type="submit" 
-          disabled={code.trim().length !== 7 || isLoading}
+          disabled={!isValidEventCode(code) || isLoading}
           className="w-full rounded-full py-6 text-lg font-bold shadow-md hover:-translate-y-1 transition-all"
         >
-          {isLoading ? "Looking up..." : "Find Reunion"}
+          {isLoading ? "Looking up..." : "Find Event"}
         </Button>
 
         {isError && (
           <div className="mt-6 p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-xl text-center text-sm font-medium animate-in slide-in-from-top-2">
-            Reunion not found. Please check the code and try again.
+            Event not found. Please check the Event Code and try again.
           </div>
         )}
       </form>

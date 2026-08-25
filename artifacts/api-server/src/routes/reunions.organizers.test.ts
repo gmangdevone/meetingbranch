@@ -378,7 +378,7 @@ function seedBase() {
   state.rows.reunions = [
     {
       id: REUNION_ID,
-      code: "ABC1234",
+      code: "ABC1234*",
       name: "Smith Family Reunion",
       startDate: "2026-08-01",
       endDate: "2026-08-03",

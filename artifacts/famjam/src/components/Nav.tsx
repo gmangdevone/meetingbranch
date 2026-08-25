@@ -29,6 +29,7 @@ function DevBadge() {
 }
 
 import { useLastReunionCode } from "../lib/lastReunion";
+import { eventCodePath } from "../lib/eventCode";
 
 export function Nav() {
   const [location] = useLocation();
@@ -74,7 +75,7 @@ export function Nav() {
 
   // If the user has entered a valid RSVP code, "Home" returns to that reunion hub
   const lastCode = useLastReunionCode();
-  const homeHref = lastCode ? `/r/${lastCode}` : "/";
+  const homeHref = lastCode ? eventCodePath(lastCode) : "/";
 
   // Mobile nav items
   const mobileLinks = [

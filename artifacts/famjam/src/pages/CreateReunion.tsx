@@ -12,6 +12,7 @@ import { Label } from "../components/ui/label";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
 import { Skeleton } from "../components/ui/skeleton";
 import { useToast } from "../hooks/use-toast";
+import { eventCodePath } from "../lib/eventCode";
 
 const formSchema = z.object({
   name: z.string().min(1, "Reunion name is required"),
@@ -66,7 +67,7 @@ export function CreateReunion() {
       onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: getListMyReunionsQueryKey() });
         setSuccessData({ id: data.id, code: data.code });
-        toast({ title: "Reunion created!", description: "Share the code with your family." });
+        toast({ title: "Reunion created!", description: "Share the Event Code with your family." });
       },
       onError: (err) => {
         toast({ title: "Failed to create", description: (err as any)?.error || "An error occurred", variant: "destructive" });
@@ -79,7 +80,7 @@ export function CreateReunion() {
     navigator.clipboard.writeText(successData.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: "Code copied!", description: "You can paste this anywhere." });
+    toast({ title: "Event Code copied!", description: "You can paste this anywhere." });
   };
 
   if (loadingSettings) {
@@ -109,7 +110,7 @@ export function CreateReunion() {
   }
 
   if (successData) {
-    const shareUrl = `${window.location.origin}/r/${successData.code}`;
+    const shareUrl = `${window.location.origin}${eventCodePath(successData.code)}`;
     
     return (
       <div className="max-w-xl mx-auto py-16 flex flex-col items-center text-center animate-in zoom-in-95 duration-500">
@@ -121,15 +122,15 @@ export function CreateReunion() {
         
         <div className="bg-card border shadow-md rounded-3xl p-8 w-full mb-8 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-2 bg-primary"></div>
-          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Share this code</p>
-          <div className="font-mono text-6xl font-bold tracking-widest text-primary mb-8 select-all">
+          <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-4">Share this Event Code</p>
+          <div className="font-mono text-3xl sm:text-5xl md:text-6xl font-bold tracking-[0.15em] text-primary mb-8 select-all break-all">
             {successData.code}
           </div>
           
           <div className="flex flex-col gap-3">
             <Button onClick={handleCopyCode} variant="outline" className="w-full rounded-xl py-6 text-lg border-2" data-testid="button-copy-code">
               {copied ? <Check className="mr-2" /> : <Copy className="mr-2" />}
-              {copied ? "Copied!" : "Copy Code"}
+              {copied ? "Copied!" : "Copy Event Code"}
             </Button>
             
             <Button onClick={() => {

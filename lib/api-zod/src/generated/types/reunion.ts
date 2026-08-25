@@ -10,6 +10,12 @@ import type { ReunionFee } from './reunionFee';
 
 export interface Reunion {
   id: number;
+  /**
+     * Unique event code containing a letter, number, and URL-safe special character.
+     * @minLength 7
+     * @maxLength 32
+     * @pattern ^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$
+     */
   code: string;
   name: string;
   /** ISO date (YYYY-MM-DD) */

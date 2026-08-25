@@ -736,7 +736,7 @@ export const getGetReunionByCodeUrl = (code: string,) => {
 }
 
 /**
- * @summary Public lookup of a reunion by its 7-character code
+ * @summary Public lookup of an event by its event code
  */
 export const getReunionByCode = async (code: string, options?: RequestInit): Promise<Reunion> => {
 
@@ -783,7 +783,7 @@ export type GetReunionByCodeQueryError = ErrorType<ErrorResponse>
 
 
 /**
- * @summary Public lookup of a reunion by its 7-character code
+ * @summary Public lookup of an event by its event code
  */
 
 export function useGetReunionByCode<TData = Awaited<ReturnType<typeof getReunionByCode>>, TError = ErrorType<ErrorResponse>>(
@@ -908,7 +908,7 @@ export const updateReunion = async (reunionId: number,
 
 
 
-export const getUpdateReunionMutationOptions = <TError = ErrorType<void>,
+export const getUpdateReunionMutationOptions = <TError = ErrorType<ErrorResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReunion>>, TError,{reunionId: number;data: BodyType<ReunionUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof updateReunion>>, TError,{reunionId: number;data: BodyType<ReunionUpdateInput>}, TContext> => {
 
@@ -937,12 +937,12 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type UpdateReunionMutationResult = NonNullable<Awaited<ReturnType<typeof updateReunion>>>
     export type UpdateReunionMutationBody = BodyType<ReunionUpdateInput>
-    export type UpdateReunionMutationError = ErrorType<void>
+    export type UpdateReunionMutationError = ErrorType<ErrorResponse | void>
 
     /**
  * @summary Update reunion settings (organizer or platform admin)
  */
-export const useUpdateReunion = <TError = ErrorType<void>,
+export const useUpdateReunion = <TError = ErrorType<ErrorResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReunion>>, TError,{reunionId: number;data: BodyType<ReunionUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof updateReunion>>,

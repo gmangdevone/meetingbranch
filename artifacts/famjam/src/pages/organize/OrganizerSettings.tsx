@@ -21,7 +21,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload, ArrowUp, ArrowDown } from "lucide-react";
+import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -33,8 +33,14 @@ import { ImageLibraryDialog } from "../../components/ImageLibraryDialog";
 import { useCreateReunionImage, getListReunionImagesQueryKey } from "@workspace/api-client-react";
 import { describeFee } from "../../lib/fees";
 import { ROLE_OPTIONS, ROLE_LABELS } from "../../lib/roles";
+import {
+  EVENT_CODE_FORMAT_MESSAGE,
+  isValidEventCode,
+  normalizeEventCode,
+} from "../../lib/eventCode";
 
 const formSchema = z.object({
+  code: z.string().refine(isValidEventCode, EVENT_CODE_FORMAT_MESSAGE),
   name: z.string().min(1, "Required"),
   startDate: z.string().min(1, "Required"),
   endDate: z.string().min(1, "Required"),
@@ -60,6 +66,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      code: "",
       name: "",
       startDate: "",
       endDate: "",
@@ -75,6 +82,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   useEffect(() => {
     if (summary) {
       form.reset({
+        code: summary.reunion.code,
         name: summary.reunion.name,
         startDate: summary.reunion.startDate,
         endDate: summary.reunion.endDate,
@@ -89,9 +97,12 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   }, [summary, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    const normalizedCode = normalizeEventCode(values.code);
+    const codeChanged = normalizedCode !== summary?.reunion.code;
     updateMutation.mutate({
       reunionId,
       data: {
+        code: normalizedCode,
         name: values.name,
         startDate: values.startDate,
         endDate: values.endDate,
@@ -105,7 +116,22 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
-        toast({ title: "Settings saved" });
+        toast({
+          title: "Settings saved",
+          description: codeChanged
+            ? "The Event Code and join link have been updated."
+            : undefined,
+        });
+      },
+      onError: (error) => {
+        const message =
+          (error as { data?: { error?: string } })?.data?.error ??
+          "Please review the Event Code and try again.";
+        toast({
+          title: "Could not save settings",
+          description: message,
+          variant: "destructive",
+        });
       }
     });
   };
@@ -119,6 +145,44 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 bg-card border shadow-sm rounded-3xl p-6 md:p-8">
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => {
+                const changed =
+                  normalizeEventCode(field.value) !== summary.reunion.code;
+                return (
+                  <FormItem>
+                    <FormLabel className="font-bold">Event Code</FormLabel>
+                    <FormControl>
+                      <Input
+                        className="rounded-xl bg-muted/50 font-mono uppercase"
+                        maxLength={32}
+                        autoComplete="off"
+                        {...field}
+                        onChange={(event) =>
+                          field.onChange(normalizeEventCode(event.target.value))
+                        }
+                      />
+                    </FormControl>
+                    <div className="text-xs text-muted-foreground">
+                      {EVENT_CODE_FORMAT_MESSAGE}
+                    </div>
+                    {changed && (
+                      <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>
+                          Changing the Event Code replaces the join link. Previously
+                          shared links and saved codes will stop working.
+                        </span>
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+
             <FormField
               control={form.control}
               name="name"

@@ -10,6 +10,13 @@
  * Partial update — only provided fields are changed.
  */
 export interface ReunionUpdateInput {
+  /**
+     * Unique event code. Letters are normalized to uppercase.
+     * @minLength 7
+     * @maxLength 32
+     * @pattern ^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$
+     */
+  code?: string;
   /** @minLength 1 */
   name?: string;
   /** @minLength 1 */

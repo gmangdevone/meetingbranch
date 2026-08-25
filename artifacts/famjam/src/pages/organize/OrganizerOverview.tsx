@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { Button } from "../../components/ui/button";
 import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { eventCodePath } from "../../lib/eventCode";
 
 export function OrganizerOverview({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -18,12 +19,12 @@ export function OrganizerOverview({ params }: { params: { reunionId: string } })
 
   if (!summary) return null; // Layout handles loading/errors
 
-  const shareUrl = `${window.location.origin}/r/${summary.reunion.code}`;
+  const shareUrl = `${window.location.origin}${eventCodePath(summary.reunion.code)}`;
 
   const copyCode = () => {
     navigator.clipboard.writeText(summary.reunion.code);
     setCopiedCode(true);
-    toast({ title: "Code copied!" });
+    toast({ title: "Event Code copied!" });
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
@@ -62,8 +63,8 @@ export function OrganizerOverview({ params }: { params: { reunionId: string } })
             <div className="flex-1 flex flex-col justify-center">
               <div className="flex items-center justify-between bg-muted rounded-xl p-4 mb-4">
                 <div>
-                  <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Code</div>
-                  <div className="font-mono text-2xl font-bold tracking-widest">{summary.reunion.code}</div>
+                  <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Event Code</div>
+                  <div className="font-mono text-xl sm:text-2xl font-bold tracking-widest break-all">{summary.reunion.code}</div>
                 </div>
                 <Button size="icon" variant="ghost" onClick={copyCode}>
                   {copiedCode ? <Check className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}

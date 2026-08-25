@@ -360,7 +360,7 @@ describe("POST /api/admin/users/:id/remove", () => {
   });
 
   it("blocks removal with 409 while the user still owns a reunion", async () => {
-    state.rows.reunions = [{ id: 100, code: "ABC1234", name: "R", organizerId: TARGET }];
+    state.rows.reunions = [{ id: 100, code: "ABC1234*", name: "R", organizerId: TARGET }];
     authAs(ADMIN);
     const res = await request(buildApp())
       .post(`/api/admin/users/${TARGET}/remove`)

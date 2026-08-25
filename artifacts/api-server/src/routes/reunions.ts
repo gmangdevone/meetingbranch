@@ -61,7 +61,11 @@ import {
   requireReunionOwner,
   requireReunionPermission,
 } from "../middlewares/requireReunionManager";
-import { generateUniqueReunionCode } from "../lib/reunionCode";
+import {
+  generateUniqueReunionCode,
+  getEventCodeValidationError,
+  normalizeEventCode,
+} from "../lib/reunionCode";
 import { computeTotal } from "../lib/fees";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
@@ -159,6 +163,15 @@ async function getReunionSummaryPayload(reunionId: number) {
   };
 }
 
+function isUniqueConstraintViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
 // ── Create a reunion ──────────────────────────────────────────────────────────
 router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
   const settings = await getOrCreateSettings();
@@ -251,13 +264,13 @@ router.get("/reunions/mine", requireAuth, async (req, res): Promise<void> => {
 
 // ── Public lookup by code ─────────────────────────────────────────────────────
 router.get("/reunions/by-code/:code", async (req, res): Promise<void> => {
-  const code = String(req.params.code).toUpperCase();
+  const code = normalizeEventCode(String(req.params.code));
   const [reunion] = await db
     .select()
     .from(reunionsTable)
     .where(eq(reunionsTable.code, code));
   if (!reunion) {
-    res.status(404).json({ error: "No reunion found with that code." });
+    res.status(404).json({ error: "No event found with that event code." });
     return;
   }
   const full = await getReunionWithBranches(reunion.id);
@@ -360,12 +373,24 @@ router.put(
   ...manage,
   requireReunionPermission("power_user"),
   async (req, res): Promise<void> => {
-  const body = UpdateReunionBody.safeParse(req.body);
+  const rawBody =
+    req.body && typeof req.body === "object"
+      ? (req.body as Record<string, unknown>)
+      : {};
+  if (Object.prototype.hasOwnProperty.call(rawBody, "code")) {
+    const codeError = getEventCodeValidationError(rawBody.code);
+    if (codeError) {
+      res.status(400).json({ error: codeError });
+      return;
+    }
+    rawBody.code = normalizeEventCode(rawBody.code as string);
+  }
+  const body = UpdateReunionBody.safeParse(rawBody);
   if (!body.success) {
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, heroImageUrls, heroRotationSeconds, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, cashAppTag, checkPayee } = body.data;
+  const { code, name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, heroImageUrls, heroRotationSeconds, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, cashAppTag, checkPayee } = body.data;
   if (heroImageUrls !== undefined && heroImageUrls.some((p) => !p.startsWith("/objects/"))) {
     res.status(400).json({ error: "Each hero image must be an object path starting with /objects/" });
     return;
@@ -374,9 +399,21 @@ router.put(
     res.status(400).json({ error: "heroRotationSeconds must be a whole number of seconds" });
     return;
   }
+  if (code !== undefined && code !== req.managedReunion!.code) {
+    const [existingCode] = await db
+      .select({ id: reunionsTable.id })
+      .from(reunionsTable)
+      .where(eq(reunionsTable.code, code))
+      .limit(1);
+    if (existingCode) {
+      res.status(409).json({ error: "That event code is already in use." });
+      return;
+    }
+  }
   // Partial update: only fields present in the request body are changed, so
   // concurrent editors can't clobber each other's unrelated settings.
   const updates = {
+    ...(code === undefined ? {} : { code }),
     ...(name === undefined ? {} : { name }),
     ...(startDate === undefined ? {} : { startDate }),
     ...(endDate === undefined ? {} : { endDate }),
@@ -402,10 +439,18 @@ router.put(
     ...(checkPayee === undefined ? {} : { checkPayee: checkPayee?.trim() || null }),
   };
   if (Object.keys(updates).length > 0) {
-    await db
-      .update(reunionsTable)
-      .set(updates)
-      .where(eq(reunionsTable.id, req.managedReunion!.id));
+    try {
+      await db
+        .update(reunionsTable)
+        .set(updates)
+        .where(eq(reunionsTable.id, req.managedReunion!.id));
+    } catch (error) {
+      if (code !== undefined && isUniqueConstraintViolation(error)) {
+        res.status(409).json({ error: "That event code is already in use." });
+        return;
+      }
+      throw error;
+    }
   }
   const full = await getReunionWithBranches(req.managedReunion!.id);
   res.json(UpdateReunionResponse.parse(full));

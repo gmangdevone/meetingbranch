@@ -35,6 +35,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Checkbox } from "../../components/ui/checkbox";
 import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
 import { computeTotal } from "../../lib/fees";
 
@@ -481,7 +482,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                         {!isCancelled && (
                           <div className="flex flex-wrap gap-2">
                             {reunion?.code && (
-                              <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setLocation(`/r/${reunion.code}/register/edit/${reg.id}`)}>
+                              <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setLocation(eventCodePath(reunion.code, `/register/edit/${reg.id}`))}>
                                 <Pencil className="w-3 h-3 mr-1" /> Edit
                               </Button>
                             )}

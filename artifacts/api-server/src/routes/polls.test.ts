@@ -372,7 +372,7 @@ function seed(pollOverrides: Record<string, unknown> = {}) {
     reunions: [
       {
         id: REUNION_ID,
-        code: "ABC1234",
+        code: "ABC1234*",
         name: "Test Reunion",
         organizerId: OWNER,
         createdAt: new Date("2026-01-01").toISOString(),

@@ -14,8 +14,9 @@ export function FAQ() {
         <div className="bg-card border shadow-sm rounded-3xl p-8">
           <h3 className="font-bold text-xl mb-3 text-primary">How do I register for my family's reunion?</h3>
           <p className="text-muted-foreground leading-relaxed">
-            First, ask your family organizer for your unique 7-character reunion code (e.g., ABCDEFG).
-            Click "Join" in the menu, enter the code, and click "Register My Household". You'll be able to add
+            First, ask your family organizer for your unique Event Code (for example, FAMILY-2027). Event Codes are
+            7–32 characters and include a letter, number, and one of * . _ ~ -. Click "Join" in the menu, enter
+            the Event Code, and click "Register My Household". You'll be able to add
             all members of your immediate family, select t-shirt sizes, and note any dietary restrictions.
           </p>
         </div>
@@ -35,7 +36,7 @@ export function FAQ() {
             {settings === undefined ? null : canCreateReunion ? (
               <>
                 Yes! Meeting Branch is built for any family to use. Just create an account, click "Create a Reunion",
-                and fill in your dates and details. You'll instantly get a shareable code to send to your relatives.
+                and fill in your dates and details. You'll instantly get a shareable Event Code to send to your relatives.
               </>
             ) : (
               <>

@@ -1,10 +1,9 @@
 import { useSyncExternalStore } from "react";
+import { isValidEventCode, normalizeEventCode } from "./eventCode";
 
 const KEY = "meetingbranch:lastReunionCode";
 const LEGACY_KEY = "famjam:lastReunionCode";
 const EVENT = "meetingbranch:lastReunionCode-changed";
-
-const CODE_RE = /^[A-Z0-9]{7}$/;
 
 function notify() {
   window.dispatchEvent(new Event(EVENT));
@@ -12,8 +11,8 @@ function notify() {
 
 export function saveLastReunionCode(code: string) {
   try {
-    const clean = code.trim().toUpperCase();
-    if (!CODE_RE.test(clean)) return;
+    const clean = normalizeEventCode(code);
+    if (!isValidEventCode(clean)) return;
     localStorage.setItem(KEY, clean);
     // Remove legacy key when writing so old value doesn't shadow the new one
     localStorage.removeItem(LEGACY_KEY);
@@ -27,7 +26,7 @@ export function getLastReunionCode(): string | null {
   try {
     // Prefer the new key; fall back to the legacy famjam key for existing users
     const code = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY);
-    return code && CODE_RE.test(code) ? code : null;
+    return code && isValidEventCode(code) ? normalizeEventCode(code) : null;
   } catch {
     return null;
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReunionViewerPermissions } from "@workspace/api-client-react";
 
 // OrganizerSettings pulls in a lot of API hooks. We only care about one piece of
@@ -10,7 +10,10 @@ import type { ReunionViewerPermissions } from "@workspace/api-client-react";
 // `summary` must be a STABLE reference across renders: OrganizerSettings has a
 // useEffect keyed on it that resets the form, so a fresh object each render would
 // loop forever. Each test assigns a new summary object once.
-const hoisted = vi.hoisted(() => ({ summary: null as unknown }));
+const hoisted = vi.hoisted(() => ({
+  summary: null as unknown,
+  updateMutate: vi.fn(),
+}));
 
 vi.mock("wouter", () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -28,7 +31,7 @@ vi.mock("@workspace/api-client-react", () => {
     isError: false,
   }),
   getGetReunionQueryKey: (id: number) => ["getReunion", id],
-  useUpdateReunion: noopMutation,
+  useUpdateReunion: () => ({ mutate: hoisted.updateMutate, isPending: false }),
   useRequestUploadUrl: noopMutation,
   useCreateReunionImage: noopMutation,
   useDeleteReunionImage: noopMutation,
@@ -70,12 +73,14 @@ function setSummary(viewer: ReunionViewerPermissions) {
   hoisted.summary = {
     reunion: {
       id: 1,
-      code: "ABC1234",
+      code: "ABC1234*",
       name: "Test Reunion",
       startDate: "2027-07-01",
       endDate: "2027-07-03",
       paymentHandle: "@test",
       paymentUrl: null,
+      registrationsOpen: true,
+      allowRegistrantEdits: false,
       fees: [],
     },
     viewer,
@@ -102,5 +107,31 @@ describe("OrganizerSettings organizers section gating", () => {
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Organizers" })).toBeInTheDocument();
+  });
+
+  it("normalizes and submits an updated Event Code with a link warning", async () => {
+    hoisted.updateMutate.mockClear();
+    setSummary(makeViewer({ roles: ["power_user"] }));
+    render(<OrganizerSettings params={{ reunionId: "1" }} />);
+
+    const codeInput = screen.getByLabelText("Event Code");
+    expect(codeInput).toHaveValue("ABC1234*");
+
+    fireEvent.change(codeInput, { target: { value: "family27*" } });
+
+    expect(codeInput).toHaveValue("FAMILY27*");
+    expect(
+      screen.getByText(/Previously shared links and saved codes will stop working/),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    await waitFor(() => {
+      expect(hoisted.updateMutate).toHaveBeenCalled();
+    });
+    expect(hoisted.updateMutate.mock.calls[0][0]).toMatchObject({
+      reunionId: 1,
+      data: { code: "FAMILY27*" },
+    });
   });
 });

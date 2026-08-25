@@ -455,7 +455,7 @@ function seed() {
     reunions: [
       {
         id: REUNION_ID,
-        code: "ABC1234",
+        code: "ABC1234*",
         name: "Test Reunion",
         organizerId: OWNER,
         registrationsOpen: true,
@@ -463,7 +463,7 @@ function seed() {
       },
       {
         id: OTHER_REUNION_ID,
-        code: "ZZZ9999",
+        code: "ZZZ9999*",
         name: "Other Reunion",
         organizerId: "user_someone_else",
         registrationsOpen: true,
