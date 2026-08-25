@@ -1,5 +1,4 @@
-import { db, reunionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { randomInt } from "node:crypto";
 
 export const EVENT_CODE_MIN_LENGTH = 7;
 export const EVENT_CODE_MAX_LENGTH = 32;
@@ -15,7 +14,7 @@ const GENERATED_CODE_LENGTH = 8;
 const EVENT_CODE_RE = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[*._~-])[A-Z0-9*._~-]{7,32}$/;
 
 function randomCharacter(alphabet: string): string {
-  return alphabet[Math.floor(Math.random() * alphabet.length)];
+  return alphabet[randomInt(alphabet.length)];
 }
 
 export function normalizeEventCode(code: string): string {
@@ -47,22 +46,35 @@ export function generateCode(length = GENERATED_CODE_LENGTH): string {
     characters.push(randomCharacter(ALPHANUMERIC));
   }
   for (let i = characters.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [characters[i], characters[j]] = [characters[j], characters[i]];
   }
   return characters.join("");
 }
 
-/** Generates a format-compliant code that does not match an existing event. */
-export async function generateUniqueReunionCode(): Promise<string> {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const code = generateCode();
-    const [existing] = await db
-      .select({ id: reunionsTable.id })
-      .from(reunionsTable)
-      .where(eq(reunionsTable.code, code))
-      .limit(1);
-    if (!existing) return code;
+export function isUniqueConstraintViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "23505"
+  );
+}
+
+/**
+ * Makes code generation and insertion one bounded operation, retrying only
+ * PostgreSQL uniqueness races. Returning null lets the route send a clear 503.
+ */
+export async function allocateUniqueEventCode<T>(
+  insert: (code: string) => Promise<T>,
+  attempts = 20,
+): Promise<T | null> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await insert(generateCode());
+    } catch (error) {
+      if (!isUniqueConstraintViolation(error)) throw error;
+    }
   }
-  throw new Error("Could not generate a unique event code");
+  return null;
 }

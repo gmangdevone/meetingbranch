@@ -56,6 +56,11 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
   const reunionId = parseInt(params.reunionId, 10);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [savedCode, setSavedCode] = useState("");
+  const [saveFeedback, setSaveFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const { data: summary } = useGetReunion(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getGetReunionQueryKey(reunionId) }
@@ -81,6 +86,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
   useEffect(() => {
     if (summary) {
+      setSavedCode(summary.reunion.code);
       form.reset({
         code: summary.reunion.code,
         name: summary.reunion.name,
@@ -98,7 +104,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const normalizedCode = normalizeEventCode(values.code);
-    const codeChanged = normalizedCode !== summary?.reunion.code;
+    const codeChanged = normalizedCode !== savedCode;
+    setSaveFeedback(null);
     updateMutation.mutate({
       reunionId,
       data: {
@@ -116,6 +123,13 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
+        setSavedCode(normalizedCode);
+        setSaveFeedback({
+          kind: "success",
+          message: codeChanged
+            ? "Settings saved. The Event Code and join link have been updated."
+            : "Settings saved.",
+        });
         toast({
           title: "Settings saved",
           description: codeChanged
@@ -127,6 +141,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         const message =
           (error as { data?: { error?: string } })?.data?.error ??
           "Please review the Event Code and try again.";
+        setSaveFeedback({ kind: "error", message });
         toast({
           title: "Could not save settings",
           description: message,
@@ -150,7 +165,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
               name="code"
               render={({ field }) => {
                 const changed =
-                  normalizeEventCode(field.value) !== summary.reunion.code;
+                  normalizeEventCode(field.value) !== savedCode;
                 return (
                   <FormItem>
                     <FormLabel className="font-bold">Event Code</FormLabel>
@@ -336,6 +351,20 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                 )}
               />
             </div>
+
+            {saveFeedback && (
+              <div
+                role={saveFeedback.kind === "error" ? "alert" : "status"}
+                aria-live="polite"
+                className={
+                  saveFeedback.kind === "error"
+                    ? "rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                    : "rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-medium text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100"
+                }
+              >
+                {saveFeedback.message}
+              </div>
+            )}
 
             <Button type="submit" disabled={updateMutation.isPending} className="rounded-full w-full py-6 mt-4 font-bold text-lg shadow-md">
               Save Changes

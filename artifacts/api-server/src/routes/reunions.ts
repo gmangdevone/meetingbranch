@@ -62,8 +62,9 @@ import {
   requireReunionPermission,
 } from "../middlewares/requireReunionManager";
 import {
-  generateUniqueReunionCode,
+  allocateUniqueEventCode,
   getEventCodeValidationError,
+  isUniqueConstraintViolation,
   normalizeEventCode,
 } from "../lib/reunionCode";
 import { computeTotal } from "../lib/fees";
@@ -163,15 +164,6 @@ async function getReunionSummaryPayload(reunionId: number) {
   };
 }
 
-function isUniqueConstraintViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "23505"
-  );
-}
-
 // ── Create a reunion ──────────────────────────────────────────────────────────
 router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
   const settings = await getOrCreateSettings();
@@ -191,22 +183,30 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
   // JIT-provision the organizer's user row with authoritative Clerk profile data
   await upsertUserFromClerk(userId, req.log);
 
-  const code = await generateUniqueReunionCode();
   const { name, startDate, endDate, feePerPerson, paymentHandle, paymentUrl, branches } =
     parsed.data;
 
-  const [reunion] = await db
-    .insert(reunionsTable)
-    .values({
-      code,
-      name,
-      startDate,
-      endDate,
-      paymentHandle,
-      paymentUrl: paymentUrl ?? null,
-      organizerId: userId,
-    })
-    .returning();
+  const reunion = await allocateUniqueEventCode(async (code) => {
+      const [created] = await db
+        .insert(reunionsTable)
+        .values({
+          code,
+          name,
+          startDate,
+          endDate,
+          paymentHandle,
+          paymentUrl: paymentUrl ?? null,
+          organizerId: userId,
+        })
+        .returning();
+      return created;
+  });
+  if (!reunion) {
+    res.status(503).json({
+      error: "Could not allocate a unique Event Code. Please try again.",
+    });
+    return;
+  }
 
   // Seed the initial per-person "Registration Fee" from the provided amount.
   // Organizers can relabel it and add more fees & dues from settings afterwards.

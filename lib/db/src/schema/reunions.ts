@@ -41,6 +41,7 @@ export const reunionsTable = pgTable(
     check(
       "reunions_code_format_check",
       sql`char_length(${table.code}) between 7 and 32
+        and ${table.code} = upper(${table.code})
         and ${table.code} ~ '[A-Za-z]'
         and ${table.code} ~ '[0-9]'
         and ${table.code} ~ '[*._~-]'

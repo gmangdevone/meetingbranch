@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  allocateUniqueEventCode,
   EVENT_CODE_FORMAT_MESSAGE,
   generateCode,
   getEventCodeValidationError,
@@ -30,5 +31,39 @@ describe("event code rules", () => {
   ])("rejects a code that is %s", (_reason, code) => {
     expect(getEventCodeValidationError(code)).toBe(EVENT_CODE_FORMAT_MESSAGE);
     expect(isValidEventCode(code)).toBe(false);
+  });
+
+  it("retries PostgreSQL uniqueness collisions and returns the inserted value", async () => {
+    let calls = 0;
+    const result = await allocateUniqueEventCode(async (code) => {
+      calls += 1;
+      if (calls < 3) {
+        throw Object.assign(new Error("duplicate"), { code: "23505" });
+      }
+      return code;
+    });
+
+    expect(calls).toBe(3);
+    expect(result).not.toBeNull();
+    expect(isValidEventCode(result)).toBe(true);
+  });
+
+  it("returns null after the allocation retry budget is exhausted", async () => {
+    let calls = 0;
+    const result = await allocateUniqueEventCode(async () => {
+      calls += 1;
+      throw Object.assign(new Error("duplicate"), { code: "23505" });
+    }, 4);
+
+    expect(calls).toBe(4);
+    expect(result).toBeNull();
+  });
+
+  it("does not hide non-uniqueness database failures", async () => {
+    await expect(
+      allocateUniqueEventCode(async () => {
+        throw Object.assign(new Error("database unavailable"), { code: "08006" });
+      }),
+    ).rejects.toThrow("database unavailable");
   });
 });

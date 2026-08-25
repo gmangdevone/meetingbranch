@@ -14,6 +14,7 @@ ALTER TABLE "reunions"
   ADD CONSTRAINT "reunions_code_format_check"
   CHECK (
     char_length("code") BETWEEN 7 AND 32
+    AND "code" = upper("code")
     AND "code" ~ '[A-Za-z]'
     AND "code" ~ '[0-9]'
     AND "code" ~ '[*._~-]'

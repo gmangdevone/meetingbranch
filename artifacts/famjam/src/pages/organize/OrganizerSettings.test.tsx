@@ -110,7 +110,10 @@ describe("OrganizerSettings organizers section gating", () => {
   });
 
   it("normalizes and submits an updated Event Code with a link warning", async () => {
-    hoisted.updateMutate.mockClear();
+    hoisted.updateMutate.mockReset();
+    hoisted.updateMutate.mockImplementation(
+      (_variables, options) => options?.onSuccess?.(),
+    );
     setSummary(makeViewer({ roles: ["power_user"] }));
     render(<OrganizerSettings params={{ reunionId: "1" }} />);
 
@@ -133,5 +136,8 @@ describe("OrganizerSettings organizers section gating", () => {
       reunionId: 1,
       data: { code: "FAMILY27*" },
     });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Settings saved. The Event Code and join link have been updated.",
+    );
   });
 });
