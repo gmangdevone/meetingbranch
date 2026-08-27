@@ -113,7 +113,7 @@ export function Dashboard() {
         <p className="text-lg text-muted-foreground">Manage your upcoming family gatherings.</p>
       </div>
 
-      <div className={`grid grid-cols-1 ${canCreateReunion ? "md:grid-cols-2" : ""} gap-6 transition-opacity ${loadingSettings ? "opacity-0" : "opacity-100"}`}>
+      <div className={`grid grid-cols-1 gap-6 transition-opacity ${loadingSettings ? "opacity-0" : "opacity-100"}`}>
         {canCreateReunion && (
         <Link href="/create" className="bg-primary/10 border border-primary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-primary/15 transition-all group">
           <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -125,15 +125,6 @@ export function Dashboard() {
           </div>
         </Link>
         )}
-        <Link href="/join" className="bg-secondary/10 border border-secondary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-secondary/15 transition-all group">
-          <div className="bg-secondary text-secondary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Key className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-foreground">Join a Reunion</h3>
-            <p className="text-muted-foreground text-sm">Enter an Event Code to RSVP for an event.</p>
-          </div>
-        </Link>
       </div>
 
       <AdminSetupPrompt />
@@ -208,6 +199,19 @@ export function Dashboard() {
             )})}
           </div>
         )}
+
+        <Link
+          href="/join"
+          className="mt-6 flex items-center gap-4 rounded-3xl border border-[#4f8da9] bg-[#66A3BF] p-6 text-slate-950 transition-all hover:bg-[#5b99b6] hover:shadow-md group"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950 transition-transform group-hover:scale-110">
+            <Key className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold">Join a Reunion</h3>
+            <p className="text-sm text-slate-900/80">Enter an Event Code to RSVP for an event.</p>
+          </div>
+        </Link>
       </section>
 
       <section>
