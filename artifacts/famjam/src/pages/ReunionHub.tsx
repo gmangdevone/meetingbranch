@@ -292,7 +292,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             <span className="font-bold text-white/90">{countdownLabel}</span>
           </div>
           <div className="mt-6 pt-5 border-t border-white/20">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2 text-base font-bold text-white/90">
                 <Users className="w-5 h-5" />
                 {reunionSummary
