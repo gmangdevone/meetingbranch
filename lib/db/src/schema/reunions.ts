@@ -38,14 +38,26 @@ export const reunionsTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    // Publish applies schema diffs without replaying historical data backfills.
+    // Keep legacy production codes valid while enforcing the full format for
+    // every event created after this migration was introduced.
     check(
       "reunions_code_format_check",
-      sql`char_length(${table.code}) between 7 and 32
-        and ${table.code} = upper(${table.code})
-        and ${table.code} ~ '[A-Za-z]'
-        and ${table.code} ~ '[0-9]'
-        and ${table.code} ~ '[*._~-]'
-        and ${table.code} ~ '^[A-Za-z0-9*._~-]+$'`,
+      sql`(
+          ${table.createdAt} < timestamptz '2026-08-27 00:00:00+00'
+          and char_length(${table.code}) between 7 and 32
+          and ${table.code} = upper(${table.code})
+          and ${table.code} ~ '[A-Za-z]'
+          and ${table.code} ~ '[0-9]'
+          and ${table.code} ~ '^[A-Za-z0-9]+$'
+        ) or (
+          char_length(${table.code}) between 7 and 32
+          and ${table.code} = upper(${table.code})
+          and ${table.code} ~ '[A-Za-z]'
+          and ${table.code} ~ '[0-9]'
+          and ${table.code} ~ '[*._~-]'
+          and ${table.code} ~ '^[A-Za-z0-9*._~-]+$'
+        )`,
     ),
   ],
 );
