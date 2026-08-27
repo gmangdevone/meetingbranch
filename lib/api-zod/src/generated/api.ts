@@ -117,7 +117,7 @@ export const createReunionResponseCodeMin = 7;
 export const createReunionResponseCodeMax = 32;
 
 
-export const createReunionResponseCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const createReunionResponseCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
 export const createReunionResponseHeroImageUrlsMax = 5;
 
 export const createReunionResponseHeroRotationSecondsMin = 3;
@@ -133,7 +133,7 @@ export const createReunionResponseFeesItemAgeTiersItemAmountMin = 0;
 
 export const CreateReunionResponse = zod.object({
   "id": zod.number(),
-  "code": zod.string().min(createReunionResponseCodeMin).max(createReunionResponseCodeMax).regex(createReunionResponseCodeRegExp).describe('Unique event code containing a letter, number, and URL-safe special character.'),
+  "code": zod.string().min(createReunionResponseCodeMin).max(createReunionResponseCodeMax).regex(createReunionResponseCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
@@ -181,7 +181,7 @@ export const listMyReunionsResponseReunionCodeMin = 7;
 export const listMyReunionsResponseReunionCodeMax = 32;
 
 
-export const listMyReunionsResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const listMyReunionsResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
 export const listMyReunionsResponseReunionHeroImageUrlsMax = 5;
 
 export const listMyReunionsResponseReunionHeroRotationSecondsMin = 3;
@@ -198,7 +198,7 @@ export const listMyReunionsResponseReunionFeesItemAgeTiersItemAmountMin = 0;
 export const ListMyReunionsResponseItem = zod.object({
   "reunion": zod.object({
   "id": zod.number(),
-  "code": zod.string().min(listMyReunionsResponseReunionCodeMin).max(listMyReunionsResponseReunionCodeMax).regex(listMyReunionsResponseReunionCodeRegExp).describe('Unique event code containing a letter, number, and URL-safe special character.'),
+  "code": zod.string().min(listMyReunionsResponseReunionCodeMin).max(listMyReunionsResponseReunionCodeMax).regex(listMyReunionsResponseReunionCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
@@ -256,7 +256,7 @@ export const getReunionByCodePathCodeMin = 7;
 export const getReunionByCodePathCodeMax = 32;
 
 
-export const getReunionByCodePathCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const getReunionByCodePathCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9*._~-]+$');
 
 
 export const GetReunionByCodeParams = zod.object({
@@ -267,7 +267,7 @@ export const getReunionByCodeResponseCodeMin = 7;
 export const getReunionByCodeResponseCodeMax = 32;
 
 
-export const getReunionByCodeResponseCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const getReunionByCodeResponseCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
 export const getReunionByCodeResponseHeroImageUrlsMax = 5;
 
 export const getReunionByCodeResponseHeroRotationSecondsMin = 3;
@@ -283,7 +283,7 @@ export const getReunionByCodeResponseFeesItemAgeTiersItemAmountMin = 0;
 
 export const GetReunionByCodeResponse = zod.object({
   "id": zod.number(),
-  "code": zod.string().min(getReunionByCodeResponseCodeMin).max(getReunionByCodeResponseCodeMax).regex(getReunionByCodeResponseCodeRegExp).describe('Unique event code containing a letter, number, and URL-safe special character.'),
+  "code": zod.string().min(getReunionByCodeResponseCodeMin).max(getReunionByCodeResponseCodeMax).regex(getReunionByCodeResponseCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
@@ -335,7 +335,7 @@ export const getReunionResponseReunionCodeMin = 7;
 export const getReunionResponseReunionCodeMax = 32;
 
 
-export const getReunionResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const getReunionResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
 export const getReunionResponseReunionHeroImageUrlsMax = 5;
 
 export const getReunionResponseReunionHeroRotationSecondsMin = 3;
@@ -352,7 +352,7 @@ export const getReunionResponseReunionFeesItemAgeTiersItemAmountMin = 0;
 export const GetReunionResponse = zod.object({
   "reunion": zod.object({
   "id": zod.number(),
-  "code": zod.string().min(getReunionResponseReunionCodeMin).max(getReunionResponseReunionCodeMax).regex(getReunionResponseReunionCodeRegExp).describe('Unique event code containing a letter, number, and URL-safe special character.'),
+  "code": zod.string().min(getReunionResponseReunionCodeMin).max(getReunionResponseReunionCodeMax).regex(getReunionResponseReunionCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
@@ -448,7 +448,7 @@ export const updateReunionResponseCodeMin = 7;
 export const updateReunionResponseCodeMax = 32;
 
 
-export const updateReunionResponseCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const updateReunionResponseCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
 export const updateReunionResponseHeroImageUrlsMax = 5;
 
 export const updateReunionResponseHeroRotationSecondsMin = 3;
@@ -464,7 +464,7 @@ export const updateReunionResponseFeesItemAgeTiersItemAmountMin = 0;
 
 export const UpdateReunionResponse = zod.object({
   "id": zod.number(),
-  "code": zod.string().min(updateReunionResponseCodeMin).max(updateReunionResponseCodeMax).regex(updateReunionResponseCodeRegExp).describe('Unique event code containing a letter, number, and URL-safe special character.'),
+  "code": zod.string().min(updateReunionResponseCodeMin).max(updateReunionResponseCodeMax).regex(updateReunionResponseCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
@@ -2277,7 +2277,7 @@ export const adminListReunionsResponseReunionCodeMin = 7;
 export const adminListReunionsResponseReunionCodeMax = 32;
 
 
-export const adminListReunionsResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$');
+export const adminListReunionsResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
 export const adminListReunionsResponseReunionHeroImageUrlsMax = 5;
 
 export const adminListReunionsResponseReunionHeroRotationSecondsMin = 3;
@@ -2294,7 +2294,7 @@ export const adminListReunionsResponseReunionFeesItemAgeTiersItemAmountMin = 0;
 export const AdminListReunionsResponseItem = zod.object({
   "reunion": zod.object({
   "id": zod.number(),
-  "code": zod.string().min(adminListReunionsResponseReunionCodeMin).max(adminListReunionsResponseReunionCodeMax).regex(adminListReunionsResponseReunionCodeRegExp).describe('Unique event code containing a letter, number, and URL-safe special character.'),
+  "code": zod.string().min(adminListReunionsResponseReunionCodeMin).max(adminListReunionsResponseReunionCodeMax).regex(adminListReunionsResponseReunionCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),

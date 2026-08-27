@@ -247,7 +247,8 @@ paths:
             type: string
             minLength: 7
             maxLength: 32
-            pattern: '^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$'
+            pattern: '^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9*._~-]+$'
+            description: "Modern Event Code, or a safe uppercase alphanumeric legacy code grandfathered before 2026-08-27."
       responses:
         "200":
           description: Reunion detail with branches
@@ -2618,8 +2619,8 @@ components:
           type: string
           minLength: 7
           maxLength: 32
-          pattern: '^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$'
-          description: "Unique event code containing a letter, number, and URL-safe special character."
+          pattern: '^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$'
+          description: "Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character."
         name:
           type: string
         startDate:

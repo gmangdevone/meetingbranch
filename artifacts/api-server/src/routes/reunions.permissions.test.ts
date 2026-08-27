@@ -441,11 +441,13 @@ vi.mock("@workspace/db", () => {
 });
 
 const { default: reunionsRouter } = await import("./reunions");
+const { default: adminRouter } = await import("./admin");
 
 function buildApp(): Express {
   const app = express();
   app.use(express.json());
   app.use("/api", reunionsRouter);
+  app.use("/api", adminRouter);
   return app;
 }
 
@@ -818,6 +820,23 @@ describe("event code management", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.code).toBe("ABC1234*");
+  });
+
+  it("returns a safe legacy event code through public lookup and the admin list", async () => {
+    seed([]);
+    state.rows.reunions[0].code = "ABC12345";
+    state.rows.reunions[0].createdAt = new Date("2026-08-26T23:59:59.000Z").toISOString();
+
+    const publicResponse = await app().get("/api/reunions/by-code/abc12345");
+
+    expect(publicResponse.status).toBe(200);
+    expect(publicResponse.body.code).toBe("ABC12345");
+
+    authAs(ADMIN);
+    const adminResponse = await app().get("/api/admin/reunions");
+
+    expect(adminResponse.status).toBe(200);
+    expect(adminResponse.body[0].reunion.code).toBe("ABC12345");
   });
 });
 

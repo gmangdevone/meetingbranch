@@ -11,10 +11,10 @@ import type { ReunionFee } from './reunionFee';
 export interface Reunion {
   id: number;
   /**
-     * Unique event code containing a letter, number, and URL-safe special character.
+     * Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.
      * @minLength 7
      * @maxLength 32
-     * @pattern ^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[*._~-])[A-Za-z0-9*._~-]+$
+     * @pattern ^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$
      */
   code: string;
   name: string;
