@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, getGetSponsorshipFundQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useGetReunionSummary, getGetReunionSummaryQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, getGetSponsorshipFundQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
@@ -13,6 +13,7 @@ import { useUser } from "@clerk/react";
 import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
 import { eventCodePath } from "../lib/eventCode";
+import { getEventCountdownLabel, getRegistrationMomentumLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
 import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
@@ -62,6 +63,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const [showPayments, setShowPayments] = useState(false);
   const [showAllFees, setShowAllFees] = useState(false);
   const [showHeroFees, setShowHeroFees] = useState(false);
+  const [countdownNow, setCountdownNow] = useState(() => new Date());
 
   const revealPayments = () => {
     setShowPayments(true);
@@ -80,6 +82,24 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       retry: false
     , queryKey: getGetReunionByCodeQueryKey(code) }
   });
+
+  const { data: reunionSummary } = useGetReunionSummary(reunion?.id ?? 0, {
+    query: {
+      enabled: !!reunion?.id,
+      queryKey: getGetReunionSummaryQueryKey(reunion?.id ?? 0),
+    },
+  });
+
+  useEffect(() => {
+    const scheduleRefresh = () => {
+      const now = new Date();
+      setCountdownNow(now);
+      return window.setTimeout(scheduleRefresh, millisecondsUntilNextDay(now));
+    };
+
+    const timer = window.setTimeout(scheduleRefresh, millisecondsUntilNextDay(new Date()));
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const { data: myRegistrations } = useListMyRegistrations({
     query: { enabled: isSignedIn, queryKey: getListMyRegistrationsQueryKey() }
@@ -189,6 +209,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       : reunion?.heroImageUrl
         ? [reunion.heroImageUrl]
         : [];
+  const countdownLabel = reunion
+    ? getEventCountdownLabel(new Date(reunion.startDate), new Date(reunion.endDate), countdownNow)
+    : "";
 
   if (isLoading) {
     return (
@@ -259,27 +282,37 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           <h1 className="font-serif text-5xl md:text-6xl font-bold mb-4 drop-shadow-md">
             {reunion.name}
           </h1>
-          <div className="flex flex-wrap gap-6 text-lg font-medium">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-lg font-medium">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5" />
               <span>
                 {format(new Date(reunion.startDate), 'MMM d')} – {format(new Date(reunion.endDate), 'MMM d, yyyy')}
               </span>
             </div>
+            <span className="font-bold text-white/90">{countdownLabel}</span>
           </div>
-          {reunion.fees.length > 0 && (
-            <div className="mt-6 pt-5 border-t border-white/20">
+          <div className="mt-6 pt-5 border-t border-white/20">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-base font-bold text-white/90">
+                <Users className="w-5 h-5" />
+                {reunionSummary
+                  ? getRegistrationMomentumLabel(reunionSummary.totalRegistrations)
+                  : "Registrations and counting"}
+              </div>
+              {reunion.fees.length > 0 && (
               <button
                 type="button"
                 onClick={() => setShowHeroFees((v) => !v)}
                 aria-expanded={showHeroFees}
-                className="text-xs font-bold uppercase tracking-widest text-white/70 mb-3 flex items-center gap-1.5 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 rounded"
+                className="flex items-center gap-1.5 self-start rounded text-xs font-bold uppercase tracking-widest text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:self-auto"
               >
                 <DollarSign className="w-3.5 h-3.5" /> {showHeroFees ? "Hide" : "Show"} Fees &amp; Dues
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showHeroFees ? "rotate-180" : ""}`} />
               </button>
-              {showHeroFees && (
-              <div className="flex flex-col gap-2 max-w-xl animate-in fade-in slide-in-from-top-1 duration-200">
+              )}
+            </div>
+            {showHeroFees && reunion.fees.length > 0 && (
+              <div className="mt-4 flex max-w-xl flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                 {reunion.fees.map((fee) => {
                   const tiers = fee.chargeType === "per_person" ? (fee.ageTiers ?? []) : [];
                   return (
@@ -302,9 +335,8 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   );
                 })}
               </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
