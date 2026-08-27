@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useListMyReunions, useListMyRegistrations, useTransferRegistration, getListMyRegistrationsQueryKey, useGetSettings } from "@workspace/api-client-react";
 import { CalendarDays, Settings, Users, ArrowRight, Plus, Key, Send } from "lucide-react";
@@ -12,6 +12,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { eventCodePath } from "../lib/eventCode";
+import { getEventCountdownLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
 
 export function Dashboard() {
   const queryClient = useQueryClient();
@@ -24,6 +25,18 @@ export function Dashboard() {
   const [transferMode, setTransferMode] = useState<"registration" | "payment">("registration");
   const [targetEmail, setTargetEmail] = useState("");
   const [targetRegistrationId, setTargetRegistrationId] = useState("");
+  const [countdownNow, setCountdownNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const scheduleRefresh = () => {
+      const now = new Date();
+      setCountdownNow(now);
+      return window.setTimeout(scheduleRefresh, millisecondsUntilNextDay(now));
+    };
+
+    const timer = window.setTimeout(scheduleRefresh, millisecondsUntilNextDay(new Date()));
+    return () => window.clearTimeout(timer);
+  }, []);
   
   const transferMutation = useTransferRegistration();
 
@@ -168,14 +181,23 @@ export function Dashboard() {
                       {reunion.code}
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(reunion.startDate), 'MMM d')} - {format(new Date(reunion.endDate), 'MMM d, yyyy')}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <span className="text-muted-foreground">
+                      {format(new Date(reunion.startDate), 'MMM d')} - {format(new Date(reunion.endDate), 'MMM d, yyyy')}
+                    </span>
+                    <span className="font-bold text-primary">
+                      {getEventCountdownLabel(
+                        new Date(reunion.startDate),
+                        new Date(reunion.endDate),
+                        countdownNow,
+                      )}
+                    </span>
+                  </div>
                 </div>
                 
                 <div className="flex gap-4 text-sm mt-auto pt-4 border-t">
                   <div className="flex flex-col">
-                    <span className="text-muted-foreground">Households</span>
+                    <span className="text-muted-foreground">Registrants</span>
                     <span className="font-bold">{registrationCount}</span>
                   </div>
                   <div className="flex flex-col">
