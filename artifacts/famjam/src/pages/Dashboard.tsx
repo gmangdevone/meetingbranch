@@ -1,16 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useListMyReunions, useListMyRegistrations, useTransferRegistration, getListMyRegistrationsQueryKey, useGetSettings } from "@workspace/api-client-react";
-import { CalendarDays, Settings, Users, ArrowRight, Plus, Key, Send } from "lucide-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useListMyReunions, useListMyRegistrations, useGetSettings } from "@workspace/api-client-react";
+import { CalendarDays, Settings, ArrowRight, Key } from "lucide-react";
 import { format } from "date-fns";
 import { Skeleton } from "../components/ui/skeleton";
-import { AdminSetupPrompt } from "../components/AdminSetupPrompt";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Label } from "../components/ui/label";
-import { Input } from "../components/ui/input";
-import { Button } from "../components/ui/button";
-import { useQueryClient } from "@tanstack/react-query";
 import { eventCodePath } from "../lib/eventCode";
 import { getEventCountdownLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
 
@@ -54,16 +47,11 @@ function RegisteredEventCountdownCard({ code, now }: { code: string; now: Date }
 }
 
 export function Dashboard() {
-  const queryClient = useQueryClient();
   const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
   const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
-  const { data: settings, isLoading: loadingSettings } = useGetSettings();
+  const { data: settings } = useGetSettings();
   const canCreateReunion = settings?.reunionCreationEnabled ?? false;
 
-  const [transferReg, setTransferReg] = useState<any>(null);
-  const [transferMode, setTransferMode] = useState<"registration" | "payment">("registration");
-  const [targetEmail, setTargetEmail] = useState("");
-  const [targetRegistrationId, setTargetRegistrationId] = useState("");
   const [countdownNow, setCountdownNow] = useState(() => new Date());
   const registeredEventCodes = Array.from(
     new Set(
@@ -84,50 +72,12 @@ export function Dashboard() {
     const timer = window.setTimeout(scheduleRefresh, millisecondsUntilNextDay(new Date()));
     return () => window.clearTimeout(timer);
   }, []);
-  
-  const transferMutation = useTransferRegistration();
-
-  const handleTransfer = () => {
-    if (!transferReg) return;
-    transferMutation.mutate({
-      id: transferReg.id,
-      data: {
-        kind: transferMode,
-        targetEmail: transferMode === "registration" ? targetEmail : undefined,
-        targetRegistrationId: transferMode === "payment" ? parseInt(targetRegistrationId, 10) : undefined,
-      }
-    }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
-        setTransferReg(null);
-        setTargetEmail("");
-        setTargetRegistrationId("");
-      }
-    });
-  };
-
   return (
     <div className="flex flex-col gap-12 pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground">Welcome Back</h1>
         <p className="text-lg text-muted-foreground">Manage your upcoming family gatherings.</p>
       </div>
-
-      <div className={`grid grid-cols-1 gap-6 transition-opacity ${loadingSettings ? "opacity-0" : "opacity-100"}`}>
-        {canCreateReunion && (
-        <Link href="/create" className="bg-primary/10 border border-primary/20 rounded-3xl p-6 flex items-center gap-4 hover:bg-primary/15 transition-all group">
-          <div className="bg-primary text-primary-foreground w-12 h-12 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Plus className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-foreground">Create a Reunion</h3>
-            <p className="text-muted-foreground text-sm">Start organizing a new family event.</p>
-          </div>
-        </Link>
-        )}
-      </div>
-
-      <AdminSetupPrompt />
 
       {!loadingRegistrations && registeredEventCodes.length > 0 && (
         <section>
@@ -143,66 +93,9 @@ export function Dashboard() {
       )}
 
       <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-serif text-2xl font-bold text-foreground">My Registrations</h2>
-        </div>
-        
-        {loadingRegistrations ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Skeleton className="h-32 rounded-3xl" />
-            <Skeleton className="h-32 rounded-3xl" />
-          </div>
-        ) : !registrations || registrations.length === 0 ? (
-          <div className="bg-card border shadow-sm rounded-3xl p-8 text-center flex flex-col items-center">
-            <div className="bg-muted w-16 h-16 rounded-full flex items-center justify-center mb-4">
-              <CalendarDays className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="font-bold text-lg mb-2">No registrations yet</h3>
-            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">You haven't RSVP'd to any family reunions. Join one using an Event Code.</p>
-            <Link href="/join" className="text-primary font-bold hover:underline">Join a Reunion</Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {registrations.map(reg => {
-              const isCancelled = reg.status === 'cancelled';
-              return (
-              <div key={reg.id} className={`bg-card border shadow-sm rounded-3xl p-6 flex flex-col gap-4 hover:shadow-md transition-shadow ${isCancelled ? 'opacity-70 grayscale-[0.5]' : ''}`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-xl mb-1">{reg.reunionName || `Reunion ${reg.reunionCode}`}</h3>
-                    <p className="text-muted-foreground text-sm">Attending as: <span className="font-medium text-foreground">{reg.branchName}</span></p>
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                    isCancelled ? 'bg-destructive/10 text-destructive' :
-                    reg.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                    reg.paymentStatus === 'waived' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
-                    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                  }`}>
-                    {isCancelled ? 'Cancelled' : reg.paymentStatus}
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="w-4 h-4" />
-                  <span>{reg.attendeeCount} {reg.attendeeCount === 1 ? 'person' : 'people'}</span>
-                </div>
-                
-                <div className="mt-2 pt-4 border-t flex items-center gap-3">
-                  <Link href={`/registrations/${reg.id}`} className="flex-1 text-center py-2 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded-xl font-medium transition-colors">
-                    View Details
-                  </Link>
-                  <Link href={eventCodePath(reg.reunionCode!)} className="flex-1 text-center py-2 bg-primary/10 text-primary hover:bg-primary/20 rounded-xl font-medium transition-colors">
-                    Reunion Hub
-                  </Link>
-                </div>
-              </div>
-            )})}
-          </div>
-        )}
-
         <Link
           href="/join"
-          className="mt-6 flex items-center gap-4 rounded-3xl border border-[#4f8da9] bg-[#66A3BF] p-6 text-slate-950 transition-all hover:bg-[#5b99b6] hover:shadow-md group"
+          className="group flex items-center gap-4 rounded-3xl border border-[#4f8da9] bg-[#66A3BF] p-6 text-slate-950 transition-all hover:bg-[#5b99b6] hover:shadow-md"
         >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/30 text-slate-950 transition-transform group-hover:scale-110">
             <Key className="h-6 w-6" />
