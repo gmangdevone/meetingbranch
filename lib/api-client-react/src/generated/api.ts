@@ -21,6 +21,12 @@ import type {
 
 import type {
   AccessStatus,
+  ActivityChoiceGroup,
+  ActivityChoiceGroupInput,
+  ActivityChoiceGroupUpdateInput,
+  ActivityChoiceOption,
+  ActivityChoiceOptionInput,
+  ActivityChoiceSelectionsInput,
   AddOrganizerInput,
   AdminPlatformSettings,
   AdminRegistration,
@@ -41,8 +47,11 @@ import type {
   ErrorResponse,
   FeeInput,
   HealthStatus,
+  ManageActivityChoice,
   ManagePoll,
   ManagedRegistrationInput,
+  MemberActivityChoice,
+  MemberActivityChoiceList,
   MemberPoll,
   MemberPollList,
   MyContributionsResponse,
@@ -3102,6 +3111,602 @@ export const useCastPollVotes = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCastPollVotesMutationOptions(options));
+    }
+
+export const getListMemberActivityChoicesUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities`
+}
+
+/**
+ * @summary List activity choice groups with the signed-in viewer's selections and eligibility
+ */
+export const listMemberActivityChoices = async (reunionId: number, options?: RequestInit): Promise<MemberActivityChoiceList> => {
+
+  return customFetch<MemberActivityChoiceList>(getListMemberActivityChoicesUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMemberActivityChoicesQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/activities`
+    ] as const;
+    }
+
+
+export const getListMemberActivityChoicesQueryOptions = <TData = Awaited<ReturnType<typeof listMemberActivityChoices>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMemberActivityChoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMemberActivityChoicesQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMemberActivityChoices>>> = ({ signal }) => listMemberActivityChoices(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMemberActivityChoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMemberActivityChoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listMemberActivityChoices>>>
+export type ListMemberActivityChoicesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List activity choice groups with the signed-in viewer's selections and eligibility
+ */
+
+export function useListMemberActivityChoices<TData = Awaited<ReturnType<typeof listMemberActivityChoices>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMemberActivityChoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMemberActivityChoicesQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateActivityChoiceGroupUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities`
+}
+
+/**
+ * @summary Create an activity choice group with initial options
+ */
+export const createActivityChoiceGroup = async (reunionId: number,
+    activityChoiceGroupInput: ActivityChoiceGroupInput, options?: RequestInit): Promise<ActivityChoiceGroup> => {
+
+  return customFetch<ActivityChoiceGroup>(getCreateActivityChoiceGroupUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(activityChoiceGroupInput)
+  }
+);}
+
+
+
+
+
+export const getCreateActivityChoiceGroupMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createActivityChoiceGroup>>, TError,{reunionId: number;data: BodyType<ActivityChoiceGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createActivityChoiceGroup>>, TError,{reunionId: number;data: BodyType<ActivityChoiceGroupInput>}, TContext> => {
+
+const mutationKey = ['createActivityChoiceGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createActivityChoiceGroup>>, {reunionId: number;data: BodyType<ActivityChoiceGroupInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  createActivityChoiceGroup(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateActivityChoiceGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createActivityChoiceGroup>>>
+    export type CreateActivityChoiceGroupMutationBody = BodyType<ActivityChoiceGroupInput>
+    export type CreateActivityChoiceGroupMutationError = ErrorType<void>
+
+    /**
+ * @summary Create an activity choice group with initial options
+ */
+export const useCreateActivityChoiceGroup = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createActivityChoiceGroup>>, TError,{reunionId: number;data: BodyType<ActivityChoiceGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createActivityChoiceGroup>>,
+        TError,
+        {reunionId: number;data: BodyType<ActivityChoiceGroupInput>},
+        TContext
+      > => {
+      return useMutation(getCreateActivityChoiceGroupMutationOptions(options));
+    }
+
+export const getListManageActivityChoicesUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/manage`
+}
+
+/**
+ * @summary List all activity choice groups with counts and registrant names
+ */
+export const listManageActivityChoices = async (reunionId: number, options?: RequestInit): Promise<ManageActivityChoice[]> => {
+
+  return customFetch<ManageActivityChoice[]>(getListManageActivityChoicesUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListManageActivityChoicesQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/activities/manage`
+    ] as const;
+    }
+
+
+export const getListManageActivityChoicesQueryOptions = <TData = Awaited<ReturnType<typeof listManageActivityChoices>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManageActivityChoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListManageActivityChoicesQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listManageActivityChoices>>> = ({ signal }) => listManageActivityChoices(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listManageActivityChoices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListManageActivityChoicesQueryResult = NonNullable<Awaited<ReturnType<typeof listManageActivityChoices>>>
+export type ListManageActivityChoicesQueryError = ErrorType<void>
+
+
+/**
+ * @summary List all activity choice groups with counts and registrant names
+ */
+
+export function useListManageActivityChoices<TData = Awaited<ReturnType<typeof listManageActivityChoices>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listManageActivityChoices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListManageActivityChoicesQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateActivityChoiceGroupUrl = (reunionId: number,
+    activityChoiceGroupId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/${activityChoiceGroupId}`
+}
+
+/**
+ * @summary Update an activity choice group
+ */
+export const updateActivityChoiceGroup = async (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceGroupUpdateInput: ActivityChoiceGroupUpdateInput, options?: RequestInit): Promise<ActivityChoiceGroup> => {
+
+  return customFetch<ActivityChoiceGroup>(getUpdateActivityChoiceGroupUrl(reunionId,activityChoiceGroupId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(activityChoiceGroupUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateActivityChoiceGroupMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateActivityChoiceGroup>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceGroupUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateActivityChoiceGroup>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceGroupUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateActivityChoiceGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateActivityChoiceGroup>>, {reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceGroupUpdateInput>}> = (props) => {
+          const {reunionId,activityChoiceGroupId,data} = props ?? {};
+
+          return  updateActivityChoiceGroup(reunionId,activityChoiceGroupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateActivityChoiceGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateActivityChoiceGroup>>>
+    export type UpdateActivityChoiceGroupMutationBody = BodyType<ActivityChoiceGroupUpdateInput>
+    export type UpdateActivityChoiceGroupMutationError = ErrorType<void>
+
+    /**
+ * @summary Update an activity choice group
+ */
+export const useUpdateActivityChoiceGroup = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateActivityChoiceGroup>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceGroupUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateActivityChoiceGroup>>,
+        TError,
+        {reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceGroupUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateActivityChoiceGroupMutationOptions(options));
+    }
+
+export const getDeleteActivityChoiceGroupUrl = (reunionId: number,
+    activityChoiceGroupId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/${activityChoiceGroupId}`
+}
+
+/**
+ * @summary Delete an activity choice group and all selections
+ */
+export const deleteActivityChoiceGroup = async (reunionId: number,
+    activityChoiceGroupId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteActivityChoiceGroupUrl(reunionId,activityChoiceGroupId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteActivityChoiceGroupMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteActivityChoiceGroup>>, TError,{reunionId: number;activityChoiceGroupId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteActivityChoiceGroup>>, TError,{reunionId: number;activityChoiceGroupId: number}, TContext> => {
+
+const mutationKey = ['deleteActivityChoiceGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteActivityChoiceGroup>>, {reunionId: number;activityChoiceGroupId: number}> = (props) => {
+          const {reunionId,activityChoiceGroupId} = props ?? {};
+
+          return  deleteActivityChoiceGroup(reunionId,activityChoiceGroupId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteActivityChoiceGroupMutationResult = NonNullable<Awaited<ReturnType<typeof deleteActivityChoiceGroup>>>
+
+    export type DeleteActivityChoiceGroupMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete an activity choice group and all selections
+ */
+export const useDeleteActivityChoiceGroup = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteActivityChoiceGroup>>, TError,{reunionId: number;activityChoiceGroupId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteActivityChoiceGroup>>,
+        TError,
+        {reunionId: number;activityChoiceGroupId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteActivityChoiceGroupMutationOptions(options));
+    }
+
+export const getAddActivityChoiceOptionUrl = (reunionId: number,
+    activityChoiceGroupId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/${activityChoiceGroupId}/options`
+}
+
+/**
+ * @summary Add an option to an activity choice group
+ */
+export const addActivityChoiceOption = async (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceOptionInput: ActivityChoiceOptionInput, options?: RequestInit): Promise<ActivityChoiceOption> => {
+
+  return customFetch<ActivityChoiceOption>(getAddActivityChoiceOptionUrl(reunionId,activityChoiceGroupId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(activityChoiceOptionInput)
+  }
+);}
+
+
+
+
+
+export const getAddActivityChoiceOptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceOptionInput>}, TContext> => {
+
+const mutationKey = ['addActivityChoiceOption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addActivityChoiceOption>>, {reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceOptionInput>}> = (props) => {
+          const {reunionId,activityChoiceGroupId,data} = props ?? {};
+
+          return  addActivityChoiceOption(reunionId,activityChoiceGroupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddActivityChoiceOptionMutationResult = NonNullable<Awaited<ReturnType<typeof addActivityChoiceOption>>>
+    export type AddActivityChoiceOptionMutationBody = BodyType<ActivityChoiceOptionInput>
+    export type AddActivityChoiceOptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Add an option to an activity choice group
+ */
+export const useAddActivityChoiceOption = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addActivityChoiceOption>>,
+        TError,
+        {reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceOptionInput>},
+        TContext
+      > => {
+      return useMutation(getAddActivityChoiceOptionMutationOptions(options));
+    }
+
+export const getDeleteActivityChoiceOptionUrl = (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceOptionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/${activityChoiceGroupId}/options/${activityChoiceOptionId}`
+}
+
+/**
+ * @summary Remove an activity choice option and its selections
+ */
+export const deleteActivityChoiceOption = async (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceOptionId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteActivityChoiceOptionUrl(reunionId,activityChoiceGroupId,activityChoiceOptionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteActivityChoiceOptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number}, TContext> => {
+
+const mutationKey = ['deleteActivityChoiceOption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteActivityChoiceOption>>, {reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number}> = (props) => {
+          const {reunionId,activityChoiceGroupId,activityChoiceOptionId} = props ?? {};
+
+          return  deleteActivityChoiceOption(reunionId,activityChoiceGroupId,activityChoiceOptionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteActivityChoiceOptionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteActivityChoiceOption>>>
+
+    export type DeleteActivityChoiceOptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove an activity choice option and its selections
+ */
+export const useDeleteActivityChoiceOption = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteActivityChoiceOption>>,
+        TError,
+        {reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteActivityChoiceOptionMutationOptions(options));
+    }
+
+export const getSetActivityChoiceSelectionsUrl = (reunionId: number,
+    activityChoiceGroupId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/${activityChoiceGroupId}/selections`
+}
+
+/**
+ * @summary Replace the active registrant's selections for an open activity choice group
+ */
+export const setActivityChoiceSelections = async (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceSelectionsInput: ActivityChoiceSelectionsInput, options?: RequestInit): Promise<MemberActivityChoice> => {
+
+  return customFetch<MemberActivityChoice>(getSetActivityChoiceSelectionsUrl(reunionId,activityChoiceGroupId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(activityChoiceSelectionsInput)
+  }
+);}
+
+
+
+
+
+export const getSetActivityChoiceSelectionsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setActivityChoiceSelections>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceSelectionsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setActivityChoiceSelections>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceSelectionsInput>}, TContext> => {
+
+const mutationKey = ['setActivityChoiceSelections'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setActivityChoiceSelections>>, {reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceSelectionsInput>}> = (props) => {
+          const {reunionId,activityChoiceGroupId,data} = props ?? {};
+
+          return  setActivityChoiceSelections(reunionId,activityChoiceGroupId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetActivityChoiceSelectionsMutationResult = NonNullable<Awaited<ReturnType<typeof setActivityChoiceSelections>>>
+    export type SetActivityChoiceSelectionsMutationBody = BodyType<ActivityChoiceSelectionsInput>
+    export type SetActivityChoiceSelectionsMutationError = ErrorType<void>
+
+    /**
+ * @summary Replace the active registrant's selections for an open activity choice group
+ */
+export const useSetActivityChoiceSelections = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setActivityChoiceSelections>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceSelectionsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setActivityChoiceSelections>>,
+        TError,
+        {reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceSelectionsInput>},
+        TContext
+      > => {
+      return useMutation(getSetActivityChoiceSelectionsMutationOptions(options));
     }
 
 export const getGetSponsorshipFundUrl = (reunionId: number,) => {

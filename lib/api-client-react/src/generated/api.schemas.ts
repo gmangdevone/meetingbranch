@@ -937,6 +937,97 @@ export interface CastVotesInput {
   optionIds: number[];
 }
 
+export interface ActivityChoiceGroupInput {
+  /** @minLength 1 */
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  maxSelectionsPerRegistrant: number;
+  /**
+     * @minItems 2
+     * @items.minLength 1
+     */
+  options: string[];
+}
+
+export interface ActivityChoiceGroupUpdateInput {
+  /** @minLength 1 */
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  maxSelectionsPerRegistrant?: number;
+  isOpen?: boolean;
+  resultsRevealed?: boolean;
+  liveResults?: boolean;
+}
+
+export interface ActivityChoiceOptionInput {
+  /** @minLength 1 */
+  label: string;
+}
+
+export interface ActivityChoiceOption {
+  id: number;
+  groupId: number;
+  label: string;
+  position: number;
+}
+
+export interface ActivityChoiceGroup {
+  id: number;
+  reunionId: number;
+  title: string;
+  /** @nullable */
+  description: string | null;
+  maxSelectionsPerRegistrant: number;
+  isOpen: boolean;
+  resultsRevealed: boolean;
+  liveResults: boolean;
+  createdAt: string;
+  options: ActivityChoiceOption[];
+}
+
+export interface ActivityChoiceOptionResult {
+  optionId: number;
+  label: string;
+  selectionCount: number;
+  /** Registrant display names. Only present in the organizer view. */
+  registrants?: string[];
+}
+
+export interface MemberActivityChoice {
+  group: ActivityChoiceGroup;
+  myOptionIds: number[];
+  /** True when the group is open and the viewer has an active registration. */
+  canSelect: boolean;
+  results?: ActivityChoiceOptionResult[];
+}
+
+export interface MemberActivityChoiceList {
+  /** Whether the viewer has an active registration and may make selections. */
+  eligible: boolean;
+  groups: MemberActivityChoice[];
+}
+
+export interface ManageActivityChoice {
+  group: ActivityChoiceGroup;
+  totalRegistrants: number;
+  results: ActivityChoiceOptionResult[];
+}
+
+export interface ActivityChoiceSelectionsInput {
+  /** The full set of options selected, replacing previous selections. */
+  optionIds: number[];
+}
+
 export interface ManagedRegistrationInput {
   /** @minLength 1 */
   memberFirstName: string;

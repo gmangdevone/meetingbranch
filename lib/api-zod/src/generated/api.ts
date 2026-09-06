@@ -1329,6 +1329,250 @@ export const CastPollVotesResponse = zod.object({
 
 
 /**
+ * @summary List activity choice groups with the signed-in viewer's selections and eligibility
+ */
+export const ListMemberActivityChoicesParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListMemberActivityChoicesResponse = zod.object({
+  "eligible": zod.boolean().describe('Whether the viewer has an active registration and may make selections.'),
+  "groups": zod.array(zod.object({
+  "group": zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "maxSelectionsPerRegistrant": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+}),
+  "myOptionIds": zod.array(zod.number()),
+  "canSelect": zod.boolean().describe('True when the group is open and the viewer has an active registration.'),
+  "results": zod.array(zod.object({
+  "optionId": zod.number(),
+  "label": zod.string(),
+  "selectionCount": zod.number(),
+  "registrants": zod.array(zod.string()).optional().describe('Registrant display names. Only present in the organizer view.')
+})).optional()
+}))
+})
+
+
+/**
+ * @summary Create an activity choice group with initial options
+ */
+export const CreateActivityChoiceGroupParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+export const createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax = 20;
+
+
+export const createActivityChoiceGroupBodyOptionsMin = 2;
+
+
+
+export const CreateActivityChoiceGroupBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "maxSelectionsPerRegistrant": zod.number().min(1).max(createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax),
+  "options": zod.array(zod.string().min(1)).min(createActivityChoiceGroupBodyOptionsMin)
+})
+
+export const CreateActivityChoiceGroupResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "maxSelectionsPerRegistrant": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+})
+
+
+/**
+ * @summary List all activity choice groups with counts and registrant names
+ */
+export const ListManageActivityChoicesParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListManageActivityChoicesResponseItem = zod.object({
+  "group": zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "maxSelectionsPerRegistrant": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+}),
+  "totalRegistrants": zod.number(),
+  "results": zod.array(zod.object({
+  "optionId": zod.number(),
+  "label": zod.string(),
+  "selectionCount": zod.number(),
+  "registrants": zod.array(zod.string()).optional().describe('Registrant display names. Only present in the organizer view.')
+}))
+})
+export const ListManageActivityChoicesResponse = zod.array(ListManageActivityChoicesResponseItem)
+
+
+/**
+ * @summary Update an activity choice group
+ */
+export const UpdateActivityChoiceGroupParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "activityChoiceGroupId": zod.coerce.number()
+})
+
+
+export const updateActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax = 20;
+
+
+
+export const UpdateActivityChoiceGroupBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "maxSelectionsPerRegistrant": zod.number().min(1).max(updateActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax).optional(),
+  "isOpen": zod.boolean().optional(),
+  "resultsRevealed": zod.boolean().optional(),
+  "liveResults": zod.boolean().optional()
+})
+
+export const UpdateActivityChoiceGroupResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "maxSelectionsPerRegistrant": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+})
+
+
+/**
+ * @summary Delete an activity choice group and all selections
+ */
+export const DeleteActivityChoiceGroupParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "activityChoiceGroupId": zod.coerce.number()
+})
+
+export const DeleteActivityChoiceGroupResponse = zod.void()
+
+
+/**
+ * @summary Add an option to an activity choice group
+ */
+export const AddActivityChoiceOptionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "activityChoiceGroupId": zod.coerce.number()
+})
+
+
+
+
+export const AddActivityChoiceOptionBody = zod.object({
+  "label": zod.string().min(1)
+})
+
+export const AddActivityChoiceOptionResponse = zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+})
+
+
+/**
+ * @summary Remove an activity choice option and its selections
+ */
+export const DeleteActivityChoiceOptionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "activityChoiceGroupId": zod.coerce.number(),
+  "activityChoiceOptionId": zod.coerce.number()
+})
+
+export const DeleteActivityChoiceOptionResponse = zod.void()
+
+
+/**
+ * @summary Replace the active registrant's selections for an open activity choice group
+ */
+export const SetActivityChoiceSelectionsParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "activityChoiceGroupId": zod.coerce.number()
+})
+
+export const SetActivityChoiceSelectionsBody = zod.object({
+  "optionIds": zod.array(zod.number()).describe('The full set of options selected, replacing previous selections.')
+})
+
+export const SetActivityChoiceSelectionsResponse = zod.object({
+  "group": zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "maxSelectionsPerRegistrant": zod.number(),
+  "isOpen": zod.boolean(),
+  "resultsRevealed": zod.boolean(),
+  "liveResults": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "options": zod.array(zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+}))
+}),
+  "myOptionIds": zod.array(zod.number()),
+  "canSelect": zod.boolean().describe('True when the group is open and the viewer has an active registration.'),
+  "results": zod.array(zod.object({
+  "optionId": zod.number(),
+  "label": zod.string(),
+  "selectionCount": zod.number(),
+  "registrants": zod.array(zod.string()).optional().describe('Registrant display names. Only present in the organizer view.')
+})).optional()
+})
+
+
+/**
  * @summary Sponsorship fund balance and ledger (power user only)
  */
 export const GetSponsorshipFundParams = zod.object({

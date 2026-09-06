@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetReunionByCode, getGetReunionByCodeQueryKey, useGetReunionSummary, getGetReunionSummaryQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, getGetSponsorshipFundQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { CalendarDays, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown } from "lucide-react";
+import { CalendarDays, ClipboardList, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
@@ -690,7 +690,6 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             <HubCard
               href={eventCodePath(reunion.code, "/polls")}
               imageUrl={reunion.pollsCardImageUrl}
-              className="md:col-span-2"
               defaultClassName="bg-primary/5 border-primary/20 hover:bg-primary/10"
               iconClassName="bg-primary text-primary-foreground"
               linkClassName="text-primary"
@@ -698,6 +697,16 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               title="Family Vote"
               description="Weigh in on family decisions — polls open to checked-in members."
               linkLabel="See Polls"
+            />
+            <HubCard
+              href={eventCodePath(reunion.code, "/activities")}
+              defaultClassName="bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/20"
+              iconClassName="bg-amber-500 text-white"
+              linkClassName="text-amber-700 dark:text-amber-500"
+              icon={<ClipboardList className="w-6 h-6" />}
+              title="Activities & Choices"
+              description="Choose activities and share the options that work for your household."
+              linkLabel="View Choices"
             />
           </div>
         </div>

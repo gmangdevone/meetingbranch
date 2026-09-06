@@ -7,6 +7,13 @@
  */
 
 export * from './accessStatus';
+export * from './activityChoiceGroup';
+export * from './activityChoiceGroupInput';
+export * from './activityChoiceGroupUpdateInput';
+export * from './activityChoiceOption';
+export * from './activityChoiceOptionInput';
+export * from './activityChoiceOptionResult';
+export * from './activityChoiceSelectionsInput';
 export * from './addOrganizerInput';
 export * from './adminPlatformSettings';
 export * from './adminRegistration';
@@ -34,8 +41,11 @@ export * from './feeChargeType';
 export * from './feeInput';
 export * from './groupCount';
 export * from './healthStatus';
+export * from './manageActivityChoice';
 export * from './managedRegistrationInput';
 export * from './managePoll';
+export * from './memberActivityChoice';
+export * from './memberActivityChoiceList';
 export * from './memberPoll';
 export * from './memberPollList';
 export * from './myContributionsResponse';

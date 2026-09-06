@@ -979,6 +979,190 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/activities:
+    get:
+      operationId: listMemberActivityChoices
+      tags: [reunions]
+      summary: List activity choice groups with the signed-in viewer's selections and eligibility
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Member view of activity choices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberActivityChoiceList"
+    post:
+      operationId: createActivityChoiceGroup
+      tags: [manage]
+      summary: Create an activity choice group with initial options
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityChoiceGroupInput"
+      responses:
+        "201":
+          description: Created activity choice group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityChoiceGroup"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/activities/manage:
+    get:
+      operationId: listManageActivityChoices
+      tags: [manage]
+      summary: List all activity choice groups with counts and registrant names
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Organizer view of activity choices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ManageActivityChoice"
+        "403":
+          description: Forbidden
+
+  /reunions/{reunionId}/activities/{activityChoiceGroupId}:
+    patch:
+      operationId: updateActivityChoiceGroup
+      tags: [manage]
+      summary: Update an activity choice group
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ActivityChoiceGroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityChoiceGroupUpdateInput"
+      responses:
+        "200":
+          description: Updated activity choice group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityChoiceGroup"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteActivityChoiceGroup
+      tags: [manage]
+      summary: Delete an activity choice group and all selections
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ActivityChoiceGroupId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/activities/{activityChoiceGroupId}/options:
+    post:
+      operationId: addActivityChoiceOption
+      tags: [manage]
+      summary: Add an option to an activity choice group
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ActivityChoiceGroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityChoiceOptionInput"
+      responses:
+        "201":
+          description: Created option
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityChoiceOption"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/activities/{activityChoiceGroupId}/options/{activityChoiceOptionId}:
+    delete:
+      operationId: deleteActivityChoiceOption
+      tags: [manage]
+      summary: Remove an activity choice option and its selections
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ActivityChoiceGroupId"
+        - $ref: "#/components/parameters/ActivityChoiceOptionId"
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          description: A group must retain at least two options
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
+
+  /reunions/{reunionId}/activities/{activityChoiceGroupId}/selections:
+    put:
+      operationId: setActivityChoiceSelections
+      tags: [reunions]
+      summary: Replace the active registrant's selections for an open activity choice group
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ActivityChoiceGroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityChoiceSelectionsInput"
+      responses:
+        "200":
+          description: Updated member view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberActivityChoice"
+        "400":
+          description: Invalid selections or closed group
+        "403":
+          description: An active registration is required to select
+        "404":
+          description: Not found
+
   /reunions/{reunionId}/sponsorship:
     get:
       operationId: getSponsorshipFund
@@ -2042,6 +2226,18 @@ components:
         type: integer
     PollOptionId:
       name: optionId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ActivityChoiceGroupId:
+      name: activityChoiceGroupId
+      in: path
+      required: true
+      schema:
+        type: integer
+    ActivityChoiceOptionId:
+      name: activityChoiceOptionId
       in: path
       required: true
       schema:
@@ -3175,6 +3371,163 @@ components:
           items:
             type: integer
           description: The full set of options the member is voting for (replaces previous votes).
+
+    ActivityChoiceGroupInput:
+      type: object
+      required: [title, maxSelectionsPerRegistrant, options]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        maxSelectionsPerRegistrant:
+          type: integer
+          minimum: 1
+          maximum: 20
+        options:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 2
+
+    ActivityChoiceGroupUpdateInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        maxSelectionsPerRegistrant:
+          type: integer
+          minimum: 1
+          maximum: 20
+        isOpen:
+          type: boolean
+        resultsRevealed:
+          type: boolean
+        liveResults:
+          type: boolean
+
+    ActivityChoiceOptionInput:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+
+    ActivityChoiceOption:
+      type: object
+      required: [id, groupId, label, position]
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        label:
+          type: string
+        position:
+          type: integer
+
+    ActivityChoiceGroup:
+      type: object
+      required: [id, reunionId, title, description, maxSelectionsPerRegistrant, isOpen, resultsRevealed, liveResults, createdAt, options]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        maxSelectionsPerRegistrant:
+          type: integer
+        isOpen:
+          type: boolean
+        resultsRevealed:
+          type: boolean
+        liveResults:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityChoiceOption"
+
+    ActivityChoiceOptionResult:
+      type: object
+      required: [optionId, label, selectionCount]
+      properties:
+        optionId:
+          type: integer
+        label:
+          type: string
+        selectionCount:
+          type: integer
+        registrants:
+          type: array
+          items:
+            type: string
+          description: Registrant display names. Only present in the organizer view.
+
+    MemberActivityChoice:
+      type: object
+      required: [group, myOptionIds, canSelect]
+      properties:
+        group:
+          $ref: "#/components/schemas/ActivityChoiceGroup"
+        myOptionIds:
+          type: array
+          items:
+            type: integer
+        canSelect:
+          type: boolean
+          description: True when the group is open and the viewer has an active registration.
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityChoiceOptionResult"
+
+    MemberActivityChoiceList:
+      type: object
+      required: [eligible, groups]
+      properties:
+        eligible:
+          type: boolean
+          description: Whether the viewer has an active registration and may make selections.
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberActivityChoice"
+
+    ManageActivityChoice:
+      type: object
+      required: [group, totalRegistrants, results]
+      properties:
+        group:
+          $ref: "#/components/schemas/ActivityChoiceGroup"
+        totalRegistrants:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityChoiceOptionResult"
+
+    ActivityChoiceSelectionsInput:
+      type: object
+      required: [optionIds]
+      properties:
+        optionIds:
+          type: array
+          items:
+            type: integer
+          description: The full set of options selected, replacing previous selections.
 
     ManagedRegistrationInput:
       type: object
