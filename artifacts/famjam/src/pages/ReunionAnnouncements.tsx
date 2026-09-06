@@ -47,13 +47,13 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub
       </Button>
 
-      <div className="mb-10 flex items-center gap-4">
-        <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 w-16 h-16 rounded-full flex items-center justify-center shrink-0">
+      <div className="mb-10 flex items-center gap-4 rounded-3xl border border-[#e5e0d5] bg-[#F7F4ED] p-6 shadow-sm">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
           <Bell className="w-8 h-8" />
         </div>
         <div>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-foreground">Announcements</h1>
-          <p className="text-muted-foreground">News and updates for {reunion.name}</p>
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-slate-950">Announcements</h1>
+          <p className="text-slate-600">News and updates for {reunion.name}</p>
         </div>
       </div>
 
@@ -68,8 +68,12 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
           {announcements.map((announcement, idx) => (
             <div 
               key={announcement.id} 
-              className={`bg-card border shadow-sm rounded-3xl p-6 relative overflow-hidden animate-in slide-in-from-bottom-4 ${
-                announcement.pinned ? 'border-amber-200 dark:border-amber-900/50 shadow-amber-100/50 dark:shadow-none' : ''
+              className={`relative overflow-hidden rounded-3xl border p-6 shadow-sm animate-in slide-in-from-bottom-4 ${
+                idx % 2 === 0
+                  ? 'border-[#a63b3b] bg-gradient-to-br from-[#BF4646] to-[#8f3030] text-white'
+                  : 'border-[#6898a2] bg-gradient-to-br from-[#7EACB5] to-[#a8cbd1] text-slate-950'
+              } ${
+                announcement.pinned ? 'ring-2 ring-amber-300/80' : ''
               }`}
               style={{ animationDelay: `${idx * 50}ms`, animationFillMode: "both" }}
             >
@@ -80,12 +84,16 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
               )}
               
               <div className="mb-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                <span className={`text-xs font-medium uppercase tracking-widest ${
+                  idx % 2 === 0 ? 'text-white/80' : 'text-slate-800/75'
+                }`}>
                   {format(new Date(announcement.createdAt), 'MMM d, yyyy')}
                 </span>
               </div>
               <h3 className="font-bold text-xl mb-3 pr-16">{announcement.title}</h3>
-              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground/80 whitespace-pre-wrap">
+              <div className={`prose prose-sm max-w-none whitespace-pre-wrap ${
+                idx % 2 === 0 ? 'prose-invert text-white/90' : 'text-slate-900/85'
+              }`}>
                 {announcement.body}
               </div>
             </div>
