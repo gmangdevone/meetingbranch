@@ -700,9 +700,10 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             />
             <HubCard
               href={eventCodePath(reunion.code, "/activities")}
-              defaultClassName="bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/20"
-              iconClassName="bg-amber-500 text-white"
-              linkClassName="text-amber-700 dark:text-amber-500"
+              className="text-white [&_p]:text-white/90"
+              defaultClassName="bg-gradient-to-br from-[#66A3BF] via-[#5895B1] to-[#447F9B] border-[#4F8DA9] hover:from-[#70ACC6] hover:via-[#62A0BA] hover:to-[#4D89A4]"
+              iconClassName="bg-white/20 text-white border border-white/30"
+              linkClassName="text-white"
               icon={<ClipboardList className="w-6 h-6" />}
               title="Activities & Choices"
               description="Choose activities and share the options that work for your household."
