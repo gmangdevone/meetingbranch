@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Lock, LockOpen, Plus, Radio, Trash2, Users, X } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Pencil, Plus, Radio, Trash2, Users, X } from "lucide-react";
 import {
   getListManageActivityChoicesQueryKey,
   useAddActivityChoiceOption,
@@ -9,6 +9,7 @@ import {
   useDeleteActivityChoiceOption,
   useListManageActivityChoices,
   useUpdateActivityChoiceGroup,
+  useUpdateActivityChoiceOption,
 } from "@workspace/api-client-react";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
@@ -31,6 +32,7 @@ export function OrganizerActivities({ params }: { params: { reunionId: string } 
   const updateGroup = useUpdateActivityChoiceGroup();
   const deleteGroup = useDeleteActivityChoiceGroup();
   const addOption = useAddActivityChoiceOption();
+  const updateOption = useUpdateActivityChoiceOption();
   const deleteOption = useDeleteActivityChoiceOption();
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListManageActivityChoicesQueryKey(reunionId) });
@@ -43,6 +45,14 @@ export function OrganizerActivities({ params }: { params: { reunionId: string } 
   const [formError, setFormError] = useState<string | null>(null);
   const [newOption, setNewOption] = useState<Record<number, string>>({});
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{
+    id: number;
+    title: string;
+    description: string;
+    limit: number;
+    options: { id: number; label: string }[];
+  } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const reset = () => {
     setTitle("");
@@ -93,6 +103,39 @@ export function OrganizerActivities({ params }: { params: { reunionId: string } 
       },
     );
   };
+  const handleEdit = async () => {
+    if (!editTarget) return;
+    const cleanTitle = editTarget.title.trim();
+    const cleanOptions = editTarget.options.map((option) => ({ ...option, label: option.label.trim() }));
+    if (!cleanTitle) return setEditError("Please enter a title or question.");
+    if (cleanOptions.some((option) => !option.label)) return setEditError("Option labels cannot be blank.");
+    setEditError(null);
+    try {
+      await updateGroup.mutateAsync({
+        reunionId,
+        activityChoiceGroupId: editTarget.id,
+        data: {
+          title: cleanTitle,
+          description: editTarget.description.trim() || null,
+          maxSelectionsPerRegistrant: editTarget.limit,
+        },
+      });
+      await Promise.all(
+        cleanOptions.map((option) =>
+          updateOption.mutateAsync({
+            reunionId,
+            activityChoiceGroupId: editTarget.id,
+            activityChoiceOptionId: option.id,
+            data: { label: option.label },
+          }),
+        ),
+      );
+      await invalidate();
+      setEditTarget(null);
+    } catch (error: any) {
+      setEditError(error?.data?.error || "Could not update this choice group.");
+    }
+  };
 
   return (
     <OrganizerLayout reunionId={reunionId}>
@@ -129,6 +172,22 @@ export function OrganizerActivities({ params }: { params: { reunionId: string } 
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditError(null);
+                      setEditTarget({
+                        id: group.id,
+                        title: group.title,
+                        description: group.description || "",
+                        limit: group.maxSelectionsPerRegistrant,
+                        options: group.options.map((option) => ({ id: option.id, label: option.label })),
+                      });
+                    }}
+                  >
+                    <Pencil className="w-3 h-3 mr-1" /> Edit
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setFlag(group.id, { isOpen: !group.isOpen })}>
                     {group.isOpen ? <Lock className="w-3 h-3 mr-1" /> : <LockOpen className="w-3 h-3 mr-1" />}{group.isOpen ? "Close" : "Reopen"}
                   </Button>
@@ -200,6 +259,44 @@ export function OrganizerActivities({ params }: { params: { reunionId: string } 
             {formError && <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-xl">{formError}</div>}
             <div className="flex justify-end gap-3"><Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button><Button onClick={handleCreate} disabled={createGroup.isPending}>{createGroup.isPending ? "Creating…" : "Create Group"}</Button></div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(editTarget)} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="rounded-3xl max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Edit Choice Group</DialogTitle>
+            <DialogDescription>Update the group details or option names. Existing selections remain attached to their options.</DialogDescription>
+          </DialogHeader>
+          {editTarget && (
+            <div className="flex flex-col gap-4">
+              <div><Label className="mb-2 block">Title or question</Label><Input value={editTarget.title} onChange={(event) => setEditTarget({ ...editTarget, title: event.target.value })} /></div>
+              <div><Label className="mb-2 block">Description (optional)</Label><textarea className="border bg-transparent rounded-xl px-3 py-2 w-full min-h-24" value={editTarget.description} onChange={(event) => setEditTarget({ ...editTarget, description: event.target.value })} /></div>
+              <div><Label className="mb-2 block">Selections allowed per registrant</Label><Input className="w-28" type="number" min={1} max={20} value={editTarget.limit} onChange={(event) => setEditTarget({ ...editTarget, limit: Math.max(1, Math.min(20, parseInt(event.target.value, 10) || 1)) })} /></div>
+              <div>
+                <Label className="mb-2 block">Options</Label>
+                <div className="flex flex-col gap-2">
+                  {editTarget.options.map((option, index) => (
+                    <Input
+                      key={option.id}
+                      value={option.label}
+                      onChange={(event) => setEditTarget({
+                        ...editTarget,
+                        options: editTarget.options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item),
+                      })}
+                    />
+                  ))}
+                </div>
+              </div>
+              {editError && <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-xl">{editError}</div>}
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setEditTarget(null)}>Cancel</Button>
+                <Button onClick={handleEdit} disabled={updateGroup.isPending || updateOption.isPending}>
+                  {updateGroup.isPending || updateOption.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

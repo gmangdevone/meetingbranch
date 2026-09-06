@@ -12,6 +12,8 @@ import {
   AddActivityChoiceOptionBody,
   AddActivityChoiceOptionParams,
   AddActivityChoiceOptionResponse,
+  UpdateActivityChoiceOptionBody,
+  UpdateActivityChoiceOptionResponse,
   CreateActivityChoiceGroupBody,
   CreateActivityChoiceGroupParams,
   CreateActivityChoiceGroupResponse,
@@ -261,6 +263,36 @@ router.post(
       .values({ groupId, label: body.data.label.trim(), position })
       .returning();
     res.status(201).json(AddActivityChoiceOptionResponse.parse(created));
+  },
+);
+
+router.patch(
+  "/reunions/:reunionId/activities/:activityChoiceGroupId/options/:activityChoiceOptionId",
+  ...manage,
+  async (req, res): Promise<void> => {
+    const params = DeleteActivityChoiceOptionParams.safeParse(req.params);
+    const body = UpdateActivityChoiceOptionBody.safeParse(req.body);
+    if (!params.success) {
+      res.status(400).json({ error: params.error.message });
+      return;
+    }
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const reunionId = req.managedReunion!.id;
+    const { activityChoiceGroupId: groupId, activityChoiceOptionId: optionId } = params.data;
+    const existing = await getGroupWithOptions(reunionId, groupId);
+    if (!existing || !existing.options.some((option) => option.id === optionId)) {
+      res.status(404).json({ error: "Activity choice option not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(activityChoiceOptionsTable)
+      .set({ label: body.data.label.trim() })
+      .where(eq(activityChoiceOptionsTable.id, optionId))
+      .returning();
+    res.json(UpdateActivityChoiceOptionResponse.parse(updated));
   },
 );
 

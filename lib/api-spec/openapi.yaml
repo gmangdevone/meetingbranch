@@ -931,6 +931,33 @@ paths:
           description: Not found
 
   /reunions/{reunionId}/polls/{pollId}/options/{optionId}:
+    patch:
+      operationId: updatePollOption
+      tags: [manage]
+      summary: Update a poll option label without removing its votes
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/PollId"
+        - $ref: "#/components/parameters/PollOptionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PollOptionInput"
+      responses:
+        "200":
+          description: Updated option
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PollOption"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
     delete:
       operationId: deletePollOption
       tags: [manage]
@@ -1113,6 +1140,33 @@ paths:
           description: Not found
 
   /reunions/{reunionId}/activities/{activityChoiceGroupId}/options/{activityChoiceOptionId}:
+    patch:
+      operationId: updateActivityChoiceOption
+      tags: [manage]
+      summary: Update an activity choice option label without removing its selections
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/ActivityChoiceGroupId"
+        - $ref: "#/components/parameters/ActivityChoiceOptionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivityChoiceOptionInput"
+      responses:
+        "200":
+          description: Updated option
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityChoiceOption"
+        "403":
+          description: Forbidden
+        "404":
+          description: Not found
     delete:
       operationId: deleteActivityChoiceOption
       tags: [manage]

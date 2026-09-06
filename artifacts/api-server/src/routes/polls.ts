@@ -14,12 +14,14 @@ import {
   CreatePollBody,
   UpdatePollBody,
   AddPollOptionBody,
+  UpdatePollOptionBody,
   CastPollVotesBody,
   ListMemberPollsResponse,
   ListManagePollsResponse,
   CreatePollResponse,
   UpdatePollResponse,
   AddPollOptionResponse,
+  UpdatePollOptionResponse,
   SetAttendeeCheckInResponse,
   CastPollVotesResponse,
 } from "@workspace/api-zod";
@@ -251,6 +253,32 @@ router.post("/reunions/:reunionId/polls/:pollId/options", ...manage, async (req,
     .returning();
   res.status(201).json(AddPollOptionResponse.parse(created));
 });
+
+router.patch(
+  "/reunions/:reunionId/polls/:pollId/options/:optionId",
+  ...manage,
+  async (req, res): Promise<void> => {
+    const body = UpdatePollOptionBody.safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: body.error.message });
+      return;
+    }
+    const reunionId = req.managedReunion!.id;
+    const pollId = Number(req.params.pollId);
+    const optionId = Number(req.params.optionId);
+    const existing = await getPollWithOptions(reunionId, pollId);
+    if (!existing || !existing.options.some((option) => option.id === optionId)) {
+      res.status(404).json({ error: "Option not found" });
+      return;
+    }
+    const [updated] = await db
+      .update(pollOptionsTable)
+      .set({ label: body.data.label.trim() })
+      .where(eq(pollOptionsTable.id, optionId))
+      .returning();
+    res.json(UpdatePollOptionResponse.parse(updated));
+  },
+);
 
 router.delete(
   "/reunions/:reunionId/polls/:pollId/options/:optionId",

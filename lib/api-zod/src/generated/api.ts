@@ -1277,6 +1277,30 @@ export const AddPollOptionResponse = zod.object({
 
 
 /**
+ * @summary Update a poll option label without removing its votes
+ */
+export const UpdatePollOptionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "pollId": zod.coerce.number(),
+  "optionId": zod.coerce.number()
+})
+
+
+
+
+export const UpdatePollOptionBody = zod.object({
+  "label": zod.string().min(1)
+})
+
+export const UpdatePollOptionResponse = zod.object({
+  "id": zod.number(),
+  "pollId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+})
+
+
+/**
  * @summary Remove a poll option (and any votes for it)
  */
 export const DeletePollOptionParams = zod.object({
@@ -1512,6 +1536,30 @@ export const AddActivityChoiceOptionBody = zod.object({
 })
 
 export const AddActivityChoiceOptionResponse = zod.object({
+  "id": zod.number(),
+  "groupId": zod.number(),
+  "label": zod.string(),
+  "position": zod.number()
+})
+
+
+/**
+ * @summary Update an activity choice option label without removing its selections
+ */
+export const UpdateActivityChoiceOptionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "activityChoiceGroupId": zod.coerce.number(),
+  "activityChoiceOptionId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateActivityChoiceOptionBody = zod.object({
+  "label": zod.string().min(1)
+})
+
+export const UpdateActivityChoiceOptionResponse = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),

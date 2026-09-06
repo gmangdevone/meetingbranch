@@ -2964,6 +2964,82 @@ export const useAddPollOption = <TError = ErrorType<void>,
       return useMutation(getAddPollOptionMutationOptions(options));
     }
 
+export const getUpdatePollOptionUrl = (reunionId: number,
+    pollId: number,
+    optionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/polls/${pollId}/options/${optionId}`
+}
+
+/**
+ * @summary Update a poll option label without removing its votes
+ */
+export const updatePollOption = async (reunionId: number,
+    pollId: number,
+    optionId: number,
+    pollOptionInput: PollOptionInput, options?: RequestInit): Promise<PollOption> => {
+
+  return customFetch<PollOption>(getUpdatePollOptionUrl(reunionId,pollId,optionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pollOptionInput)
+  }
+);}
+
+
+
+
+
+export const getUpdatePollOptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePollOption>>, TError,{reunionId: number;pollId: number;optionId: number;data: BodyType<PollOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePollOption>>, TError,{reunionId: number;pollId: number;optionId: number;data: BodyType<PollOptionInput>}, TContext> => {
+
+const mutationKey = ['updatePollOption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePollOption>>, {reunionId: number;pollId: number;optionId: number;data: BodyType<PollOptionInput>}> = (props) => {
+          const {reunionId,pollId,optionId,data} = props ?? {};
+
+          return  updatePollOption(reunionId,pollId,optionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePollOptionMutationResult = NonNullable<Awaited<ReturnType<typeof updatePollOption>>>
+    export type UpdatePollOptionMutationBody = BodyType<PollOptionInput>
+    export type UpdatePollOptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a poll option label without removing its votes
+ */
+export const useUpdatePollOption = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePollOption>>, TError,{reunionId: number;pollId: number;optionId: number;data: BodyType<PollOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePollOption>>,
+        TError,
+        {reunionId: number;pollId: number;optionId: number;data: BodyType<PollOptionInput>},
+        TContext
+      > => {
+      return useMutation(getUpdatePollOptionMutationOptions(options));
+    }
+
 export const getDeletePollOptionUrl = (reunionId: number,
     pollId: number,
     optionId: number,) => {
@@ -3558,6 +3634,82 @@ export const useAddActivityChoiceOption = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getAddActivityChoiceOptionMutationOptions(options));
+    }
+
+export const getUpdateActivityChoiceOptionUrl = (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceOptionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/activities/${activityChoiceGroupId}/options/${activityChoiceOptionId}`
+}
+
+/**
+ * @summary Update an activity choice option label without removing its selections
+ */
+export const updateActivityChoiceOption = async (reunionId: number,
+    activityChoiceGroupId: number,
+    activityChoiceOptionId: number,
+    activityChoiceOptionInput: ActivityChoiceOptionInput, options?: RequestInit): Promise<ActivityChoiceOption> => {
+
+  return customFetch<ActivityChoiceOption>(getUpdateActivityChoiceOptionUrl(reunionId,activityChoiceGroupId,activityChoiceOptionId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(activityChoiceOptionInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateActivityChoiceOptionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number;data: BodyType<ActivityChoiceOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number;data: BodyType<ActivityChoiceOptionInput>}, TContext> => {
+
+const mutationKey = ['updateActivityChoiceOption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateActivityChoiceOption>>, {reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number;data: BodyType<ActivityChoiceOptionInput>}> = (props) => {
+          const {reunionId,activityChoiceGroupId,activityChoiceOptionId,data} = props ?? {};
+
+          return  updateActivityChoiceOption(reunionId,activityChoiceGroupId,activityChoiceOptionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateActivityChoiceOptionMutationResult = NonNullable<Awaited<ReturnType<typeof updateActivityChoiceOption>>>
+    export type UpdateActivityChoiceOptionMutationBody = BodyType<ActivityChoiceOptionInput>
+    export type UpdateActivityChoiceOptionMutationError = ErrorType<void>
+
+    /**
+ * @summary Update an activity choice option label without removing its selections
+ */
+export const useUpdateActivityChoiceOption = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateActivityChoiceOption>>, TError,{reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number;data: BodyType<ActivityChoiceOptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateActivityChoiceOption>>,
+        TError,
+        {reunionId: number;activityChoiceGroupId: number;activityChoiceOptionId: number;data: BodyType<ActivityChoiceOptionInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateActivityChoiceOptionMutationOptions(options));
     }
 
 export const getDeleteActivityChoiceOptionUrl = (reunionId: number,

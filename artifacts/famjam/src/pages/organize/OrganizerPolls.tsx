@@ -6,10 +6,11 @@ import {
   useUpdatePoll,
   useDeletePoll,
   useAddPollOption,
+  useUpdatePollOption,
   useDeletePollOption,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Eye, EyeOff, Lock, LockOpen, Users, X, Radio } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, Lock, LockOpen, Users, X, Radio, Pencil } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -35,6 +36,7 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   const updatePoll = useUpdatePoll();
   const deletePoll = useDeletePoll();
   const addOption = useAddPollOption();
+  const updateOption = useUpdatePollOption();
   const deleteOption = useDeletePollOption();
 
   const invalidate = () =>
@@ -50,6 +52,13 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   // Per-poll "add option" inputs
   const [newOptionByPoll, setNewOptionByPoll] = useState<Record<number, string>>({});
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; question: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{
+    id: number;
+    question: string;
+    maxVotesPerMember: number;
+    options: { id: number; label: string }[];
+  } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const resetForm = () => {
     setQuestion("");
@@ -92,6 +101,39 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
         },
       },
     );
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget) return;
+    const cleanQuestion = editTarget.question.trim();
+    const cleanOptions = editTarget.options.map((option) => ({ ...option, label: option.label.trim() }));
+    if (!cleanQuestion) return setEditError("Please enter a question.");
+    if (cleanOptions.some((option) => !option.label)) return setEditError("Option labels cannot be blank.");
+    setEditError(null);
+    try {
+      await updatePoll.mutateAsync({
+        reunionId,
+        pollId: editTarget.id,
+        data: {
+          question: cleanQuestion,
+          maxVotesPerMember: editTarget.maxVotesPerMember,
+        },
+      });
+      await Promise.all(
+        cleanOptions.map((option) =>
+          updateOption.mutateAsync({
+            reunionId,
+            pollId: editTarget.id,
+            optionId: option.id,
+            data: { label: option.label },
+          }),
+        ),
+      );
+      await invalidate();
+      setEditTarget(null);
+    } catch (error: any) {
+      setEditError(error?.data?.error || "Could not update the poll.");
+    }
   };
 
   return (
@@ -142,6 +184,22 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2 shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-lg text-xs"
+                      onClick={() => {
+                        setEditError(null);
+                        setEditTarget({
+                          id: poll.id,
+                          question: poll.question,
+                          maxVotesPerMember: poll.maxVotesPerMember,
+                          options: poll.options.map((option) => ({ id: option.id, label: option.label })),
+                        });
+                      }}
+                    >
+                      <Pencil className="w-3 h-3 mr-1" /> Edit
+                    </Button>
                     <Button variant="outline" size="sm" className="rounded-lg text-xs" onClick={() => setFlag(poll.id, { isOpen: !poll.isOpen })}>
                       {poll.isOpen ? <Lock className="w-3 h-3 mr-1" /> : <LockOpen className="w-3 h-3 mr-1" />}
                       {poll.isOpen ? "Close voting" : "Reopen voting"}
@@ -263,6 +321,50 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Edit Poll</DialogTitle>
+            <DialogDescription>Update the question, vote limit, or option names. Existing votes remain attached to their options.</DialogDescription>
+          </DialogHeader>
+          {editTarget && (
+            <div className="flex flex-col gap-4 mt-2">
+              <div>
+                <Label className="mb-2 block">Question</Label>
+                <Input className="rounded-xl" value={editTarget.question} onChange={(event) => setEditTarget({ ...editTarget, question: event.target.value })} />
+              </div>
+              <div>
+                <Label className="mb-2 block">Votes allowed per member</Label>
+                <Input type="number" min={1} max={20} className="rounded-xl w-28" value={editTarget.maxVotesPerMember} onChange={(event) => setEditTarget({ ...editTarget, maxVotesPerMember: Math.max(1, Math.min(20, parseInt(event.target.value, 10) || 1)) })} />
+              </div>
+              <div>
+                <Label className="mb-2 block">Options</Label>
+                <div className="flex flex-col gap-2">
+                  {editTarget.options.map((option, index) => (
+                    <Input
+                      key={option.id}
+                      className="rounded-xl"
+                      value={option.label}
+                      onChange={(event) => setEditTarget({
+                        ...editTarget,
+                        options: editTarget.options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item),
+                      })}
+                    />
+                  ))}
+                </div>
+              </div>
+              {editError && <div className="p-3 bg-destructive/10 text-destructive text-sm font-medium rounded-xl">{editError}</div>}
+              <div className="flex justify-end gap-3 pt-2 border-t">
+                <Button variant="ghost" className="rounded-xl" onClick={() => setEditTarget(null)}>Cancel</Button>
+                <Button className="rounded-xl" onClick={handleEdit} disabled={updatePoll.isPending || updateOption.isPending}>
+                  {updatePoll.isPending || updateOption.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
