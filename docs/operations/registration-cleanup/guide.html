@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Production registration cleanup — operator guide</title>
+  <style>
+    body { margin:0; background:#f7f4ed; color:#192e3a; font:16px/1.65 system-ui,sans-serif; }
+    main { max-width:850px; margin:36px auto; padding:32px; background:white; border-radius:16px; }
+    h1 { font-size:30px; line-height:1.2; } h2 { margin-top:32px; font-size:22px; }
+    .notice { background:#fff4d8; border-left:5px solid #b87800; padding:16px; }
+    table { width:100%; border-collapse:collapse; } th,td { text-align:left; padding:10px; border-bottom:1px solid #d8e1e5; }
+    code { background:#edf2f5; padding:2px 5px; overflow-wrap:anywhere; }
+    li { margin:10px 0; } a { color:#235f7e; } small { color:#48606b; }
+    @media (max-width:600px) { main { margin:0; padding:20px; border-radius:0; } }
+    @media print { body { background:white; } main { margin:0; padding:0; } }
+  </style>
+</head>
+<body><main>
+  <h1>Production registration cleanup</h1>
+  <p class="notice"><strong>Prepared, not executed.</strong> No production records have
+    been deleted. A production backup and maintenance window still need to be
+    established by the operator before applying the cleanup.</p>
+  <p>This package covers all existing registrations confirmed as test data on
+    October 1, 2026. It does not reset the database or remove users or settings.</p>
+  <h2>Exact scope</h2>
+  <table>
+    <thead><tr><th>Records</th><th>Remove</th><th>Keep</th></tr></thead>
+    <tbody>
+      <tr><td>Registrations</td><td>21</td><td>0</td></tr>
+      <tr><td>Attendees</td><td>49</td><td>0</td></tr>
+      <tr><td>Contributions linked to those registrations</td><td>8</td><td>0</td></tr>
+      <tr><td>Unlinked contributions</td><td>0</td><td>7</td></tr>
+      <tr><td>Users</td><td>0</td><td>13</td></tr>
+      <tr><td>Poll votes</td><td>0</td><td>5</td></tr>
+    </tbody>
+  </table>
+  <p>The reunion, all settings, organizer roles, fee definitions, branches, schedules,
+    announcements, images, vendors, polls, and activity groups remain unchanged.
+    There are currently no payment submissions, selected registration fees, or
+    sponsorship allocations.</p>
+  <p><strong>Registration IDs:</strong> 1, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17,
+    18, 19, 20, 21, 22, 23, 24, 25, 26, 27.<br>
+    <strong>Attendee IDs:</strong> 1, 12–25, 31–64.<br>
+    <strong>Linked contribution IDs:</strong> 1, 3, 8, 10, 12, 13, 14, 15.</p>
+  <p>The linked contributions total $213 ($190 paid, $23 pending). Removing them
+    reduces the recorded fund balance from <strong>$6,825 to $6,635</strong>;
+    it does not transfer or refund actual money.</p>
+  <p>Unlinked contribution IDs 2, 4, 5, 6, 7, 9, 11 remain. ID 2 is a $5,000
+    registration-source contribution whose registration link is already missing.
+    It cannot safely be attributed to these registrations. The five poll votes also
+    remain. Removing these separate records would require a separately reviewed scope.</p>
+  <h2>Files in your project</h2>
+  <p>Open the <code>docs/operations/registration-cleanup/</code> folder:</p>
+  <ul>
+    <li><code>README.md</code> — complete operator instructions, recovery guidance,
+      and limitations.</li>
+    <li><code>cleanup.sql</code> — single guarded PostgreSQL statement; defaults to
+      a rehearsal that rolls back every proposed deletion.</li>
+    <li><code>verify.sql</code> — read-only checks for before and after execution.</li>
+  </ul>
+  <h2>Operator checklist</h2>
+  <ol>
+    <li><strong>Review the full README.</strong> Confirm the removal scope, including
+      linked contributions. Never add this SQL to publishing or application startup.</li>
+    <li>Select <strong>Production</strong> in Replit's Database tool.
+      Arrange a no-writes maintenance window and drain in-flight application and
+      organizer requests. Closing public registrations alone is insufficient.</li>
+    <li><strong>Verify a restorable production backup or restore point.</strong>
+      Record its timestamp and recovery procedure securely. A registration CSV
+      or ordinary code checkpoint is not a substitute. Do not put private backups
+      or credentials in chat, the repository, or public assets.</li>
+    <li>Run the entire <code>cleanup.sql</code> statement unchanged for a rehearsal.
+      Use autocommit; if the SQL client opens a transaction, roll it back after
+      rehearsal to release the table locks. Expect
+      <strong>REHEARSAL PASSED … Nothing removed.</strong></li>
+    <li>Stop on any changed-data, dependency, permission, or lock error.
+      Do not bypass the safeguards. New registrations or payments require an
+      updated review.</li>
+    <li>Only after backup and scope approval, follow the README to enable apply
+      mode and enter the exact approval phrase. Execute the complete statement
+      once. Success is atomic; errors roll back the cleanup.</li>
+    <li>Run <code>verify.sql</code> before resuming traffic. Expect zero registrations
+      and attendees, seven preserved contributions, and unchanged users/settings.
+      Reload the organizer registrations page.</li>
+  </ol>
+  <h2>After cleanup</h2>
+  <p>The registration list should show <strong>No registrations found</strong>.
+    The current UI disables CSV export for an empty list; the authenticated export
+    endpoint returns only the header. New registrations will appear normally and
+    use continuing ID numbers, not restart at 1.</p>
+  <p>If recovery is needed after commit, keep traffic paused and use the verified
+    production restore procedure. A whole-database restore also rewinds unrelated
+    changes after the restore point.</p>
+  <h2>Validation performed</h2>
+  <p>The SQL passed 15 scenarios in a disposable, socket-only local PostgreSQL
+    database: rehearsal rollback, approval guards, exact deletion and preservation,
+    replay refusal, changed/new records, mixed payments, changed foreign keys,
+    cross-schema dependencies, triggers, and rollback after a late failure.
+    Neither production nor the project development database was used for those tests.</p>
+  <p><small>Sources:
+    <a href="https://docs.replit.com/features/data-and-storage/work-with-your-data">Working with your data</a> ·
+    <a href="https://docs.replit.com/features/data-and-storage/data-recovery">Data recovery</a>.
+    Production inventory was read-only. This guide does not claim a backup or deletion has occurred.</small></p>
+</main></body>
+</html>
