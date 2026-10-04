@@ -35,7 +35,7 @@ export function Nav() {
   const [location] = useLocation();
   const { isSignedIn } = useAuth();
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const { signOut, openUserProfile } = useClerk();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -162,6 +162,15 @@ export function Nav() {
                   </div>
                   <button
                     role="menuitem"
+                    onClick={() => { setMenuOpen(false); openUserProfile(); }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors"
+                    style={{ fontWeight: 700, color: "var(--fj-ink-soft)" }}
+                  >
+                    <User style={{ width: 14, height: 14 }} />
+                    Manage profile
+                  </button>
+                  <button
+                    role="menuitem"
                     onClick={() => { setMenuOpen(false); signOut({ redirectUrl: basePath || "/" }); }}
                     className="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors"
                     style={{ fontWeight: 700, color: "var(--fj-ink-soft)" }}
@@ -264,6 +273,15 @@ export function Nav() {
                   <div className="px-4 py-2 text-sm truncate" style={{ color: "var(--fj-ink-soft)", fontWeight: 600, borderBottom: "1px solid var(--fj-line)" }}>
                     {displayName}
                   </div>
+                  <button
+                    role="menuitem"
+                    onClick={() => { setMobileMenuOpen(false); openUserProfile(); }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors"
+                    style={{ fontWeight: 700, color: "var(--fj-ink-soft)" }}
+                  >
+                    <User style={{ width: 14, height: 14 }} />
+                    Manage profile
+                  </button>
                   <button
                     role="menuitem"
                     onClick={() => { setMobileMenuOpen(false); signOut({ redirectUrl: basePath || "/" }); }}
