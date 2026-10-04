@@ -14,6 +14,7 @@ import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeAppl
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
 import { eventCodePath } from "../lib/eventCode";
 import { getEventCountdownLabel, getRegistrationMomentumLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
+import { Greeting } from "../components/Greeting";
 import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
@@ -282,6 +283,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           <h1 className="font-serif text-5xl md:text-6xl font-bold mb-4 drop-shadow-md">
             {reunion.name}
           </h1>
+          <Greeting className="font-serif text-2xl md:text-3xl font-bold mb-2 drop-shadow-md" />
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-lg font-medium">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5" />

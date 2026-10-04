@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useGetReunionByCode, getGetReunionByCodeQueryKey, useListMyReunions, useListMyRegistrations, useGetSettings } from "@workspace/api-client-react";
 import { CalendarDays, Settings, ArrowRight, Key } from "lucide-react";
 import { format } from "date-fns";
+import { Greeting } from "../components/Greeting";
 import { Skeleton } from "../components/ui/skeleton";
 import { eventCodePath } from "../lib/eventCode";
 import { getEventCountdownLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
@@ -75,7 +76,8 @@ export function Dashboard() {
   return (
     <div className="flex flex-col gap-12 pb-12">
       <div className="flex flex-col gap-2">
-        <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground">Welcome Back</h1>
+        <Greeting className="font-serif text-2xl font-bold text-primary" />
+        <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground">My Reunions</h1>
         <p className="text-lg text-muted-foreground">Manage your upcoming family gatherings.</p>
       </div>
 

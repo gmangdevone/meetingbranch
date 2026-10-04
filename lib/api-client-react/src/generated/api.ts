@@ -54,6 +54,8 @@ import type {
   MemberActivityChoiceList,
   MemberPoll,
   MemberPollList,
+  MemberProfile,
+  MemberProfileInput,
   MyContributionsResponse,
   PaymentSubmission,
   PaymentSubmissionInput,
@@ -125,6 +127,142 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetMyProfileUrl = () => {
+
+
+
+
+  return `/api/me/profile`
+}
+
+export const getMyProfile = async ( options?: RequestInit): Promise<MemberProfile> => {
+
+  return customFetch<MemberProfile>(getGetMyProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyProfileQueryKey = () => {
+    return [
+    `/api/me/profile`
+    ] as const;
+    }
+
+
+export const getGetMyProfileQueryOptions = <TData = Awaited<ReturnType<typeof getMyProfile>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyProfile>>> = ({ signal }) => getMyProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getMyProfile>>>
+export type GetMyProfileQueryError = ErrorType<void>
+
+
+
+export function useGetMyProfile<TData = Awaited<ReturnType<typeof getMyProfile>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMyProfileUrl = () => {
+
+
+
+
+  return `/api/me/profile`
+}
+
+export const updateMyProfile = async (memberProfileInput: MemberProfileInput, options?: RequestInit): Promise<MemberProfile> => {
+
+  return customFetch<MemberProfile>(getUpdateMyProfileUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(memberProfileInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyProfileMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyProfile>>, TError,{data: BodyType<MemberProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyProfile>>, TError,{data: BodyType<MemberProfileInput>}, TContext> => {
+
+const mutationKey = ['updateMyProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyProfile>>, {data: BodyType<MemberProfileInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMyProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyProfile>>>
+    export type UpdateMyProfileMutationBody = BodyType<MemberProfileInput>
+    export type UpdateMyProfileMutationError = ErrorType<void>
+
+    export const useUpdateMyProfile = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyProfile>>, TError,{data: BodyType<MemberProfileInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyProfile>>,
+        TError,
+        {data: BodyType<MemberProfileInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMyProfileMutationOptions(options));
+    }
 
 export const getRequestUploadUrlUrl = () => {
 

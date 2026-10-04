@@ -8,6 +8,31 @@
 import * as zod from 'zod';
 
 
+export const GetMyProfileResponse = zod.object({
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "isNewAccount": zod.boolean()
+})
+
+
+export const updateMyProfileBodyFirstNameMax = 100;
+
+export const updateMyProfileBodyLastNameMax = 100;
+
+
+
+export const UpdateMyProfileBody = zod.object({
+  "firstName": zod.string().min(1).max(updateMyProfileBodyFirstNameMax),
+  "lastName": zod.string().min(1).max(updateMyProfileBodyLastNameMax)
+})
+
+export const UpdateMyProfileResponse = zod.object({
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "isNewAccount": zod.boolean()
+})
+
+
 /**
  * Returns a presigned GCS URL for direct upload. The client sends JSON
  * metadata here, then uploads the file directly to the returned URL.

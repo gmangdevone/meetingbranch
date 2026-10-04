@@ -1,8 +1,9 @@
 import { Link, useLocation } from "wouter";
-import { Home, User, LogOut, Shield, Plus, Key, ChevronDown } from "lucide-react";
+import { Home, User, LogOut, Shield, Plus, Key, ChevronDown, PenLine } from "lucide-react";
 import { useAuth, useUser, useClerk } from "@clerk/react";
 import { useAdminListReunions, getAdminListReunionsQueryKey, useGetSettings } from "@workspace/api-client-react";
 import { useEffect, useRef, useState } from "react";
+import { useProfile, usableName } from "../lib/profile";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const isDevEnvironment = import.meta.env.DEV;
@@ -36,12 +37,17 @@ export function Nav() {
   const { isSignedIn } = useAuth();
   const { user } = useUser();
   const { signOut, openUserProfile } = useClerk();
+  const { profile, openNameEditor } = useProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
 
+  const appFirst = usableName(profile?.firstName);
+  const appFull = [appFirst, usableName(profile?.lastName)].filter(Boolean).join(" ");
+  const shortName = appFirst || user?.firstName || "Account";
   const displayName =
+    appFull ||
     user?.fullName ||
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
     user?.primaryEmailAddress?.emailAddress ||
@@ -150,7 +156,7 @@ export function Nav() {
                 }}
               >
                 <User style={{ width: 16, height: 16 }} />
-                <span className="max-w-28 truncate">{user?.firstName || "Account"}</span>
+                <span className="max-w-28 truncate">{shortName}</span>
                 <ChevronDown style={{ width: 14, height: 14, opacity: 0.6 }} />
               </button>
               {menuOpen && (
@@ -160,6 +166,17 @@ export function Nav() {
                   <div className="px-4 py-2 text-sm truncate" style={{ color: "var(--fj-ink-soft)", fontWeight: 600, borderBottom: "1px solid var(--fj-line)" }}>
                     {displayName}
                   </div>
+                  {openNameEditor && (
+                    <button
+                      role="menuitem"
+                      onClick={() => { setMenuOpen(false); openNameEditor(); }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors"
+                      style={{ fontWeight: 700, color: "var(--fj-ink-soft)" }}
+                    >
+                      <PenLine style={{ width: 14, height: 14 }} />
+                      Edit name
+                    </button>
+                  )}
                   <button
                     role="menuitem"
                     onClick={() => { setMenuOpen(false); openUserProfile(); }}
@@ -263,7 +280,7 @@ export function Nav() {
               >
                 <User style={{ width: 20, height: 20, color: mobileMenuOpen ? "var(--fj-accent-soft)" : "#9EBDD6" }} />
                 <span style={{ fontSize: "10.5px", fontWeight: 800, marginTop: 3, color: mobileMenuOpen ? "#fff" : "#9EBDD6", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {user?.firstName || "Account"}
+                  {shortName}
                 </span>
               </button>
               {mobileMenuOpen && (
@@ -273,6 +290,17 @@ export function Nav() {
                   <div className="px-4 py-2 text-sm truncate" style={{ color: "var(--fj-ink-soft)", fontWeight: 600, borderBottom: "1px solid var(--fj-line)" }}>
                     {displayName}
                   </div>
+                  {openNameEditor && (
+                    <button
+                      role="menuitem"
+                      onClick={() => { setMobileMenuOpen(false); openNameEditor(); }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm transition-colors"
+                      style={{ fontWeight: 700, color: "var(--fj-ink-soft)" }}
+                    >
+                      <PenLine style={{ width: 14, height: 14 }} />
+                      Edit name
+                    </button>
+                  )}
                   <button
                     role="menuitem"
                     onClick={() => { setMobileMenuOpen(false); openUserProfile(); }}

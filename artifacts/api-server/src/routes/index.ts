@@ -9,10 +9,12 @@ import adminRouter from "./admin";
 import storageRouter from "./storage";
 import vendorsRouter from "./vendors";
 import imagesRouter from "./images";
+import profileRouter from "./profile";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(profileRouter);
 router.use(settingsRouter);
 router.use(pollsRouter);
 router.use(activityChoicesRouter);

@@ -9,6 +9,8 @@ import { eventCodePath } from "./lib/eventCode";
 import { useGetMyAccess, getGetMyAccessQueryKey, useListMyRegistrations, useListMyReunions } from "@workspace/api-client-react";
 
 import { Layout } from "./components/Layout";
+import { Greeting } from "./components/Greeting";
+import { ProfileProvider } from "./lib/profile";
 import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
 import { CreateReunion } from "./pages/CreateReunion";
@@ -205,7 +207,8 @@ function PostLoginLanding() {
   return (
     <div className="max-w-xl mx-auto py-16 px-4 flex flex-col gap-8">
       <div className="text-center">
-        <h1 className="font-serif text-4xl font-bold mb-2">Welcome Back</h1>
+        <Greeting className="font-serif text-2xl font-bold text-primary mb-1" />
+        <h1 className="font-serif text-4xl font-bold mb-2">Choose a Reunion</h1>
         <p className="text-lg text-muted-foreground">Which reunion would you like to visit?</p>
       </div>
       <div className="flex flex-col gap-4">
@@ -340,6 +343,7 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <ProfileProvider>
         <Switch>
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
@@ -417,6 +421,7 @@ function ClerkProviderWithRoutes() {
 
           <Route component={NotFound} />
         </Switch>
+        </ProfileProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );

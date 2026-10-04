@@ -7,6 +7,9 @@ export const usersTable = pgTable("users", {
   email: text("email").notNull(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  nameSavedByUser: boolean("name_saved_by_user").notNull().default(false),
+  greetingInitialized: boolean("greeting_initialized").notNull().default(false),
+  initialGreetingSession: text("initial_greeting_session"),
   isAdmin: boolean("is_admin").notNull().default(false),
   // True for accounts created by an organizer on behalf of a family member
   // (no Clerk identity — they can never sign in themselves).

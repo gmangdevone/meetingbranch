@@ -52,8 +52,8 @@ export async function upsertUserFromClerk(
         // Only overwrite when we actually have a fresh, non-empty value;
         // NULLIF('', '') -> NULL so empty strings fall back to the stored value.
         email: sql`COALESCE(NULLIF(${email}, ''), ${usersTable.email})`,
-        firstName: sql`COALESCE(NULLIF(${firstName}, ''), ${usersTable.firstName})`,
-        lastName: sql`COALESCE(NULLIF(${lastName}, ''), ${usersTable.lastName})`,
+        firstName: sql`CASE WHEN ${usersTable.nameSavedByUser} THEN ${usersTable.firstName} ELSE COALESCE(NULLIF(${firstName}, ''), ${usersTable.firstName}) END`,
+        lastName: sql`CASE WHEN ${usersTable.nameSavedByUser} THEN ${usersTable.lastName} ELSE COALESCE(NULLIF(${lastName}, ''), ${usersTable.lastName}) END`,
       },
     })
     .returning({

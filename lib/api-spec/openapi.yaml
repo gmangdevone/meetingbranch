@@ -24,6 +24,43 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /me/profile:
+    get:
+      operationId: getMyProfile
+      tags: [settings]
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: App-owned profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberProfile"
+        "401":
+          description: Unauthorized
+    put:
+      operationId: updateMyProfile
+      tags: [settings]
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberProfileInput"
+      responses:
+        "200":
+          description: Saved profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberProfile"
+        "400":
+          description: Invalid names
+        "401":
+          description: Unauthorized
   /storage/uploads/request-url:
     post:
       tags: [Storage]
@@ -2224,6 +2261,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
 components:
+  # App names are independent of the Clerk profile editor.
   securitySchemes:
     clerkAuth:
       type: http
@@ -2298,6 +2336,28 @@ components:
         type: integer
 
   schemas:
+    MemberProfile:
+      type: object
+      required: [firstName, lastName, isNewAccount]
+      properties:
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        isNewAccount:
+          type: boolean
+    MemberProfileInput:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
     HealthStatus:
       type: object
       required: [status]

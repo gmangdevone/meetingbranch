@@ -48,6 +48,8 @@ export * from './memberActivityChoice';
 export * from './memberActivityChoiceList';
 export * from './memberPoll';
 export * from './memberPollList';
+export * from './memberProfile';
+export * from './memberProfileInput';
 export * from './myContributionsResponse';
 export * from './paymentMethod';
 export * from './paymentStatus';
