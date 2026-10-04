@@ -8,10 +8,11 @@ DECLARE
   backup_verified boolean := false;
   approval text := '';
   -- APPLY requires dry_run=false, backup_verified=true and the exact approval:
-  -- REMOVE 21 TEST REGISTRATIONS, 49 ATTENDEES, AND 8 LINKED CONTRIBUTIONS
+  -- REMOVE 21 TEST REGISTRATIONS, 49 ATTENDEES, 15 CONTRIBUTIONS, AND 5 POLL VOTES
   registration_ids constant integer[] := ARRAY[1,7,8,9,10,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27];
   attendee_ids constant integer[] := ARRAY[1,12,13,14,15,16,17,18,19,20,21,22,23,24,25,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64];
-  contribution_ids constant integer[] := ARRAY[1,3,8,10,12,13,14,15];
+  contribution_ids constant integer[] := ARRAY[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+  vote_ids constant integer[] := ARRAY[12,13,14,15,16];
   expected_tables constant text[] := ARRAY[
     'activity_choice_groups','activity_choice_options','activity_choice_selections',
     'announcements','app_settings','attendees','payment_submissions','poll_options',
@@ -26,14 +27,14 @@ DECLARE
     "registration_fees":"d751713988987e9331980363e24189ce",
     "payment_submissions":"d751713988987e9331980363e24189ce",
     "sponsorship_allocations":"d751713988987e9331980363e24189ce",
-    "sponsorship_contributions":"31c7791e30b15c8c66c0868e6f99d538"
+    "sponsorship_contributions":"31c7791e30b15c8c66c0868e6f99d538",
+    "poll_votes":"f5e76ef53633d80f9be38bb24beefaf2"
   }';
   expected_fk constant text := '139248782ef685f66e170efe5f58461f';
   actual_tables text[];
   table_name text;
   fingerprint text;
   kept_before jsonb := '{}'::jsonb;
-  kept_contributions text;
   affected integer;
 BEGIN
   PERFORM set_config('TimeZone', 'GMT', true);
@@ -43,7 +44,7 @@ BEGIN
   PERFORM set_config('row_security', 'off', true);
 
   IF NOT dry_run AND (NOT backup_verified OR approval IS DISTINCT FROM
-    'REMOVE 21 TEST REGISTRATIONS, 49 ATTENDEES, AND 8 LINKED CONTRIBUTIONS') THEN
+    'REMOVE 21 TEST REGISTRATIONS, 49 ATTENDEES, 15 CONTRIBUTIONS, AND 5 POLL VOTES') THEN
     RAISE EXCEPTION 'Apply blocked: verify a restorable production backup and enter the exact approval phrase.';
   END IF;
 
@@ -77,7 +78,7 @@ BEGIN
     JOIN pg_class child ON child.oid=c.conrelid
     JOIN pg_namespace cn ON cn.oid=child.relnamespace
     WHERE c.contype='f' AND pn.nspname='public' AND cn.nspname<>'public'
-      AND parent.relname IN ('registrations','attendees','sponsorship_contributions')
+      AND parent.relname IN ('registrations','attendees','sponsorship_contributions','poll_votes')
   ) THEN
     RAISE EXCEPTION 'Unreviewed cross-schema dependency. Stop.';
   END IF;
@@ -108,8 +109,8 @@ BEGIN
   END IF;
   IF (SELECT array_agg(id ORDER BY id) FROM public.attendees
       WHERE registration_id=ANY(registration_ids)) IS DISTINCT FROM attendee_ids
-    OR (SELECT array_agg(id ORDER BY id) FROM public.sponsorship_contributions
-      WHERE registration_id=ANY(registration_ids)) IS DISTINCT FROM contribution_ids THEN
+    OR (SELECT array_agg(id ORDER BY id) FROM public.sponsorship_contributions) IS DISTINCT FROM contribution_ids
+    OR (SELECT array_agg(id ORDER BY id) FROM public.poll_votes) IS DISTINCT FROM vote_ids THEN
     RAISE EXCEPTION 'Dependent record manifest mismatch. Stop.';
   END IF;
   -- These were empty at review. Any new payment, array reference, selected fee,
@@ -130,17 +131,17 @@ BEGIN
       kept_before := kept_before || jsonb_build_object(table_name, fingerprint);
     END IF;
   END LOOP;
-  SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id),'[]'::jsonb)::text)
-    INTO kept_contributions FROM public.sponsorship_contributions t
-    WHERE NOT (id=ANY(contribution_ids));
 
   -- Subtransaction allows the default rehearsal to test actual deletes and
   -- invariants, then undo them without committing any data changes.
   BEGIN
-    DELETE FROM public.sponsorship_contributions
-      WHERE id=ANY(contribution_ids) AND registration_id=ANY(registration_ids) AND reunion_id=1;
+    DELETE FROM public.poll_votes WHERE id=ANY(vote_ids);
     GET DIAGNOSTICS affected = ROW_COUNT;
-    IF affected<>8 THEN RAISE EXCEPTION 'Expected 8 linked contributions, got %', affected; END IF;
+    IF affected<>5 THEN RAISE EXCEPTION 'Expected 5 poll votes, got %', affected; END IF;
+    DELETE FROM public.sponsorship_contributions
+      WHERE id=ANY(contribution_ids);
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    IF affected<>15 THEN RAISE EXCEPTION 'Expected 15 contributions, got %', affected; END IF;
     DELETE FROM public.attendees
       WHERE id=ANY(attendee_ids) AND registration_id=ANY(registration_ids);
     GET DIAGNOSTICS affected = ROW_COUNT;
@@ -154,13 +155,9 @@ BEGIN
       OR EXISTS (SELECT 1 FROM public.registration_fees)
       OR EXISTS (SELECT 1 FROM public.payment_submissions)
       OR EXISTS (SELECT 1 FROM public.sponsorship_allocations)
-      OR EXISTS (SELECT 1 FROM public.sponsorship_contributions WHERE registration_id IS NOT NULL) THEN
+      OR EXISTS (SELECT 1 FROM public.sponsorship_contributions)
+      OR EXISTS (SELECT 1 FROM public.poll_votes) THEN
       RAISE EXCEPTION 'Residual registration data. Rolling back.';
-    END IF;
-    SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id),'[]'::jsonb)::text)
-      INTO fingerprint FROM public.sponsorship_contributions t;
-    IF fingerprint IS DISTINCT FROM kept_contributions THEN
-      RAISE EXCEPTION 'Unlinked contributions changed. Rolling back.';
     END IF;
     IF EXISTS (
       SELECT r.id FROM public.reunions r
@@ -182,7 +179,7 @@ BEGIN
     IF dry_run THEN
       RAISE EXCEPTION USING ERRCODE='Z0001', MESSAGE='Rehearsal passed; intentionally rolling back.';
     END IF;
-    RAISE NOTICE 'APPLY PASSED: removed 21 registrations, 49 attendees, 8 linked contributions. All preserved tables unchanged.';
+    RAISE NOTICE 'APPLY PASSED: removed 21 registrations, 49 attendees, 15 contributions, 5 poll votes. All preserved tables unchanged.';
   EXCEPTION WHEN SQLSTATE 'Z0001' THEN
     RAISE NOTICE 'REHEARSAL PASSED: all proposed deletes rolled back. Nothing removed.';
   END;

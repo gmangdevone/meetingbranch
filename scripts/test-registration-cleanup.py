@@ -25,7 +25,7 @@ TABLES = [
 ]
 MUTABLE = [
     "registrations", "attendees", "registration_fees", "payment_submissions",
-    "sponsorship_contributions", "sponsorship_allocations",
+    "sponsorship_contributions", "sponsorship_allocations", "poll_votes",
 ]
 REGISTRATIONS = [1, 7, 8, 9, 10, *range(12, 28)]
 ATTENDEES = [1, *range(12, 26), *range(31, 65)]
@@ -105,6 +105,12 @@ def main():
                 sql("INSERT INTO registrations VALUES " + ",".join(
                     f"({i},1,'cancelled','paid','2026-09-01T00:00:00Z')"
                     for i in REGISTRATIONS) + ";")
+                sql("""CREATE TABLE poll_votes (
+                    id integer PRIMARY KEY,
+                    poll_id integer REFERENCES polls(id),
+                    option_id integer REFERENCES poll_options(id),
+                    user_id integer REFERENCES users(id));
+                    INSERT INTO poll_votes SELECT id,1,1,1 FROM generate_series(12,16) id;""")
                 sql("INSERT INTO attendees VALUES " + ",".join(
                     f"({i},{REGISTRATIONS[n % len(REGISTRATIONS)]},'Fixture attendee')"
                     for n, i in enumerate(ATTENDEES)) + ";")
@@ -139,7 +145,7 @@ def main():
                     .replace("backup_verified boolean := false;", "backup_verified boolean := true;") \
                     .replace("approval text := '';",
                              "approval text := 'REMOVE 21 TEST REGISTRATIONS, "
-                             "49 ATTENDEES, AND 8 LINKED CONTRIBUTIONS';")
+                             "49 ATTENDEES, 15 CONTRIBUTIONS, AND 5 POLL VOTES';")
 
             statement = fixture()
             original = snapshot()
@@ -160,17 +166,16 @@ def main():
                 if table not in MUTABLE:
                     assert after[table] == original[table], table
             for table in MUTABLE:
-                if table != "sponsorship_contributions":
-                    assert after[table] == "[]", table
-            expected_kept = [row for row in json.loads(original["sponsorship_contributions"])
-                             if row["id"] not in CONTRIBUTIONS]
-            assert json.loads(after["sponsorship_contributions"]) == expected_kept
+                assert after[table] == "[]", table
             sql(apply(statement), expected_ok=False)
             assert snapshot() == after
             print("PASS: apply deletes exact scope, preserves other full rows, and refuses replay")
 
             # All blocked cases must leave ALL fixture data exactly unchanged.
             cases = [
+                ("new poll vote", "INSERT INTO poll_votes VALUES (99,1,1,1);"),
+                ("edited contribution", "UPDATE sponsorship_contributions SET amount=20 WHERE id=2;"),
+                ("edited vote", "UPDATE poll_votes SET user_id=NULL WHERE id=12;"),
                 ("new active registration",
                  "INSERT INTO registrations VALUES (100,1,'active','pending',now());"),
                 ("edited existing registration",
@@ -215,7 +220,7 @@ def main():
             sql(failing, expected_ok=False)
             assert snapshot() == before
             print("PASS: failure after all deletes rolls back the complete operation")
-            print("All 15 cleanup safety scenarios passed. No project database accessed.")
+            print("All 18 cleanup safety scenarios passed. No project database accessed.")
         finally:
             subprocess.run([tools["pg_ctl"], "-D", str(data), "-m", "immediate", "-w", "stop"],
                            env=env, capture_output=True, text=True, check=True)

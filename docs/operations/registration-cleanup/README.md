@@ -4,7 +4,8 @@
 backup has been created or verified by the agent. No maintenance window has started.**
 
 The user confirmed on October 1, 2026 that all existing registrations are test
-data. This is a one-time data cleanup, not a schema migration, database reset,
+data, and explicitly expanded the scope to all contributions and poll votes.
+This is a one-time data cleanup, not a schema migration, database reset,
 user deletion, or permanent admin feature. Never place this SQL in a migration,
 startup hook, publish command, or automatic workflow.
 
@@ -18,14 +19,14 @@ ID 1, Lacey Family Reunion, event code `LACEY27FR*`.
 | Registrations (all currently cancelled) | 21 | 0 |
 | Attendees | 49 | 0 |
 | Contributions still linked to those registrations | 8 | 0 |
-| Unlinked contributions | 0 | 7 |
+| Unlinked contributions | 7 | 0 |
 | Payment submissions | 0 | 0 |
 | Selected registration fees | 0 | 0 |
 | Sponsorship allocations | 0 | 0 |
 | Users | 0 | 13 |
 | App settings | 0 | 1 |
 | Reunions and their configuration | 0 | 1 |
-| Poll votes | 0 | 5 |
+| Poll votes | 5 | 0 |
 | Activity selections | 0 | 0 |
 
 All organizer roles, fee definitions, branches, schedules, announcements,
@@ -39,23 +40,24 @@ snapshot, not permission to remove subsequently created registrations.
   23, 24, 25, 26, 27**.
 - Attendees: **1, 12–25, 31–64** (49 records).
 - Linked contributions: **1, 3, 8, 10, 12, 13, 14, 15**.
-- Preserved contributions: **2, 4, 5, 6, 7, 9, 11**.
+- Unlinked contributions also removed: **2, 4, 5, 6, 7, 9, 11**.
+- All contribution IDs: **1–15**.
+- Poll vote IDs: **12–16**.
 
-The eight linked contributions total **$213**: **$190 paid** and **$23 pending**.
-Deleting them changes the recorded fund balance from **$6,825 to $6,635**.
+All 15 contributions total **$6,848**: **$6,825 paid** and **$23 pending**.
+Deleting them changes the recorded fund balance from **$6,825 to $0**.
 No external money is moved, refunded, or cancelled by this SQL.
 
 Contribution **2** is a **$5,000 paid** registration-source record whose
 registration link is already null. It cannot be reliably attributed to the
-current registration IDs, so it is preserved, along with six direct contributions
-totalling $1,635. The five poll votes are user-linked, not registration-linked,
-and remain in poll totals. This is a clean **registration list**, not a reset of
-all financial or voting history. Clearing these separate records requires a new
-scope decision; it is not required to remove registrations from CSV exports.
+current registration IDs, but the user's expanded authorization explicitly
+includes it and the six direct contributions totalling $1,635. The five user-linked
+poll votes are also explicitly removed; poll definitions/options remain unchanged.
+This package supersedes the earlier registration-only preservation instructions.
 
 ## Before execution — mandatory
 
-1. Review the exact scope above, including removal of linked contributions.
+1. Review the exact scope above, including all contributions and poll votes.
    The SQL defaults to a rollback-only rehearsal; it does not authorize itself.
 2. In Replit's **Database** tool select **Production**, not Development.
    The agent's production query tool is read-only. A human operator must use the
@@ -65,7 +67,7 @@ scope decision; it is not required to remove registrations from CSV exports.
 3. Arrange a short no-writes maintenance window: pause incoming application
    traffic and organizer changes, and drain in-flight requests. Closing public
    registrations alone does **not** stop organizer-created registrations,
-   donations, payments, or already-started requests. Do not change persistent
+    donations, payments, votes, or already-started requests. Do not change persistent
    settings as part of the cleanup. If you cannot establish a quiet window, stop.
 4. **Confirm a restorable production backup/restore point immediately before
    cleanup.** Record its identifier/time and restoration procedure securely,
@@ -98,14 +100,14 @@ and [Data recovery](https://docs.replit.com/features/data-and-storage/data-recov
    rolling back the rehearsal's deletes alone does not release those locks.
 4. Expected notice: **REHEARSAL PASSED ... Nothing removed.** If the UI suppresses
    notices, run `verify.sql` and confirm the original 21 registrations, 49
-   attendees, and 15 contributions remain; inspect execution status for errors.
+   attendees, 15 contributions, and five votes remain; inspect execution status for errors.
 5. Any error, lock timeout, unknown dependency, or changed fingerprint is a
    **stop condition**. Do not remove assertions, change the expected IDs/hashes,
    or broaden the DELETE predicates to get past it. Refresh the read-only
    inventory and have the package reviewed again.
 
 The script deliberately refuses even unrelated new payment submissions and
-contributions. This is conservative: today's empty payment tables mean there
+contributions or votes. This is conservative: today's empty payment tables mean there
 are no mixed registration/chip-in payments to split. Any new payment requires
 review of both primary IDs and array references.
 
@@ -116,7 +118,7 @@ In a copy of `cleanup.sql`, change only these three declarations:
 ```sql
 dry_run boolean := false;
 backup_verified boolean := true;
-approval text := 'REMOVE 21 TEST REGISTRATIONS, 49 ATTENDEES, AND 8 LINKED CONTRIBUTIONS';
+approval text := 'REMOVE 21 TEST REGISTRATIONS, 49 ATTENDEES, 15 CONTRIBUTIONS, AND 5 POLL VOTES';
 ```
 
 Run the complete single DO statement, with no surrounding long-lived transaction,
@@ -126,18 +128,18 @@ do not leave it open: only commit after the successful APPLY notice; roll back
 on any error. Do not run this from the development Shell against a guessed URL.
 
 Expected notice: **APPLY PASSED: removed 21 registrations, 49 attendees,
-8 linked contributions. All preserved tables unchanged.**
+15 contributions, 5 poll votes. All preserved tables unchanged.**
 
 The script never deletes users/settings/reunions or resets ID sequences. It
 explicitly deletes attendees because their registration ID has no foreign key,
-and deletes the eight linked contributions before their registrations because
+and deletes all contributions before their registrations because
 the contribution FK would otherwise set their registration link to null.
 Any second execution fails safely because the reviewed snapshot no longer exists.
 
 ## Verify before allowing traffic again
 
 - Run the SELECT statements in `verify.sql`. Registration/attendee counts should
-  be zero; the seven preserved contributions and five poll votes remain.
+  be zero; contributions and poll votes must also be empty and fund balance zero.
 - The SQL itself checks before/after fingerprints of **all preserved public
   tables**, not just their counts. Any change within the operation rolls back.
 - Reload the organizer registration page: it should show **No registrations found**.
