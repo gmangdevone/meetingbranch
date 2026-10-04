@@ -54,6 +54,15 @@ if (!clerkPubKey) {
   throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in .env file");
 }
 
+// Login card dimensions must not constrain Clerk's responsive profile dialog.
+const authCardElements = {
+  rootBox: "w-full flex justify-center",
+  cardBox: "bg-white rounded-3xl w-[440px] max-w-full overflow-hidden shadow-xl border border-[hsl(35,20%,85%)]",
+  card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+  footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+  main: "p-8",
+};
+
 const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
@@ -75,10 +84,6 @@ const clerkAppearance = {
     borderRadius: "1rem",
   },
   elements: {
-    rootBox: "w-full flex justify-center",
-    cardBox: "bg-white rounded-3xl w-[440px] max-w-full overflow-hidden shadow-xl border border-[hsl(35,20%,85%)]",
-    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
     headerTitle: "font-serif text-3xl font-bold text-[hsl(220,15%,15%)]",
     headerSubtitle: "text-[hsl(220,10%,45%)] font-medium",
     socialButtonsBlockButtonText: "font-bold text-[hsl(220,15%,15%)]",
@@ -99,7 +104,21 @@ const clerkAppearance = {
     alert: "bg-red-50 border border-red-200 rounded-xl p-3",
     otpCodeFieldInput: "bg-[hsl(35,15%,95%)] border-transparent focus:border-[hsl(15,80%,55%)] focus:ring-[hsl(15,80%,55%)] rounded-xl",
     formFieldRow: "mb-5",
-    main: "p-8",
+  },
+  signIn: { elements: authCardElements },
+  signUp: { elements: authCardElements },
+  userProfile: {
+    variables: {
+      colorNeutral: "#1E2A33",
+    },
+    elements: {
+      rootBox: "meeting-profile",
+      cardBox: "meeting-profile-card",
+      modalBackdrop: "meeting-profile-backdrop",
+      navbar: { backgroundColor: "#F4EFE3" },
+      pageScrollBox: "meeting-profile-scroll",
+      formFieldInput: "meeting-profile-input",
+    },
   },
 };
 
