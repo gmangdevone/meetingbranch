@@ -27,6 +27,7 @@ import { getAuth } from "@clerk/express";
 import { getOrCreateSettings } from "../lib/settings";
 import { invalidateSettingsCache } from "../lib/access";
 
+import { resolveRecipients, withResolvedRecipient } from "../lib/paymentRecipients";
 const router: IRouter = Router();
 
 // ──────────────────────────────────────────────────────────────
@@ -153,6 +154,7 @@ router.get("/admin/reunions", async (_req, res): Promise<void> => {
     .from(reunionsTable)
     .orderBy(desc(reunionsTable.createdAt));
 
+  const recipients = await resolveRecipients(reunions.map((r) => r.id));
   const withDetail = await Promise.all(
     reunions.map(async (r) => {
       const branches = await db
@@ -173,7 +175,7 @@ router.get("/admin/reunions", async (_req, res): Promise<void> => {
         .from(registrationsTable)
         .where(eq(registrationsTable.reunionId, r.id));
       return {
-        reunion: { ...r, branches, fees },
+        reunion: withResolvedRecipient({ ...r, branches, fees }, recipients.get(r.id)!),
         registrationCount: counts?.registrationCount ?? 0,
         attendeeCount: counts?.attendeeCount ?? 0,
       };

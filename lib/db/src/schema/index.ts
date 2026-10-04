@@ -10,3 +10,4 @@ export * from "./polls";
 export * from "./activityChoices";
 export * from "./vendors";
 export * from "./images";
+export * from "./paymentRecipients";

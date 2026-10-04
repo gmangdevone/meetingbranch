@@ -5,6 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { PaymentRecipientPublic } from './paymentRecipientPublic';
 import type { ReunionBranch } from './reunionBranch';
 import type { ReunionFee } from './reunionFee';
 
@@ -22,9 +23,17 @@ export interface Reunion {
   startDate: string;
   /** ISO date (YYYY-MM-DD) */
   endDate: string;
-  paymentHandle: string;
-  /** @nullable */
+  /**
+     * Owner-approved generic payment label. Null unless the recipient is approved.
+     * @nullable
+     */
+  paymentHandle?: string | null;
+  /**
+     * Owner-approved Cash App link. Null unless the recipient is approved.
+     * @nullable
+     */
   paymentUrl?: string | null;
+  paymentRecipient: PaymentRecipientPublic;
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
@@ -60,7 +69,7 @@ export interface Reunion {
      */
   pollsCardImageUrl?: string | null;
   /**
-     * Organizer's Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.
+     * Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.
      * @nullable
      */
   cashAppTag?: string | null;

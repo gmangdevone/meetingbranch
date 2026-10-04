@@ -70,6 +70,14 @@ import {
 import { computeTotal } from "../lib/fees";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
+import {
+  findDestinationKeys,
+  resolveRecipient,
+  withResolvedRecipient,
+} from "../lib/paymentRecipients";
+
+const DESTINATION_LOCKED_ERROR =
+  "Payment recipients are managed by the platform owner. Contact the platform owner to change where payments are sent.";
 
 const router: IRouter = Router();
 
@@ -90,7 +98,10 @@ async function getReunionWithBranches(reunionId: number) {
     .from(reunionFeesTable)
     .where(eq(reunionFeesTable.reunionId, reunionId))
     .orderBy(asc(reunionFeesTable.sortOrder), asc(reunionFeesTable.id));
-  return { ...reunion, branches, fees };
+  // Never return legacy destination columns: only the owner-approved,
+  // freshly resolved recipient (or nulls) reaches any client.
+  const recipient = await resolveRecipient(reunionId);
+  return withResolvedRecipient({ ...reunion, branches, fees }, recipient);
 }
 
 /**
@@ -172,6 +183,10 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  if (findDestinationKeys(req.body).length > 0) {
+    res.status(403).json({ error: DESTINATION_LOCKED_ERROR });
+    return;
+  }
   const parsed = CreateReunionBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -183,8 +198,7 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
   // JIT-provision the organizer's user row with authoritative Clerk profile data
   await upsertUserFromClerk(userId, req.log);
 
-  const { name, startDate, endDate, feePerPerson, paymentHandle, paymentUrl, branches } =
-    parsed.data;
+  const { name, startDate, endDate, feePerPerson, branches } = parsed.data;
 
   const reunion = await allocateUniqueEventCode(async (code) => {
       const [created] = await db
@@ -194,8 +208,10 @@ router.post("/reunions", requireAuth, async (req, res): Promise<void> => {
           name,
           startDate,
           endDate,
-          paymentHandle,
-          paymentUrl: paymentUrl ?? null,
+          // Legacy destination columns stay empty; the receiving destination
+          // lives only in owner-managed payment_recipients.
+          paymentHandle: "",
+          paymentUrl: null,
           organizerId: userId,
         })
         .returning();
@@ -377,6 +393,12 @@ router.put(
     req.body && typeof req.body === "object"
       ? (req.body as Record<string, unknown>)
       : {};
+  // Destination fields are owner-only; reject handcrafted attempts outright
+  // instead of silently ignoring them so tampering is visible.
+  if (findDestinationKeys(rawBody).length > 0) {
+    res.status(403).json({ error: DESTINATION_LOCKED_ERROR });
+    return;
+  }
   if (Object.prototype.hasOwnProperty.call(rawBody, "code")) {
     const codeError = getEventCodeValidationError(rawBody.code);
     if (codeError) {
@@ -390,7 +412,7 @@ router.put(
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { code, name, startDate, endDate, paymentHandle, paymentUrl, registrationsOpen, allowRegistrantEdits, heroImageUrl, heroImageUrls, heroRotationSeconds, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, cashAppTag, checkPayee } = body.data;
+  const { code, name, startDate, endDate, registrationsOpen, allowRegistrantEdits, heroImageUrl, heroImageUrls, heroRotationSeconds, scheduleCardImageUrl, announcementsCardImageUrl, pollsCardImageUrl, checkPayee } = body.data;
   if (heroImageUrls !== undefined && heroImageUrls.some((p) => !p.startsWith("/objects/"))) {
     res.status(400).json({ error: "Each hero image must be an object path starting with /objects/" });
     return;
@@ -417,8 +439,6 @@ router.put(
     ...(name === undefined ? {} : { name }),
     ...(startDate === undefined ? {} : { startDate }),
     ...(endDate === undefined ? {} : { endDate }),
-    ...(paymentHandle === undefined ? {} : { paymentHandle }),
-    ...(paymentUrl === undefined ? {} : { paymentUrl: paymentUrl || null }),
     ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
     ...(allowRegistrantEdits === undefined ? {} : { allowRegistrantEdits }),
     // heroImageUrl (legacy single) and heroImageUrls (slideshow) are kept in
@@ -435,7 +455,6 @@ router.put(
     ...(scheduleCardImageUrl === undefined ? {} : { scheduleCardImageUrl: scheduleCardImageUrl || null }),
     ...(announcementsCardImageUrl === undefined ? {} : { announcementsCardImageUrl: announcementsCardImageUrl || null }),
     ...(pollsCardImageUrl === undefined ? {} : { pollsCardImageUrl: pollsCardImageUrl || null }),
-    ...(cashAppTag === undefined ? {} : { cashAppTag: cashAppTag?.trim().replace(/^\$/, "") || null }),
     ...(checkPayee === undefined ? {} : { checkPayee: checkPayee?.trim() || null }),
   };
   if (Object.keys(updates).length > 0) {
@@ -2002,6 +2021,14 @@ router.post(
     const reunionId = Number(req.params.reunionId);
     if (!body.success || !Number.isInteger(reunionId)) {
       res.status(400).json({ error: "Invalid input" });
+      return;
+    }
+    if (findDestinationKeys(req.body).length > 0) {
+      res.status(400).json({ error: "Payment submissions cannot set a receiving destination." });
+      return;
+    }
+    if (body.data.method === "cashapp" && (await resolveRecipient(reunionId)).cashAppTag === null) {
+      res.status(409).json({ error: "Cash App is not configured for this reunion. Choose another payment method." });
       return;
     }
     const userId = (req as any).userId as string;

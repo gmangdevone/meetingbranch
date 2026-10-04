@@ -82,6 +82,7 @@ vi.mock("@workspace/db", () => {
     announcements: ["id", "reunionId", "title", "body", "pinned", "createdAt"],
     schedule_items: ["id", "reunionId", "day", "sortOrder"],
     app_settings: ["id"],
+    payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "version", "updatedBy", "updatedAt"],
     payment_submissions: [
       "id",
       "reunionId",
@@ -424,6 +425,7 @@ vi.mock("@workspace/db", () => {
     sponsorshipContributionsTable: "sponsorship_contributions",
     sponsorshipAllocationsTable: "sponsorship_allocations",
     paymentSubmissionsTable: "payment_submissions",
+    paymentRecipientsTable: "payment_recipients",
   };
   for (const [exportName, tableName] of Object.entries(tableExports)) {
     tokens[exportName] = makeToken(tableName, tables[tableName as keyof typeof tables]);
@@ -500,6 +502,7 @@ function seed(roles: string[]) {
     sponsorship_contributions: [],
     sponsorship_allocations: [],
     payment_submissions: [],
+    payment_recipients: [],
   };
   state.seq = 1000;
 }
@@ -521,7 +524,6 @@ const hit = {
         name: "New",
         startDate: "2026-08-01",
         endDate: "2026-08-03",
-        paymentHandle: "@t",
       }),
 } as const;
 
@@ -674,7 +676,6 @@ const ENDPOINTS: Record<Area, Endpoint[]> = {
           name: "New",
           startDate: "2026-08-01",
           endDate: "2026-08-03",
-          paymentHandle: "@t",
         }),
     },
     {

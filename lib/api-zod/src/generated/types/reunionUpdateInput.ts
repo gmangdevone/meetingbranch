@@ -23,9 +23,6 @@ export interface ReunionUpdateInput {
   startDate?: string;
   /** @minLength 1 */
   endDate?: string;
-  /** @minLength 1 */
-  paymentHandle?: string;
-  paymentUrl?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
   /**
@@ -59,11 +56,6 @@ export interface ReunionUpdateInput {
      * @nullable
      */
   pollsCardImageUrl?: string | null;
-  /**
-     * Organizer's Cash App $cashtag. Set null to hide the Cash App payment option.
-     * @nullable
-     */
-  cashAppTag?: string | null;
   /**
      * Who checks should be made out to. Set null to hide the check payment option.
      * @nullable

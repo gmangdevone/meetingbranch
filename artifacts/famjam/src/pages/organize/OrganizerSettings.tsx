@@ -1,3 +1,4 @@
+import { RecipientStatusCard } from "../../components/payments/RecipientStatusCard";
 import { useEffect, useRef, useState } from "react";
 import {
   useGetReunion,
@@ -44,9 +45,6 @@ const formSchema = z.object({
   name: z.string().min(1, "Required"),
   startDate: z.string().min(1, "Required"),
   endDate: z.string().min(1, "Required"),
-  paymentHandle: z.string().min(1, "Required"),
-  paymentUrl: z.string().optional(),
-  cashAppTag: z.string().optional(),
   checkPayee: z.string().optional(),
   registrationsOpen: z.boolean().default(true),
   allowRegistrantEdits: z.boolean().default(false),
@@ -75,9 +73,6 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       name: "",
       startDate: "",
       endDate: "",
-      paymentHandle: "",
-      paymentUrl: "",
-      cashAppTag: "",
       checkPayee: "",
       registrationsOpen: true,
       allowRegistrantEdits: false,
@@ -92,9 +87,6 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         name: summary.reunion.name,
         startDate: summary.reunion.startDate,
         endDate: summary.reunion.endDate,
-        paymentHandle: summary.reunion.paymentHandle,
-        paymentUrl: summary.reunion.paymentUrl || "",
-        cashAppTag: summary.reunion.cashAppTag || "",
         checkPayee: summary.reunion.checkPayee || "",
         registrationsOpen: summary.reunion.registrationsOpen,
         allowRegistrantEdits: summary.reunion.allowRegistrantEdits ?? false,
@@ -113,9 +105,6 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         name: values.name,
         startDate: values.startDate,
         endDate: values.endDate,
-        paymentHandle: values.paymentHandle,
-        paymentUrl: values.paymentUrl || undefined,
-        cashAppTag: values.cashAppTag?.trim() || null,
         checkPayee: values.checkPayee?.trim() || null,
         registrationsOpen: values.registrationsOpen,
         allowRegistrantEdits: values.allowRegistrantEdits,
@@ -291,49 +280,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
             <div className="pt-4 border-t space-y-4">
               <h3 className="font-serif text-xl font-bold">Payment Details</h3>
-              <FormField
-                control={form.control}
-                name="paymentHandle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Handle</FormLabel>
-                    <FormControl>
-                      <Input className="rounded-xl bg-muted/50" placeholder="@venmo-handle or Cash App $tag" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="paymentUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Payment Link</FormLabel>
-                    <FormControl>
-                      <Input className="rounded-xl bg-muted/50" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="cashAppTag"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-bold">Cash App $Cashtag</FormLabel>
-                    <FormControl>
-                      <Input className="rounded-xl bg-muted/50" placeholder="$YourCashtag" {...field} />
-                    </FormControl>
-                    <div className="text-xs text-muted-foreground">
-                      The Cash App account that receives payments. Registrants get a "pay with Cash App"
-                      option that opens the app with their total prefilled. Leave blank to hide the Cash App option.
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <RecipientStatusCard recipient={summary?.reunion.paymentRecipient} />
               <FormField
                 control={form.control}
                 name="checkPayee"

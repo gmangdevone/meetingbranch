@@ -98,6 +98,7 @@ vi.mock("@workspace/db", () => {
       "createdBy",
       "createdAt",
     ],
+    payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "version", "updatedBy", "updatedAt"],
     payment_submissions: [
       "id",
       "reunionId",
@@ -391,6 +392,7 @@ vi.mock("@workspace/db", () => {
     sponsorshipContributionsTable: "sponsorship_contributions",
     sponsorshipAllocationsTable: "sponsorship_allocations",
     paymentSubmissionsTable: "payment_submissions",
+    paymentRecipientsTable: "payment_recipients",
   };
   for (const [exportName, tableName] of Object.entries(tableExports)) {
     tokens[exportName] = makeToken(tableName, tables[tableName as keyof typeof tables]);
@@ -588,6 +590,7 @@ function seed() {
       },
     ],
     payment_submissions: [],
+    payment_recipients: [],
   };
   state.seq = 1000;
 }
@@ -759,9 +762,49 @@ describe("payment submission coverage: contributionIds", () => {
 describe("method-specific validation still applies", () => {
   it("rejects cashapp without a reference ($cashtag) with 400", async () => {
     authAs(MEMBER);
+    state.rows.payment_recipients = [
+      { reunionId: REUNION_ID, status: "approved", cashAppTag: "FamilyFund", paymentHandle: null, paymentUrl: null, version: 1, updatedBy: "user_owner", updatedAt: new Date() },
+    ];
     const res = await submit(REG_A, { method: "cashapp", amount: 25 });
     expect(res.status).toBe(400);
     expect(submissions()).toHaveLength(0);
+  });
+});
+
+describe("receiving destination is server-controlled", () => {
+  it("rejects a Cash App submission when the reunion has no approved recipient", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, { method: "cashapp", amount: 25, reference: "$payer" });
+    expect(res.status).toBe(409);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects a Cash App submission when the recipient was disabled", async () => {
+    authAs(MEMBER);
+    state.rows.payment_recipients = [
+      { reunionId: REUNION_ID, status: "disabled", cashAppTag: null, paymentHandle: null, paymentUrl: null, version: 2, updatedBy: "user_owner", updatedAt: new Date() },
+    ];
+    const res = await submit(REG_A, { method: "cashapp", amount: 25, reference: "$payer" });
+    expect(res.status).toBe(409);
+  });
+
+  it("rejects a submission that tries to supply a receiving destination", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com", cashAppTag: "attacker" });
+    expect(res.status).toBe(400);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("accepts the payer's own $cashtag as a reference without changing the receiving account", async () => {
+    authAs(MEMBER);
+    state.rows.payment_recipients = [
+      { reunionId: REUNION_ID, status: "approved", cashAppTag: "FamilyFund", paymentHandle: null, paymentUrl: null, version: 1, updatedBy: "user_owner", updatedAt: new Date() },
+    ];
+    const res = await submit(REG_A, { method: "cashapp", amount: 25, reference: "$somepayer" });
+    expect(res.status).toBe(201);
+    expect(res.body.reference).toBe("$somepayer");
+    expect(state.rows.payment_recipients[0].cashAppTag).toBe("FamilyFund");
+    expect(state.rows.registrations.find((r: any) => r.id === REG_A)?.paymentStatus).not.toBe("paid");
   });
 });
 

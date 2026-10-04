@@ -105,8 +105,15 @@ function makeParams() {
       startDate: "2027-07-16",
       endDate: "2027-07-19",
       fees: [],
-      paymentHandle: "$goudycgp",
-      paymentUrl: null,
+      recipient: {
+        reunionId: 1,
+        status: "approved" as const,
+        cashAppTag: "goudycgp",
+        cashAppUrl: "https://cash.app/$goudycgp",
+        paymentHandle: "$goudycgp",
+        paymentUrl: "https://cash.app/$goudycgp",
+        approvedAt: "2026-01-01T00:00:00.000Z",
+      },
     },
   };
 }

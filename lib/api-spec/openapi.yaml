@@ -24,6 +24,175 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /me/payment-owner:
+    get:
+      operationId: getMyPaymentOwnerCapability
+      tags: [settings]
+      summary: Whether the signed-in user is the configured platform payment owner (independent of isAdmin)
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Capability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentOwnerCapability"
+        "401":
+          description: Unauthorized
+  /reunions/{reunionId}/payment-recipient:
+    get:
+      operationId: getReunionPaymentRecipient
+      tags: [reunions]
+      summary: Freshly resolved, owner-approved receiving destination for a reunion (public)
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Resolved recipient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentRecipientPublic"
+        "404":
+          description: Not found
+  /owner/payment-recipients:
+    get:
+      operationId: ownerListPaymentRecipients
+      tags: [admin]
+      summary: Platform owner only - list every reunion's recipient status
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Reunion recipient list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OwnerRecipientListItem"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Not the platform owner
+  /owner/payment-recipients/{reunionId}:
+    get:
+      operationId: ownerGetPaymentRecipient
+      tags: [admin]
+      summary: Platform owner only - recipient detail including legacy values for review
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerRecipientDetail"
+        "403":
+          description: Not the platform owner
+        "404":
+          description: Not found
+    put:
+      operationId: ownerSavePaymentRecipient
+      tags: [admin]
+      summary: Platform owner only - approve or change the receiving destination (Cash App and/or generic link/label)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerRecipientSaveInput"
+      responses:
+        "200":
+          description: Saved detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerRecipientDetail"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the platform owner
+        "404":
+          description: Not found
+        "409":
+          description: Stale version - someone else changed this recipient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /owner/payment-recipients/{reunionId}/disable:
+    post:
+      operationId: ownerDisablePaymentRecipient
+      tags: [admin]
+      summary: Platform owner only - disable Cash App only, or all payment destinations, for a reunion
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OwnerRecipientDisableInput"
+      responses:
+        "200":
+          description: Saved detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OwnerRecipientDetail"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not the platform owner
+        "404":
+          description: Not found
+        "409":
+          description: Stale version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /owner/payment-recipients/{reunionId}/history:
+    get:
+      operationId: ownerListPaymentRecipientHistory
+      tags: [admin]
+      summary: Platform owner only - immutable recipient change history (newest first)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: History
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OwnerRecipientAuditEntry"
+        "403":
+          description: Not the platform owner
+        "404":
+          description: Not found
   /me/profile:
     get:
       operationId: getMyProfile
@@ -2336,6 +2505,175 @@ components:
         type: integer
 
   schemas:
+    PaymentRecipientStatus:
+      type: string
+      enum: [approved, pending_review, disabled]
+      description: "approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off."
+    PaymentRecipientPublic:
+      type: object
+      description: "Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation."
+      required: [reunionId, status, cashAppTag, cashAppUrl, paymentHandle, paymentUrl, approvedAt]
+      properties:
+        reunionId:
+          type: integer
+        status:
+          $ref: "#/components/schemas/PaymentRecipientStatus"
+        cashAppTag:
+          type: ["string", "null"]
+        cashAppUrl:
+          type: ["string", "null"]
+        paymentHandle:
+          type: ["string", "null"]
+        paymentUrl:
+          type: ["string", "null"]
+        approvedAt:
+          type: ["string", "null"]
+          format: date-time
+    PaymentOwnerCapability:
+      type: object
+      required: [isPaymentOwner]
+      properties:
+        isPaymentOwner:
+          type: boolean
+    PaymentRecipientValues:
+      type: object
+      required: [cashAppTag, paymentHandle, paymentUrl]
+      properties:
+        cashAppTag:
+          type: ["string", "null"]
+        paymentHandle:
+          type: ["string", "null"]
+        paymentUrl:
+          type: ["string", "null"]
+    OwnerRecipientListItem:
+      type: object
+      required: [reunionId, reunionName, reunionCode, startDate, status, cashAppTag, hasLegacyValues, version, updatedAt]
+      properties:
+        reunionId:
+          type: integer
+        reunionName:
+          type: string
+        reunionCode:
+          type: string
+        startDate:
+          type: string
+        status:
+          $ref: "#/components/schemas/PaymentRecipientStatus"
+        cashAppTag:
+          type: ["string", "null"]
+        hasLegacyValues:
+          type: boolean
+        version:
+          type: integer
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+    OwnerRecipientDetail:
+      type: object
+      required: [reunionId, reunionName, reunionCode, startDate, endDate, status, current, legacy, version, updatedAt, resolved]
+      properties:
+        reunionId:
+          type: integer
+        reunionName:
+          type: string
+        reunionCode:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        status:
+          $ref: "#/components/schemas/PaymentRecipientStatus"
+        current:
+          $ref: "#/components/schemas/PaymentRecipientValues"
+        legacy:
+          $ref: "#/components/schemas/PaymentRecipientValues"
+        version:
+          type: integer
+          description: "0 when the owner has never saved this reunion. Send as expectedVersion."
+        updatedAt:
+          type: ["string", "null"]
+          format: date-time
+        resolved:
+          $ref: "#/components/schemas/PaymentRecipientPublic"
+    OwnerRecipientSaveInput:
+      type: object
+      required: [expectedVersion, confirm]
+      description: "At least one of cashAppTag, paymentHandle or paymentUrl is required. Generic https links are allowed; any cash.app link must match cashAppTag."
+      properties:
+        cashAppTag:
+          type: ["string", "null"]
+          maxLength: 21
+        paymentHandle:
+          type: ["string", "null"]
+          maxLength: 120
+        paymentUrl:
+          type: ["string", "null"]
+          maxLength: 300
+        expectedVersion:
+          type: integer
+          minimum: 0
+        confirm:
+          type: boolean
+          description: "Must be true: the owner explicitly confirmed the before/after values."
+        note:
+          type: ["string", "null"]
+          maxLength: 500
+    OwnerRecipientDisableInput:
+      type: object
+      required: [expectedVersion, confirm, scope]
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 0
+        confirm:
+          type: boolean
+        scope:
+          type: string
+          enum: [cashapp, all]
+          description: "cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion."
+        note:
+          type: ["string", "null"]
+          maxLength: 500
+    OwnerRecipientAuditEntry:
+      type: object
+      required: [id, reunionId, actor, action, previousValue, newValue, versionAfter, note, createdAt]
+      properties:
+        id:
+          type: integer
+        reunionId:
+          type: integer
+        actor:
+          type: string
+          description: "Display label for the actor (\"Platform owner\" for the configured owner)."
+        action:
+          type: string
+          enum: [approve, change, disable, disable_cashapp]
+        previousValue:
+          oneOf:
+            - $ref: "#/components/schemas/PaymentRecipientAuditValue"
+            - type: "null"
+        newValue:
+          $ref: "#/components/schemas/PaymentRecipientAuditValue"
+        versionAfter:
+          type: integer
+        note:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    PaymentRecipientAuditValue:
+      type: object
+      required: [status, cashAppTag, paymentHandle, paymentUrl]
+      properties:
+        status:
+          $ref: "#/components/schemas/PaymentRecipientStatus"
+        cashAppTag:
+          type: ["string", "null"]
+        paymentHandle:
+          type: ["string", "null"]
+        paymentUrl:
+          type: ["string", "null"]
     MemberProfile:
       type: object
       required: [firstName, lastName, isNewAccount]
@@ -2921,7 +3259,7 @@ components:
     Reunion:
       type: object
       required:
-        [id, code, name, startDate, endDate, paymentHandle, registrationsOpen, createdAt, branches, fees]
+        [id, code, name, startDate, endDate, registrationsOpen, createdAt, branches, fees, paymentRecipient]
       properties:
         id:
           type: integer
@@ -2940,9 +3278,13 @@ components:
           type: string
           description: "ISO date (YYYY-MM-DD)"
         paymentHandle:
-          type: string
+          type: ["string", "null"]
+          description: "Owner-approved generic payment label. Null unless the recipient is approved."
         paymentUrl:
           type: ["string", "null"]
+          description: "Owner-approved Cash App link. Null unless the recipient is approved."
+        paymentRecipient:
+          $ref: "#/components/schemas/PaymentRecipientPublic"
         registrationsOpen:
           type: boolean
         allowRegistrantEdits:
@@ -2973,7 +3315,7 @@ components:
           description: "Object path of a custom background image for the hub Family Vote card. Null means the default look."
         cashAppTag:
           type: ["string", "null"]
-          description: "Organizer's Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option."
+          description: "Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved."
         checkPayee:
           type: ["string", "null"]
           description: "Who checks should be made out to. Null hides the check payment option."
@@ -3159,7 +3501,7 @@ components:
 
     ReunionInput:
       type: object
-      required: [name, startDate, endDate, feePerPerson, paymentHandle, branches]
+      required: [name, startDate, endDate, feePerPerson, branches]
       properties:
         name:
           type: string
@@ -3174,11 +3516,6 @@ components:
           type: integer
           minimum: 0
           description: "Seed amount for the initial per-person 'Registration Fee'. More fees & dues can be added afterwards from settings."
-        paymentHandle:
-          type: string
-          minLength: 1
-        paymentUrl:
-          type: string
         branches:
           type: array
           items:
@@ -3205,11 +3542,6 @@ components:
         endDate:
           type: string
           minLength: 1
-        paymentHandle:
-          type: string
-          minLength: 1
-        paymentUrl:
-          type: string
         registrationsOpen:
           type: boolean
         allowRegistrantEdits:
@@ -3237,9 +3569,6 @@ components:
         pollsCardImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom Family Vote card background. Set null to restore the default."
-        cashAppTag:
-          type: ["string", "null"]
-          description: "Organizer's Cash App $cashtag. Set null to hide the Cash App payment option."
         checkPayee:
           type: ["string", "null"]
           description: "Who checks should be made out to. Set null to hide the check payment option."

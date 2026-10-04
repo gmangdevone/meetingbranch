@@ -551,16 +551,26 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                           (has fees to pay or has pending standalone chip-ins). */}
                       {(reunion.fees.length > 0 || myPendingChipIns.length > 0) && (
                         <>
-                          <div>
-                            <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>
-                            <div className="font-mono bg-background border px-3 py-2 rounded-lg font-bold">
-                              {reunion.paymentHandle}
-                            </div>
-                          </div>
-                          {reunion.paymentUrl && (
-                            <a href={reunion.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-bold text-sm hover:underline flex items-center">
-                              Pay Online <ArrowRight className="ml-1 w-3 h-3" />
-                            </a>
+                          {reunion.paymentRecipient?.status === "approved" ? (
+                            <>
+                              {reunion.paymentRecipient.paymentHandle && (
+                                <div>
+                                  <span className="text-muted-foreground text-sm block mb-1">Send payments to</span>
+                                  <div className="font-mono bg-background border px-3 py-2 rounded-lg font-bold break-all">
+                                    {reunion.paymentRecipient.paymentHandle}
+                                  </div>
+                                </div>
+                              )}
+                              {reunion.paymentRecipient.paymentUrl && (
+                                <a href={reunion.paymentRecipient.paymentUrl} target="_blank" rel="noopener noreferrer" className="text-primary font-bold text-sm hover:underline flex items-center">
+                                  Pay Online <ArrowRight className="ml-1 w-3 h-3" />
+                                </a>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">
+                              Online payment (including Cash App) is not configured for this reunion yet. Your organizers will share payment instructions.
+                            </p>
                           )}
                         </>
                       )}
@@ -589,7 +599,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       label: `Fund chip-in — ${format(new Date(c.createdAt), "MMM d, yyyy")}`,
                       amount: c.amount,
                     }))}
-                    cashAppTag={reunion.cashAppTag ?? null}
+                    cashAppAvailable={!!reunion.paymentRecipient?.cashAppTag}
                     checkPayee={reunion.checkPayee ?? null}
                   />
                 )}

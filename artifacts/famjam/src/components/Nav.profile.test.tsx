@@ -13,8 +13,11 @@ vi.mock("@clerk/react", () => ({
   useUser: () => ({ user: { firstName: auth.firstName } }),
   useClerk: () => auth,
 }));
+const caps = vi.hoisted(() => ({ admin: false, owner: false }));
 vi.mock("@workspace/api-client-react", () => ({
-  useAdminListReunions: () => ({ isError: true }),
+  useAdminListReunions: () => (caps.admin ? { data: [] } : { isError: true }),
+  useGetMyPaymentOwnerCapability: () => ({ data: { isPaymentOwner: caps.owner } }),
+  getGetMyPaymentOwnerCapabilityQueryKey: () => ["owner"],
   getAdminListReunionsQueryKey: () => ["admin"],
   useGetSettings: () => ({ data: { reunionCreationEnabled: false } }),
 }));
@@ -22,6 +25,8 @@ vi.mock("@workspace/api-client-react", () => ({
 beforeEach(() => {
   auth.signedIn = true;
   auth.firstName = "";
+  caps.admin = false;
+  caps.owner = false;
   vi.clearAllMocks();
 });
 afterEach(cleanup);
@@ -48,5 +53,20 @@ describe("account profile menu", () => {
     render(<Nav />);
     expect(screen.queryByRole("button", { name: "Account" })).not.toBeInTheDocument();
     expect(screen.queryByText("Manage profile")).not.toBeInTheDocument();
+  });
+});
+describe("payment recipients nav link", () => {
+  it("shows for the payment owner even when not an admin", () => {
+    caps.owner = true;
+    render(<Nav />);
+    expect(screen.getByRole("link", { name: /Payment recipients/ })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Admin$/ })).not.toBeInTheDocument();
+  });
+
+  it("is hidden for admins who are not the payment owner", () => {
+    caps.admin = true;
+    render(<Nav />);
+    expect(screen.queryByRole("link", { name: /Payment recipients/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Payees/ })).not.toBeInTheDocument();
   });
 });

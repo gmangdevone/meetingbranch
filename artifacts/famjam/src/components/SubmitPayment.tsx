@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  getReunionPaymentRecipient,
   useCreatePaymentSubmission,
   useCreateContributionPaymentSubmission,
 } from "@workspace/api-client-react";
@@ -40,7 +41,7 @@ export function SubmitPayment({
   reunionId,
   registrations,
   chipIns = [],
-  cashAppTag,
+  cashAppAvailable,
   checkPayee,
 }: {
   reunionId: number;
@@ -48,7 +49,8 @@ export function SubmitPayment({
   registrations: PayableRegistration[];
   /** Pending standalone fund chip-ins, payable like registrations. */
   chipIns?: PayableChipIn[];
-  cashAppTag: string | null;
+  /** Display hint only; the destination is always re-resolved from the server at handoff. */
+  cashAppAvailable: boolean;
   checkPayee: string | null;
 }) {
   const [method, setMethod] = useState<Method | null>(null);
@@ -81,13 +83,16 @@ export function SubmitPayment({
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState<Method | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Link resolved fresh from the server after the submission is saved.
+  const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
+  const [handoffError, setHandoffError] = useState<string | null>(null);
 
   const createSubmission = useCreatePaymentSubmission();
   const createChipInSubmission = useCreateContributionPaymentSubmission();
   const isSaving = createSubmission.isPending || createChipInSubmission.isPending;
 
   const methods: { id: Method; icon: React.ReactNode; available: boolean }[] = [
-    { id: "cashapp", icon: <DollarSign className="w-4 h-4" />, available: !!cashAppTag },
+    { id: "cashapp", icon: <DollarSign className="w-4 h-4" />, available: cashAppAvailable },
     { id: "zelle", icon: <Landmark className="w-4 h-4" />, available: true },
     { id: "check", icon: <FileText className="w-4 h-4" />, available: !!checkPayee },
     { id: "cash", icon: <Banknote className="w-4 h-4" />, available: true },
@@ -118,13 +123,27 @@ export function SubmitPayment({
     const callbacks = {
       onSuccess: () => {
         setSubmitted(method);
-        if (method === "cashapp" && cashAppTag) {
-          // Deep link opens Cash App with the recipient and amount prefilled
-          window.open(
-            `https://cash.app/$${cashAppTag.replace(/^\$/, "")}/${amountNum}`,
-            "_blank",
-            "noopener",
-          );
+        setHandoffUrl(null);
+        setHandoffError(null);
+        if (method === "cashapp") {
+          // Open a placeholder synchronously (keeps popup blockers happy), then
+          // point it at the destination the server resolves right now. Opening
+          // Cash App never marks anything paid.
+          const win = window.open("", "_blank");
+          getReunionPaymentRecipient(reunionId)
+            .then((r) => {
+              if (r.status !== "approved" || !r.cashAppUrl) throw new Error("not configured");
+              const target = `${r.cashAppUrl}/${amountNum}`;
+              setHandoffUrl(target);
+              if (win) {
+                win.opener = null;
+                win.location.href = target;
+              }
+            })
+            .catch(() => {
+              win?.close();
+              setHandoffError("Cash App is not configured for this reunion right now. Contact your organizers for payment instructions.");
+            });
         }
       },
       onError: (err: any) =>
@@ -162,19 +181,34 @@ export function SubmitPayment({
           <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0 mt-0.5" />
           <div className="space-y-2">
             <p className="font-bold">Your {METHOD_LABELS[submitted]} payment details were saved.</p>
-            {submitted === "cashapp" && (
+            {submitted === "cashapp" && handoffUrl && (
               <p className="text-sm text-muted-foreground">
-                Cash App should have opened with the amount prefilled — complete the payment there.
+                Cash App should have opened with the amount prefilled. Complete the payment there.
                 If it didn't open,{" "}
-                <a
-                  href={`https://cash.app/$${(cashAppTag ?? "").replace(/^\$/, "")}/${amountNum}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary font-bold hover:underline"
-                >
+                <button type="button" className="text-primary font-bold hover:underline" onClick={() => {
+                  const win = window.open("", "_blank");
+                  if (win) win.opener = null;
+                  getReunionPaymentRecipient(reunionId).then((r) => {
+                    if (r.status !== "approved" || !r.cashAppUrl) throw new Error("not configured");
+                    const freshUrl = `${r.cashAppUrl}/${amountNum}`;
+                    setHandoffUrl(freshUrl);
+                    if (win) win.location.href = freshUrl;
+                    else setHandoffError("Your browser blocked Cash App. Allow pop-ups for this site and try again.");
+                  }).catch(() => {
+                    win?.close();
+                    setHandoffUrl(null);
+                    setHandoffError("Cash App is not configured for this reunion right now. Contact your organizers for payment instructions.");
+                  });
+                }}>
                   tap here to open Cash App
-                </a>.
+                </button>.
               </p>
+            )}
+            {submitted === "cashapp" && handoffError && (
+              <p className="text-sm text-destructive font-medium">{handoffError}</p>
+            )}
+            {submitted === "cashapp" && !handoffUrl && !handoffError && (
+              <p className="text-sm text-muted-foreground">Getting the approved Cash App link...</p>
             )}
             {submitted === "zelle" && (
               <p className="text-sm text-muted-foreground">
@@ -327,7 +361,7 @@ export function SubmitPayment({
             </div>
             {method === "cashapp" && (
               <div className="space-y-1.5">
-                <Label htmlFor="pay-ref">Your Cash App $cashtag</Label>
+                <Label htmlFor="pay-ref">Your own $cashtag (who is paying)</Label>
                 <Input
                   id="pay-ref"
                   placeholder="$yourcashtag"
@@ -335,6 +369,7 @@ export function SubmitPayment({
                   onChange={(e) => setReference(e.target.value)}
                   className="rounded-xl bg-background"
                 />
+                <p className="text-xs text-muted-foreground">Helps organizers match your payment. This does not change who receives it.</p>
               </div>
             )}
             {method === "zelle" && (

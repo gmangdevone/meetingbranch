@@ -34,6 +34,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { sendRegistrationConfirmation } from "../lib/email";
 import { upsertUserFromClerk } from "../lib/users";
 
+import { findDestinationKeys, resolveRecipient } from "../lib/paymentRecipients";
 const router: IRouter = Router();
 
 // Build a full registration object with attendees + reunion name/code
@@ -171,8 +172,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
         startDate: reunion.startDate,
         endDate: reunion.endDate,
         fees,
-        paymentHandle: reunion.paymentHandle,
-        paymentUrl: reunion.paymentUrl,
+        recipient: await resolveRecipient(reunion.id),
       },
     }).catch((err) => req.log.error({ err }, "Email send error"));
   }
@@ -599,6 +599,19 @@ router.post(
     }
     if (registration.status !== "active") {
       res.status(400).json({ error: "Cancelled registrations cannot record payments." });
+      return;
+    }
+    if (findDestinationKeys(req.body).length > 0) {
+      res.status(400).json({ error: "Payment submissions cannot set a receiving destination." });
+      return;
+    }
+    // The receiving account is server-controlled: a Cash App submission is only
+    // accepted while the reunion has an owner-approved recipient.
+    if (
+      body.data.method === "cashapp" &&
+      (await resolveRecipient(registration.reunionId)).cashAppTag === null
+    ) {
+      res.status(409).json({ error: "Cash App is not configured for this reunion. Choose another payment method." });
       return;
     }
 

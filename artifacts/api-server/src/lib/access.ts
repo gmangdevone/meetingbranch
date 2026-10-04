@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import type { AppSettings } from "@workspace/db";
+import { isPaymentOwner } from "./paymentRecipients/owner";
 
 // Read-only view of the settings the lockdown check needs. Defaults mirror the
 // schema so a missing singleton row behaves like a fresh install (no lockdown).
@@ -58,7 +59,7 @@ export async function isExemptFromLockdown(
   isAdmin: boolean,
   testerEmails: string[],
 ): Promise<boolean> {
-  if (isAdmin) return true;
+  if (isPaymentOwner(userId) || isAdmin) return true;
 
   const [organizerOf] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })

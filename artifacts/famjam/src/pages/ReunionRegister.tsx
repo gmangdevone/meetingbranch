@@ -522,7 +522,11 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   
                   <div className="bg-muted p-4 rounded-xl mt-6 text-sm">
                     <span className="font-bold block mb-1">How to pay:</span>
-                    Pay via <span className="font-mono bg-background px-1 rounded">{reunion.paymentHandle}</span> after submitting.
+                    {reunion.paymentRecipient?.status === "approved" && reunion.paymentRecipient.paymentHandle ? (
+                      <>Pay via <span className="font-mono bg-background px-1 rounded">{reunion.paymentRecipient.paymentHandle}</span> after submitting.</>
+                    ) : (
+                      <>Online payment is not configured yet. Your organizers will share payment instructions.</>
+                    )}
                   </div>
                 </>
               )}

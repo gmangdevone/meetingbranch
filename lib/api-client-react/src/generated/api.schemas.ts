@@ -5,6 +5,167 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+/**
+ * approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.
+ */
+export type PaymentRecipientStatus = typeof PaymentRecipientStatus[keyof typeof PaymentRecipientStatus];
+
+
+export const PaymentRecipientStatus = {
+  approved: 'approved',
+  pending_review: 'pending_review',
+  disabled: 'disabled',
+} as const;
+
+/**
+ * Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.
+ */
+export interface PaymentRecipientPublic {
+  reunionId: number;
+  status: PaymentRecipientStatus;
+  /** @nullable */
+  cashAppTag: string | null;
+  /** @nullable */
+  cashAppUrl: string | null;
+  /** @nullable */
+  paymentHandle: string | null;
+  /** @nullable */
+  paymentUrl: string | null;
+  /** @nullable */
+  approvedAt: string | null;
+}
+
+export interface PaymentOwnerCapability {
+  isPaymentOwner: boolean;
+}
+
+export interface PaymentRecipientValues {
+  /** @nullable */
+  cashAppTag: string | null;
+  /** @nullable */
+  paymentHandle: string | null;
+  /** @nullable */
+  paymentUrl: string | null;
+}
+
+export interface OwnerRecipientListItem {
+  reunionId: number;
+  reunionName: string;
+  reunionCode: string;
+  startDate: string;
+  status: PaymentRecipientStatus;
+  /** @nullable */
+  cashAppTag: string | null;
+  hasLegacyValues: boolean;
+  version: number;
+  /** @nullable */
+  updatedAt: string | null;
+}
+
+export interface OwnerRecipientDetail {
+  reunionId: number;
+  reunionName: string;
+  reunionCode: string;
+  startDate: string;
+  endDate: string;
+  status: PaymentRecipientStatus;
+  current: PaymentRecipientValues;
+  legacy: PaymentRecipientValues;
+  /** 0 when the owner has never saved this reunion. Send as expectedVersion. */
+  version: number;
+  /** @nullable */
+  updatedAt: string | null;
+  resolved: PaymentRecipientPublic;
+}
+
+/**
+ * At least one of cashAppTag, paymentHandle or paymentUrl is required. Generic https links are allowed; any cash.app link must match cashAppTag.
+ */
+export interface OwnerRecipientSaveInput {
+  /**
+     * @maxLength 21
+     * @nullable
+     */
+  cashAppTag?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  paymentHandle?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  paymentUrl?: string | null;
+  /** @minimum 0 */
+  expectedVersion: number;
+  /** Must be true: the owner explicitly confirmed the before/after values. */
+  confirm: boolean;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
+/**
+ * cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion.
+ */
+export type OwnerRecipientDisableInputScope = typeof OwnerRecipientDisableInputScope[keyof typeof OwnerRecipientDisableInputScope];
+
+
+export const OwnerRecipientDisableInputScope = {
+  cashapp: 'cashapp',
+  all: 'all',
+} as const;
+
+export interface OwnerRecipientDisableInput {
+  /** @minimum 0 */
+  expectedVersion: number;
+  confirm: boolean;
+  /** cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion. */
+  scope: OwnerRecipientDisableInputScope;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  note?: string | null;
+}
+
+export type OwnerRecipientAuditEntryAction = typeof OwnerRecipientAuditEntryAction[keyof typeof OwnerRecipientAuditEntryAction];
+
+
+export const OwnerRecipientAuditEntryAction = {
+  approve: 'approve',
+  change: 'change',
+  disable: 'disable',
+  disable_cashapp: 'disable_cashapp',
+} as const;
+
+export interface PaymentRecipientAuditValue {
+  status: PaymentRecipientStatus;
+  /** @nullable */
+  cashAppTag: string | null;
+  /** @nullable */
+  paymentHandle: string | null;
+  /** @nullable */
+  paymentUrl: string | null;
+}
+
+export interface OwnerRecipientAuditEntry {
+  id: number;
+  reunionId: number;
+  /** Display label for the actor ("Platform owner" for the configured owner). */
+  actor: string;
+  action: OwnerRecipientAuditEntryAction;
+  previousValue: PaymentRecipientAuditValue | null;
+  newValue: PaymentRecipientAuditValue;
+  versionAfter: number;
+  /** @nullable */
+  note: string | null;
+  createdAt: string;
+}
+
 export interface MemberProfile {
   /** @nullable */
   firstName: string | null;
@@ -600,9 +761,17 @@ export interface Reunion {
   startDate: string;
   /** ISO date (YYYY-MM-DD) */
   endDate: string;
-  paymentHandle: string;
-  /** @nullable */
+  /**
+     * Owner-approved generic payment label. Null unless the recipient is approved.
+     * @nullable
+     */
+  paymentHandle?: string | null;
+  /**
+     * Owner-approved Cash App link. Null unless the recipient is approved.
+     * @nullable
+     */
   paymentUrl?: string | null;
+  paymentRecipient: PaymentRecipientPublic;
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
@@ -638,7 +807,7 @@ export interface Reunion {
      */
   pollsCardImageUrl?: string | null;
   /**
-     * Organizer's Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.
+     * Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.
      * @nullable
      */
   cashAppTag?: string | null;
@@ -740,9 +909,6 @@ export interface ReunionInput {
      * @minimum 0
      */
   feePerPerson: number;
-  /** @minLength 1 */
-  paymentHandle: string;
-  paymentUrl?: string;
   /**
      * @minItems 1
      * @items.minLength 1
@@ -767,9 +933,6 @@ export interface ReunionUpdateInput {
   startDate?: string;
   /** @minLength 1 */
   endDate?: string;
-  /** @minLength 1 */
-  paymentHandle?: string;
-  paymentUrl?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
   /**
@@ -803,11 +966,6 @@ export interface ReunionUpdateInput {
      * @nullable
      */
   pollsCardImageUrl?: string | null;
-  /**
-     * Organizer's Cash App $cashtag. Set null to hide the Cash App payment option.
-     * @nullable
-     */
-  cashAppTag?: string | null;
   /**
      * Who checks should be made out to. Set null to hide the check payment option.
      * @nullable

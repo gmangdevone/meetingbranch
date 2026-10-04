@@ -77,8 +77,9 @@ function setSummary(viewer: ReunionViewerPermissions) {
       name: "Test Reunion",
       startDate: "2027-07-01",
       endDate: "2027-07-03",
-      paymentHandle: "@test",
+      paymentHandle: null,
       paymentUrl: null,
+      paymentRecipient: { reunionId: 1, status: "pending_review", cashAppTag: null, cashAppUrl: null, paymentHandle: null, paymentUrl: null, approvedAt: null },
       registrationsOpen: true,
       allowRegistrantEdits: false,
       fees: [],
@@ -136,8 +137,19 @@ describe("OrganizerSettings organizers section gating", () => {
       reunionId: 1,
       data: { code: "FAMILY27*" },
     });
+    // Organizers never send receiving-destination fields.
+    const sent = hoisted.updateMutate.mock.calls[0][0].data;
+    for (const k of ["paymentHandle", "paymentUrl", "cashAppTag"]) expect(sent).not.toHaveProperty(k);
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Settings saved. The Event Code and join link have been updated.",
     );
+  });
+
+  it("shows a read-only payment destination with platform-owner guidance and no inputs", () => {
+    setSummary(makeViewer({ roles: ["power_user"] }));
+    render(<OrganizerSettings params={{ reunionId: "1" }} />);
+    expect(screen.getByTestId("recipient-status-card")).toHaveTextContent(/contact the platform owner/);
+    expect(screen.queryByLabelText(/Cashtag/)).toBeNull();
+    expect(screen.queryByLabelText("Payment Link")).toBeNull();
   });
 });

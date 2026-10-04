@@ -1,6 +1,7 @@
 import type { ReunionFee } from "@workspace/db";
 import { logger } from "./logger";
 import { feeApplies, computeFeeAmount } from "./fees";
+import type { PublicRecipient } from "./paymentRecipients/validation";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? null;
 
@@ -16,11 +17,11 @@ interface ReunionInfo {
   startDate: string; // ISO YYYY-MM-DD
   endDate: string; // ISO YYYY-MM-DD
   fees: ReunionFee[];
-  paymentHandle: string;
-  paymentUrl?: string | null;
+  /** Freshly resolved owner-approved recipient. Only "approved" shows pay instructions. */
+  recipient: PublicRecipient;
 }
 
-interface SendConfirmationEmailParams {
+export interface SendConfirmationEmailParams {
   toEmail: string;
   toName: string;
   branchName: string;
@@ -29,6 +30,15 @@ interface SendConfirmationEmailParams {
   registrationId: number;
   registeredAt: Date;
   reunion: ReunionInfo;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 // Domains that are verified senders in Brevo — any override must belong to one of these.
@@ -85,7 +95,7 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${startStr}–${endStr}, ${end.getUTCFullYear()}`;
 }
 
-function buildEmailHtml(params: SendConfirmationEmailParams): string {
+export function buildEmailHtml(params: SendConfirmationEmailParams): string {
   const { toName, branchName, attendees, selectedFeeIds, registrationId, registeredAt, reunion } =
     params;
   const feeLines = reunion.fees
@@ -99,8 +109,11 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
     dateStyle: "full",
     timeStyle: "short",
   });
-  const payHandle = reunion.paymentHandle;
-  const payUrl = reunion.paymentUrl || null;
+  // Only the owner-approved, server-resolved destination is ever rendered.
+  const r = reunion.recipient;
+  const approved = r.status === "approved" && !!(r.paymentHandle || r.paymentUrl);
+  const payHandle = approved ? escapeHtml(r.paymentHandle ?? "the link below") : "";
+  const payUrl = approved && r.paymentUrl ? escapeHtml(r.paymentUrl) : null;
 
   const attendeeRows = attendees
     .map(
@@ -112,6 +125,11 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
       </tr>`,
     )
     .join("");
+
+  const payBlock = approved
+    ? null
+    : `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Payment instructions</p>
+                    <p style="margin:0;color:#4b5563;font-size:13px;">Online payment is not configured for this reunion yet (Cash App is not set up). Check the reunion page for current payment options or contact your organizers.</p>`;
 
   const payCta = payUrl
     ? `<a href="${payUrl}" style="display:inline-block;background:#00d632;color:#000000;font-weight:bold;font-size:16px;padding:14px 40px;border-radius:50px;text-decoration:none;">
@@ -187,10 +205,10 @@ function buildEmailHtml(params: SendConfirmationEmailParams): string {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
                 <tr>
                   <td align="center" style="padding:20px;background:#f0fdf4;border-radius:8px;">
-                    <p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Pay your reunion fees</p>
+                    ${payBlock ?? `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Pay your reunion fees</p>
                     <p style="margin:0 0 16px;color:#4b5563;font-size:13px;">Send <strong>$${totalFee.toFixed(2)}</strong> to <strong>${payHandle}</strong></p>
                     ${payCta}
-                    <p style="margin:12px 0 0;color:#9ca3af;font-size:11px;">Please include your name and "${reunion.name}" in the payment note</p>
+                    <p style="margin:12px 0 0;color:#9ca3af;font-size:11px;">Please include your name and "${reunion.name}" in the payment note</p>`}
                   </td>
                 </tr>
               </table>`

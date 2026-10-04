@@ -19,8 +19,6 @@ const formSchema = z.object({
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   feePerPerson: z.coerce.number().min(0, "Fee cannot be negative"),
-  paymentHandle: z.string().min(1, "Payment handle is required"),
-  paymentUrl: z.string().optional(),
   branches: z.array(z.object({ value: z.string().min(1, "Branch name is required") })).min(1, "At least one branch is required"),
 });
 
@@ -41,8 +39,6 @@ export function CreateReunion() {
       startDate: "",
       endDate: "",
       feePerPerson: 0,
-      paymentHandle: "",
-      paymentUrl: "",
       branches: [{ value: "Main Branch" }],
     },
   });
@@ -59,8 +55,6 @@ export function CreateReunion() {
         startDate: values.startDate,
         endDate: values.endDate,
         feePerPerson: values.feePerPerson,
-        paymentHandle: values.paymentHandle,
-        paymentUrl: values.paymentUrl || undefined,
         branches: values.branches.map(b => b.value),
       }
     }, {
@@ -218,34 +212,11 @@ export function CreateReunion() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="paymentHandle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-bold">Payment Handle</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. $cashapp or @venmo" className="rounded-xl px-4 py-6 text-base bg-muted/50 border-transparent focus:border-primary" {...field} />
-                    </FormControl>
-                    <FormDescription>Where should they send money?</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground">
+                <span className="font-bold text-foreground block mb-1">Where payments go</span>
+                The platform owner sets up and approves the payment destination (Cash App or another link) for each reunion. Contact the platform owner after creating your reunion to get payments turned on.
+              </div>
             </div>
-            <FormField
-              control={form.control}
-              name="paymentUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-base font-bold">Payment Link (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://paypal.me/..." className="rounded-xl px-4 py-6 text-base bg-muted/50 border-transparent focus:border-primary" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
 
           <div className="pt-6 border-t">

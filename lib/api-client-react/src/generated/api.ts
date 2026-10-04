@@ -57,6 +57,13 @@ import type {
   MemberProfile,
   MemberProfileInput,
   MyContributionsResponse,
+  OwnerRecipientAuditEntry,
+  OwnerRecipientDetail,
+  OwnerRecipientDisableInput,
+  OwnerRecipientListItem,
+  OwnerRecipientSaveInput,
+  PaymentOwnerCapability,
+  PaymentRecipientPublic,
   PaymentSubmission,
   PaymentSubmissionInput,
   PaymentSubmissionList,
@@ -127,6 +134,535 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetMyPaymentOwnerCapabilityUrl = () => {
+
+
+
+
+  return `/api/me/payment-owner`
+}
+
+/**
+ * @summary Whether the signed-in user is the configured platform payment owner (independent of isAdmin)
+ */
+export const getMyPaymentOwnerCapability = async ( options?: RequestInit): Promise<PaymentOwnerCapability> => {
+
+  return customFetch<PaymentOwnerCapability>(getGetMyPaymentOwnerCapabilityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyPaymentOwnerCapabilityQueryKey = () => {
+    return [
+    `/api/me/payment-owner`
+    ] as const;
+    }
+
+
+export const getGetMyPaymentOwnerCapabilityQueryOptions = <TData = Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyPaymentOwnerCapabilityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>> = ({ signal }) => getMyPaymentOwnerCapability({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyPaymentOwnerCapabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>>
+export type GetMyPaymentOwnerCapabilityQueryError = ErrorType<void>
+
+
+/**
+ * @summary Whether the signed-in user is the configured platform payment owner (independent of isAdmin)
+ */
+
+export function useGetMyPaymentOwnerCapability<TData = Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyPaymentOwnerCapability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyPaymentOwnerCapabilityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetReunionPaymentRecipientUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/payment-recipient`
+}
+
+/**
+ * @summary Freshly resolved, owner-approved receiving destination for a reunion (public)
+ */
+export const getReunionPaymentRecipient = async (reunionId: number, options?: RequestInit): Promise<PaymentRecipientPublic> => {
+
+  return customFetch<PaymentRecipientPublic>(getGetReunionPaymentRecipientUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReunionPaymentRecipientQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/payment-recipient`
+    ] as const;
+    }
+
+
+export const getGetReunionPaymentRecipientQueryOptions = <TData = Awaited<ReturnType<typeof getReunionPaymentRecipient>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReunionPaymentRecipient>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReunionPaymentRecipientQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReunionPaymentRecipient>>> = ({ signal }) => getReunionPaymentRecipient(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReunionPaymentRecipient>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReunionPaymentRecipientQueryResult = NonNullable<Awaited<ReturnType<typeof getReunionPaymentRecipient>>>
+export type GetReunionPaymentRecipientQueryError = ErrorType<void>
+
+
+/**
+ * @summary Freshly resolved, owner-approved receiving destination for a reunion (public)
+ */
+
+export function useGetReunionPaymentRecipient<TData = Awaited<ReturnType<typeof getReunionPaymentRecipient>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReunionPaymentRecipient>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReunionPaymentRecipientQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getOwnerListPaymentRecipientsUrl = () => {
+
+
+
+
+  return `/api/owner/payment-recipients`
+}
+
+/**
+ * @summary Platform owner only - list every reunion's recipient status
+ */
+export const ownerListPaymentRecipients = async ( options?: RequestInit): Promise<OwnerRecipientListItem[]> => {
+
+  return customFetch<OwnerRecipientListItem[]>(getOwnerListPaymentRecipientsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOwnerListPaymentRecipientsQueryKey = () => {
+    return [
+    `/api/owner/payment-recipients`
+    ] as const;
+    }
+
+
+export const getOwnerListPaymentRecipientsQueryOptions = <TData = Awaited<ReturnType<typeof ownerListPaymentRecipients>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ownerListPaymentRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOwnerListPaymentRecipientsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof ownerListPaymentRecipients>>> = ({ signal }) => ownerListPaymentRecipients({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof ownerListPaymentRecipients>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type OwnerListPaymentRecipientsQueryResult = NonNullable<Awaited<ReturnType<typeof ownerListPaymentRecipients>>>
+export type OwnerListPaymentRecipientsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Platform owner only - list every reunion's recipient status
+ */
+
+export function useOwnerListPaymentRecipients<TData = Awaited<ReturnType<typeof ownerListPaymentRecipients>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ownerListPaymentRecipients>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getOwnerListPaymentRecipientsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getOwnerGetPaymentRecipientUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/owner/payment-recipients/${reunionId}`
+}
+
+/**
+ * @summary Platform owner only - recipient detail including legacy values for review
+ */
+export const ownerGetPaymentRecipient = async (reunionId: number, options?: RequestInit): Promise<OwnerRecipientDetail> => {
+
+  return customFetch<OwnerRecipientDetail>(getOwnerGetPaymentRecipientUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOwnerGetPaymentRecipientQueryKey = (reunionId: number,) => {
+    return [
+    `/api/owner/payment-recipients/${reunionId}`
+    ] as const;
+    }
+
+
+export const getOwnerGetPaymentRecipientQueryOptions = <TData = Awaited<ReturnType<typeof ownerGetPaymentRecipient>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ownerGetPaymentRecipient>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOwnerGetPaymentRecipientQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof ownerGetPaymentRecipient>>> = ({ signal }) => ownerGetPaymentRecipient(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof ownerGetPaymentRecipient>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type OwnerGetPaymentRecipientQueryResult = NonNullable<Awaited<ReturnType<typeof ownerGetPaymentRecipient>>>
+export type OwnerGetPaymentRecipientQueryError = ErrorType<void>
+
+
+/**
+ * @summary Platform owner only - recipient detail including legacy values for review
+ */
+
+export function useOwnerGetPaymentRecipient<TData = Awaited<ReturnType<typeof ownerGetPaymentRecipient>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ownerGetPaymentRecipient>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getOwnerGetPaymentRecipientQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getOwnerSavePaymentRecipientUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/owner/payment-recipients/${reunionId}`
+}
+
+/**
+ * @summary Platform owner only - approve or change the receiving destination (Cash App and/or generic link/label)
+ */
+export const ownerSavePaymentRecipient = async (reunionId: number,
+    ownerRecipientSaveInput: OwnerRecipientSaveInput, options?: RequestInit): Promise<OwnerRecipientDetail> => {
+
+  return customFetch<OwnerRecipientDetail>(getOwnerSavePaymentRecipientUrl(reunionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ownerRecipientSaveInput)
+  }
+);}
+
+
+
+
+
+export const getOwnerSavePaymentRecipientMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownerSavePaymentRecipient>>, TError,{reunionId: number;data: BodyType<OwnerRecipientSaveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ownerSavePaymentRecipient>>, TError,{reunionId: number;data: BodyType<OwnerRecipientSaveInput>}, TContext> => {
+
+const mutationKey = ['ownerSavePaymentRecipient'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ownerSavePaymentRecipient>>, {reunionId: number;data: BodyType<OwnerRecipientSaveInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  ownerSavePaymentRecipient(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OwnerSavePaymentRecipientMutationResult = NonNullable<Awaited<ReturnType<typeof ownerSavePaymentRecipient>>>
+    export type OwnerSavePaymentRecipientMutationBody = BodyType<OwnerRecipientSaveInput>
+    export type OwnerSavePaymentRecipientMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Platform owner only - approve or change the receiving destination (Cash App and/or generic link/label)
+ */
+export const useOwnerSavePaymentRecipient = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownerSavePaymentRecipient>>, TError,{reunionId: number;data: BodyType<OwnerRecipientSaveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof ownerSavePaymentRecipient>>,
+        TError,
+        {reunionId: number;data: BodyType<OwnerRecipientSaveInput>},
+        TContext
+      > => {
+      return useMutation(getOwnerSavePaymentRecipientMutationOptions(options));
+    }
+
+export const getOwnerDisablePaymentRecipientUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/owner/payment-recipients/${reunionId}/disable`
+}
+
+/**
+ * @summary Platform owner only - disable Cash App only, or all payment destinations, for a reunion
+ */
+export const ownerDisablePaymentRecipient = async (reunionId: number,
+    ownerRecipientDisableInput: OwnerRecipientDisableInput, options?: RequestInit): Promise<OwnerRecipientDetail> => {
+
+  return customFetch<OwnerRecipientDetail>(getOwnerDisablePaymentRecipientUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ownerRecipientDisableInput)
+  }
+);}
+
+
+
+
+
+export const getOwnerDisablePaymentRecipientMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownerDisablePaymentRecipient>>, TError,{reunionId: number;data: BodyType<OwnerRecipientDisableInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof ownerDisablePaymentRecipient>>, TError,{reunionId: number;data: BodyType<OwnerRecipientDisableInput>}, TContext> => {
+
+const mutationKey = ['ownerDisablePaymentRecipient'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof ownerDisablePaymentRecipient>>, {reunionId: number;data: BodyType<OwnerRecipientDisableInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  ownerDisablePaymentRecipient(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OwnerDisablePaymentRecipientMutationResult = NonNullable<Awaited<ReturnType<typeof ownerDisablePaymentRecipient>>>
+    export type OwnerDisablePaymentRecipientMutationBody = BodyType<OwnerRecipientDisableInput>
+    export type OwnerDisablePaymentRecipientMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Platform owner only - disable Cash App only, or all payment destinations, for a reunion
+ */
+export const useOwnerDisablePaymentRecipient = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof ownerDisablePaymentRecipient>>, TError,{reunionId: number;data: BodyType<OwnerRecipientDisableInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof ownerDisablePaymentRecipient>>,
+        TError,
+        {reunionId: number;data: BodyType<OwnerRecipientDisableInput>},
+        TContext
+      > => {
+      return useMutation(getOwnerDisablePaymentRecipientMutationOptions(options));
+    }
+
+export const getOwnerListPaymentRecipientHistoryUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/owner/payment-recipients/${reunionId}/history`
+}
+
+/**
+ * @summary Platform owner only - immutable recipient change history (newest first)
+ */
+export const ownerListPaymentRecipientHistory = async (reunionId: number, options?: RequestInit): Promise<OwnerRecipientAuditEntry[]> => {
+
+  return customFetch<OwnerRecipientAuditEntry[]>(getOwnerListPaymentRecipientHistoryUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getOwnerListPaymentRecipientHistoryQueryKey = (reunionId: number,) => {
+    return [
+    `/api/owner/payment-recipients/${reunionId}/history`
+    ] as const;
+    }
+
+
+export const getOwnerListPaymentRecipientHistoryQueryOptions = <TData = Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getOwnerListPaymentRecipientHistoryQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>> = ({ signal }) => ownerListPaymentRecipientHistory(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type OwnerListPaymentRecipientHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>>
+export type OwnerListPaymentRecipientHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Platform owner only - immutable recipient change history (newest first)
+ */
+
+export function useOwnerListPaymentRecipientHistory<TData = Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof ownerListPaymentRecipientHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getOwnerListPaymentRecipientHistoryQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetMyProfileUrl = () => {
 

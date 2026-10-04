@@ -18,9 +18,6 @@ export interface ReunionInput {
      * @minimum 0
      */
   feePerPerson: number;
-  /** @minLength 1 */
-  paymentHandle: string;
-  paymentUrl?: string;
   /**
      * @minItems 1
      * @items.minLength 1

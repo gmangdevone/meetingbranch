@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
-import { Home, User, LogOut, Shield, Plus, Key, ChevronDown, PenLine } from "lucide-react";
+import { Home, User, LogOut, Shield, Wallet, Plus, Key, ChevronDown, PenLine } from "lucide-react";
 import { useAuth, useUser, useClerk } from "@clerk/react";
-import { useAdminListReunions, getAdminListReunionsQueryKey, useGetSettings } from "@workspace/api-client-react";
+import { useAdminListReunions, getAdminListReunionsQueryKey, useGetSettings, useGetMyPaymentOwnerCapability, getGetMyPaymentOwnerCapabilityQueryKey } from "@workspace/api-client-react";
 import { useEffect, useRef, useState } from "react";
 import { useProfile, usableName } from "../lib/profile";
 
@@ -74,6 +74,12 @@ export function Nav() {
 
   const isAdmin = !isError && !!adminReunions;
 
+  // Owner capability is independent of isAdmin; the server is authoritative.
+  const { data: ownerCap } = useGetMyPaymentOwnerCapability({
+    query: { queryKey: getGetMyPaymentOwnerCapabilityQueryKey(), enabled: !!isSignedIn, retry: false, staleTime: 1000 * 60 * 5 },
+  });
+  const isPaymentOwner = ownerCap?.isPaymentOwner === true;
+
   const { data: settings } = useGetSettings();
   const canCreateReunion = settings?.reunionCreationEnabled ?? false;
 
@@ -91,6 +97,7 @@ export function Nav() {
       { href: "/dashboard", label: "Dash", icon: Home },
       ...(canCreateReunion ? [{ href: "/create", label: "Create", icon: Plus }] : []),
       ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
+      ...(isPaymentOwner ? [{ href: "/owner/payment-recipients", label: "Payees", icon: Wallet }] : []),
     ] : [
       { href: "/sign-in", label: "Sign In", icon: LogOut },
     ]),
@@ -137,6 +144,18 @@ export function Nav() {
                 color: isActive("/admin") ? "var(--fj-brand)" : "var(--fj-ink-soft)",
               }}>
               <Shield style={{ width: 14, height: 14 }} /> Admin
+            </Link>
+          )}
+
+          {isPaymentOwner && (
+            <Link href="/owner/payment-recipients"
+              className="flex items-center gap-1"
+              style={{
+                fontWeight: 700,
+                fontSize: "0.875rem",
+                color: isActive("/owner/payment-recipients") ? "var(--fj-brand)" : "var(--fj-ink-soft)",
+              }}>
+              <Wallet style={{ width: 14, height: 14 }} /> Payment recipients
             </Link>
           )}
 

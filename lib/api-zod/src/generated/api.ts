@@ -8,6 +8,228 @@
 import * as zod from 'zod';
 
 
+/**
+ * @summary Whether the signed-in user is the configured platform payment owner (independent of isAdmin)
+ */
+export const GetMyPaymentOwnerCapabilityResponse = zod.object({
+  "isPaymentOwner": zod.boolean()
+})
+
+
+/**
+ * @summary Freshly resolved, owner-approved receiving destination for a reunion (public)
+ */
+export const GetReunionPaymentRecipientParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const GetReunionPaymentRecipientResponse = zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
+
+
+/**
+ * @summary Platform owner only - list every reunion's recipient status
+ */
+export const OwnerListPaymentRecipientsResponseItem = zod.object({
+  "reunionId": zod.number(),
+  "reunionName": zod.string(),
+  "reunionCode": zod.string(),
+  "startDate": zod.string(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "hasLegacyValues": zod.boolean(),
+  "version": zod.number(),
+  "updatedAt": zod.coerce.date().nullable()
+})
+export const OwnerListPaymentRecipientsResponse = zod.array(OwnerListPaymentRecipientsResponseItem)
+
+
+/**
+ * @summary Platform owner only - recipient detail including legacy values for review
+ */
+export const OwnerGetPaymentRecipientParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const OwnerGetPaymentRecipientResponse = zod.object({
+  "reunionId": zod.number(),
+  "reunionName": zod.string(),
+  "reunionCode": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "current": zod.object({
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "legacy": zod.object({
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "version": zod.number().describe('0 when the owner has never saved this reunion. Send as expectedVersion.'),
+  "updatedAt": zod.coerce.date().nullable(),
+  "resolved": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
+})
+
+
+/**
+ * @summary Platform owner only - approve or change the receiving destination (Cash App and/or generic link/label)
+ */
+export const OwnerSavePaymentRecipientParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ownerSavePaymentRecipientBodyCashAppTagMax = 21;
+
+export const ownerSavePaymentRecipientBodyPaymentHandleMax = 120;
+
+export const ownerSavePaymentRecipientBodyPaymentUrlMax = 300;
+
+export const ownerSavePaymentRecipientBodyExpectedVersionMin = 0;
+
+export const ownerSavePaymentRecipientBodyNoteMax = 500;
+
+
+
+export const OwnerSavePaymentRecipientBody = zod.object({
+  "cashAppTag": zod.string().max(ownerSavePaymentRecipientBodyCashAppTagMax).nullish(),
+  "paymentHandle": zod.string().max(ownerSavePaymentRecipientBodyPaymentHandleMax).nullish(),
+  "paymentUrl": zod.string().max(ownerSavePaymentRecipientBodyPaymentUrlMax).nullish(),
+  "expectedVersion": zod.number().min(ownerSavePaymentRecipientBodyExpectedVersionMin),
+  "confirm": zod.boolean().describe('Must be true: the owner explicitly confirmed the before\/after values.'),
+  "note": zod.string().max(ownerSavePaymentRecipientBodyNoteMax).nullish()
+}).describe('At least one of cashAppTag, paymentHandle or paymentUrl is required. Generic https links are allowed; any cash.app link must match cashAppTag.')
+
+export const OwnerSavePaymentRecipientResponse = zod.object({
+  "reunionId": zod.number(),
+  "reunionName": zod.string(),
+  "reunionCode": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "current": zod.object({
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "legacy": zod.object({
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "version": zod.number().describe('0 when the owner has never saved this reunion. Send as expectedVersion.'),
+  "updatedAt": zod.coerce.date().nullable(),
+  "resolved": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
+})
+
+
+/**
+ * @summary Platform owner only - disable Cash App only, or all payment destinations, for a reunion
+ */
+export const OwnerDisablePaymentRecipientParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ownerDisablePaymentRecipientBodyExpectedVersionMin = 0;
+
+export const ownerDisablePaymentRecipientBodyNoteMax = 500;
+
+
+
+export const OwnerDisablePaymentRecipientBody = zod.object({
+  "expectedVersion": zod.number().min(ownerDisablePaymentRecipientBodyExpectedVersionMin),
+  "confirm": zod.boolean(),
+  "scope": zod.enum(['cashapp', 'all']).describe('cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion.'),
+  "note": zod.string().max(ownerDisablePaymentRecipientBodyNoteMax).nullish()
+})
+
+export const OwnerDisablePaymentRecipientResponse = zod.object({
+  "reunionId": zod.number(),
+  "reunionName": zod.string(),
+  "reunionCode": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "current": zod.object({
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "legacy": zod.object({
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "version": zod.number().describe('0 when the owner has never saved this reunion. Send as expectedVersion.'),
+  "updatedAt": zod.coerce.date().nullable(),
+  "resolved": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
+})
+
+
+/**
+ * @summary Platform owner only - immutable recipient change history (newest first)
+ */
+export const OwnerListPaymentRecipientHistoryParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const OwnerListPaymentRecipientHistoryResponseItem = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "actor": zod.string().describe('Display label for the actor (\"Platform owner\" for the configured owner).'),
+  "action": zod.enum(['approve', 'change', 'disable', 'disable_cashapp']),
+  "previousValue": zod.union([zod.object({
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),zod.null()]),
+  "newValue": zod.object({
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable()
+}),
+  "versionAfter": zod.number(),
+  "note": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const OwnerListPaymentRecipientHistoryResponse = zod.array(OwnerListPaymentRecipientHistoryResponseItem)
+
+
 export const GetMyProfileResponse = zod.object({
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -127,14 +349,11 @@ export const createReunionBodyFeePerPersonMin = 0;
 
 
 
-
 export const CreateReunionBody = zod.object({
   "name": zod.string().min(1),
   "startDate": zod.string().min(1),
   "endDate": zod.string().min(1),
   "feePerPerson": zod.number().min(createReunionBodyFeePerPersonMin).describe('Seed amount for the initial per-person \'Registration Fee\'. More fees & dues can be added afterwards from settings.'),
-  "paymentHandle": zod.string().min(1),
-  "paymentUrl": zod.string().optional(),
   "branches": zod.array(zod.string().min(1)).min(1)
 })
 
@@ -162,8 +381,17 @@ export const CreateReunionResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "paymentHandle": zod.string(),
-  "paymentUrl": zod.string().nullish(),
+  "paymentHandle": zod.string().nullish().describe('Owner-approved generic payment label. Null unless the recipient is approved.'),
+  "paymentUrl": zod.string().nullish().describe('Owner-approved Cash App link. Null unless the recipient is approved.'),
+  "paymentRecipient": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
@@ -172,7 +400,7 @@ export const CreateReunionResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "cashAppTag": zod.string().nullish().describe('Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
@@ -227,8 +455,17 @@ export const ListMyReunionsResponseItem = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "paymentHandle": zod.string(),
-  "paymentUrl": zod.string().nullish(),
+  "paymentHandle": zod.string().nullish().describe('Owner-approved generic payment label. Null unless the recipient is approved.'),
+  "paymentUrl": zod.string().nullish().describe('Owner-approved Cash App link. Null unless the recipient is approved.'),
+  "paymentRecipient": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
@@ -237,7 +474,7 @@ export const ListMyReunionsResponseItem = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "cashAppTag": zod.string().nullish().describe('Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
@@ -312,8 +549,17 @@ export const GetReunionByCodeResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "paymentHandle": zod.string(),
-  "paymentUrl": zod.string().nullish(),
+  "paymentHandle": zod.string().nullish().describe('Owner-approved generic payment label. Null unless the recipient is approved.'),
+  "paymentUrl": zod.string().nullish().describe('Owner-approved Cash App link. Null unless the recipient is approved.'),
+  "paymentRecipient": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
@@ -322,7 +568,7 @@ export const GetReunionByCodeResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "cashAppTag": zod.string().nullish().describe('Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
@@ -381,8 +627,17 @@ export const GetReunionResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "paymentHandle": zod.string(),
-  "paymentUrl": zod.string().nullish(),
+  "paymentHandle": zod.string().nullish().describe('Owner-approved generic payment label. Null unless the recipient is approved.'),
+  "paymentUrl": zod.string().nullish().describe('Owner-approved Cash App link. Null unless the recipient is approved.'),
+  "paymentRecipient": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
@@ -391,7 +646,7 @@ export const GetReunionResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "cashAppTag": zod.string().nullish().describe('Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
@@ -442,7 +697,6 @@ export const updateReunionBodyCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9]
 
 
 
-
 export const updateReunionBodyHeroImageUrlsMax = 5;
 
 export const updateReunionBodyHeroRotationSecondsMin = 3;
@@ -455,8 +709,6 @@ export const UpdateReunionBody = zod.object({
   "name": zod.string().min(1).optional(),
   "startDate": zod.string().min(1).optional(),
   "endDate": zod.string().min(1).optional(),
-  "paymentHandle": zod.string().min(1).optional(),
-  "paymentUrl": zod.string().optional(),
   "registrationsOpen": zod.boolean().optional(),
   "allowRegistrantEdits": zod.boolean().optional(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.'),
@@ -465,7 +717,6 @@ export const UpdateReunionBody = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom Schedule card background. Set null to restore the default.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom Announcements card background. Set null to restore the default.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom Family Vote card background. Set null to restore the default.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag. Set null to hide the Cash App payment option.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Set null to hide the check payment option.')
 }).describe('Partial update — only provided fields are changed.')
 
@@ -493,8 +744,17 @@ export const UpdateReunionResponse = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "paymentHandle": zod.string(),
-  "paymentUrl": zod.string().nullish(),
+  "paymentHandle": zod.string().nullish().describe('Owner-approved generic payment label. Null unless the recipient is approved.'),
+  "paymentUrl": zod.string().nullish().describe('Owner-approved Cash App link. Null unless the recipient is approved.'),
+  "paymentRecipient": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
@@ -503,7 +763,7 @@ export const UpdateReunionResponse = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "cashAppTag": zod.string().nullish().describe('Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
@@ -2615,8 +2875,17 @@ export const AdminListReunionsResponseItem = zod.object({
   "name": zod.string(),
   "startDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
   "endDate": zod.string().describe('ISO date (YYYY-MM-DD)'),
-  "paymentHandle": zod.string(),
-  "paymentUrl": zod.string().nullish(),
+  "paymentHandle": zod.string().nullish().describe('Owner-approved generic payment label. Null unless the recipient is approved.'),
+  "paymentUrl": zod.string().nullish().describe('Owner-approved Cash App link. Null unless the recipient is approved.'),
+  "paymentRecipient": zod.object({
+  "reunionId": zod.number(),
+  "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
+  "cashAppTag": zod.string().nullable(),
+  "cashAppUrl": zod.string().nullable(),
+  "paymentHandle": zod.string().nullable(),
+  "paymentUrl": zod.string().nullable(),
+  "approvedAt": zod.coerce.date().nullable()
+}).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
@@ -2625,7 +2894,7 @@ export const AdminListReunionsResponseItem = zod.object({
   "scheduleCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Schedule card. Null means the default look.'),
   "announcementsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Announcements card. Null means the default look.'),
   "pollsCardImageUrl": zod.string().nullish().describe('Object path of a custom background image for the hub Family Vote card. Null means the default look.'),
-  "cashAppTag": zod.string().nullish().describe('Organizer\'s Cash App $cashtag for receiving payments (with or without the leading $). Null hides the Cash App payment option.'),
+  "cashAppTag": zod.string().nullish().describe('Owner-approved receiving Cash App tag (no leading $). Null unless the recipient is approved.'),
   "checkPayee": zod.string().nullish().describe('Who checks should be made out to. Null hides the check payment option.'),
   "organizerId": zod.string().optional(),
   "createdAt": zod.coerce.date(),
