@@ -34,7 +34,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { sendRegistrationConfirmation } from "../lib/email";
 import { upsertUserFromClerk } from "../lib/users";
 
-import { findDestinationKeys, resolveRecipient } from "../lib/paymentRecipients";
+import { findDestinationKeys, resolveRecipient, unavailableMethodError } from "../lib/paymentRecipients";
 const router: IRouter = Router();
 
 // Build a full registration object with attendees + reunion name/code
@@ -607,12 +607,12 @@ router.post(
     }
     // The receiving account is server-controlled: a Cash App submission is only
     // accepted while the reunion has an owner-approved recipient.
-    if (
-      body.data.method === "cashapp" &&
-      (await resolveRecipient(registration.reunionId)).cashAppTag === null
-    ) {
-      res.status(409).json({ error: "Cash App is not configured for this reunion. Choose another payment method." });
-      return;
+    {
+      const unavailable = await unavailableMethodError(body.data.method, registration.reunionId);
+      if (unavailable) {
+        res.status(409).json({ error: unavailable });
+        return;
+      }
     }
 
     // Which registrations does this payment cover? Defaults to just the path

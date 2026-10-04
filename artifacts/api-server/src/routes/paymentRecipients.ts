@@ -23,6 +23,7 @@ import {
   StaleVersionError,
   ReunionNotFoundError,
   withoutCashApp,
+  withoutZelle,
 } from "../lib/paymentRecipients";
 import { db, reunionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -158,9 +159,12 @@ router.post("/owner/payment-recipients/:reunionId/disable", requirePaymentOwner,
     cashAppTag: null,
     paymentHandle: null,
     paymentUrl: null,
+    zelleRecipientName: null,
+    zelleContact: null,
   };
-  let action: "disable_cashapp" | undefined;
-  if (body.data.scope === "cashapp") {
+  let action: "disable_cashapp" | "disable_zelle" | undefined;
+  if (body.data.scope === "cashapp" || body.data.scope === "zelle") {
+    const scope = body.data.scope;
     const detail = await getOwnerRecipientDetail(reunionId);
     if (!detail) {
       res.status(404).json({ error: "Reunion not found" });
@@ -170,14 +174,17 @@ router.post("/owner/payment-recipients/:reunionId/disable", requirePaymentOwner,
       res.status(409).json({ error: new StaleVersionError(detail.version).message });
       return;
     }
-    if (detail.status !== "approved" || !detail.current.cashAppTag) {
-      res.status(400).json({ error: "Cash App is not currently approved for this reunion." });
+    const has = scope === "cashapp" ? !!detail.current.cashAppTag : !!detail.current.zelleContact;
+    if (detail.status !== "approved" || !has) {
+      res.status(400).json({
+        error: `${scope === "cashapp" ? "Cash App" : "Zelle"} is not currently approved for this reunion.`,
+      });
       return;
     }
-    const remaining = withoutCashApp(detail.current);
-    // Nothing else approved: turning off Cash App disables payments entirely.
+    const remaining = scope === "cashapp" ? withoutCashApp(detail.current) : withoutZelle(detail.current);
+    // Nothing else approved: turning off this method disables payments entirely.
     if (remaining) next = { status: "approved", ...remaining };
-    action = "disable_cashapp";
+    action = scope === "cashapp" ? "disable_cashapp" : "disable_zelle";
   }
   await handleWrite(
     res,

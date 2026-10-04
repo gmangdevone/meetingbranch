@@ -112,6 +112,15 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
   // Only the owner-approved, server-resolved destination is ever rendered.
   const r = reunion.recipient;
   const approved = r.status === "approved" && !!(r.paymentHandle || r.paymentUrl);
+  const zelle =
+    r.status === "approved" && r.zelleRecipientName && r.zelleContact
+      ? { name: escapeHtml(r.zelleRecipientName), contact: escapeHtml(r.zelleContact) }
+      : null;
+  // Zelle has no payment link: payers send from their own banking app.
+  const zelleBlock = zelle
+    ? `<p style="margin:16px 0 4px;color:#166534;font-size:14px;font-weight:600;">Or pay with Zelle</p>
+                    <p style="margin:0;color:#4b5563;font-size:13px;">In your own bank's app, send to <strong>${zelle.name}</strong> at <strong>${zelle.contact}</strong>. Check the recipient name before you send.</p>`
+    : "";
   const payHandle = approved ? escapeHtml(r.paymentHandle ?? "the link below") : "";
   const payUrl = approved && r.paymentUrl ? escapeHtml(r.paymentUrl) : null;
 
@@ -128,6 +137,9 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
 
   const payBlock = approved
     ? null
+    : zelle
+    ? `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Pay your reunion fees with Zelle</p>
+                    <p style="margin:0;color:#4b5563;font-size:13px;">Send <strong>$${totalFee.toFixed(2)}</strong> from your own bank's app to <strong>${zelle.name}</strong> at <strong>${zelle.contact}</strong>. Check the recipient name before you send, and include your name and "${escapeHtml(reunion.name)}" in the memo.</p>`
     : `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Payment instructions</p>
                     <p style="margin:0;color:#4b5563;font-size:13px;">Online payment is not configured for this reunion yet (Cash App is not set up). Check the reunion page for current payment options or contact your organizers.</p>`;
 
@@ -208,6 +220,7 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
                     ${payBlock ?? `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Pay your reunion fees</p>
                     <p style="margin:0 0 16px;color:#4b5563;font-size:13px;">Send <strong>$${totalFee.toFixed(2)}</strong> to <strong>${payHandle}</strong></p>
                     ${payCta}
+                    ${zelleBlock}
                     <p style="margin:12px 0 0;color:#9ca3af;font-size:11px;">Please include your name and "${reunion.name}" in the payment note</p>`}
                   </td>
                 </tr>

@@ -15,6 +15,7 @@ import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from ".
 import { eventCodePath } from "../lib/eventCode";
 import { getEventCountdownLabel, getRegistrationMomentumLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
 import { Greeting } from "../components/Greeting";
+import { ZelleRecipientCard } from "../components/payments/ZelleRecipientCard";
 import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
@@ -566,10 +567,17 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                   Pay Online <ArrowRight className="ml-1 w-3 h-3" />
                                 </a>
                               )}
+                              {reunion.paymentRecipient.zelleRecipientName && reunion.paymentRecipient.zelleContact && (
+                                <ZelleRecipientCard
+                                  name={reunion.paymentRecipient.zelleRecipientName}
+                                  contact={reunion.paymentRecipient.zelleContact}
+                                  compact
+                                />
+                              )}
                             </>
                           ) : (
                             <p className="text-sm text-muted-foreground">
-                              Online payment (including Cash App) is not configured for this reunion yet. Your organizers will share payment instructions.
+                              Online payment (including Cash App and Zelle) is not configured for this reunion yet. Your organizers will share payment instructions.
                             </p>
                           )}
                         </>
@@ -600,6 +608,13 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       amount: c.amount,
                     }))}
                     cashAppAvailable={!!reunion.paymentRecipient?.cashAppTag}
+                    zelle={
+                      reunion.paymentRecipient?.status === "approved" &&
+                      reunion.paymentRecipient.zelleRecipientName &&
+                      reunion.paymentRecipient.zelleContact
+                        ? { name: reunion.paymentRecipient.zelleRecipientName, contact: reunion.paymentRecipient.zelleContact }
+                        : null
+                    }
                     checkPayee={reunion.checkPayee ?? null}
                   />
                 )}

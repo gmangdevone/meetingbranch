@@ -6,10 +6,12 @@ import {
   validateRecipientInput,
   resolvePublicRecipient,
   cashAppAvailable,
+  zelleAvailable,
+  normalizeZelleContact,
   findDestinationKeys,
 } from "./validation";
 import { getConfiguredPaymentOwnerId, isPaymentOwner } from "./owner";
-import { withoutCashApp } from "./store";
+import { withoutCashApp, withoutZelle } from "./store";
 
 const now = new Date("2026-03-01T00:00:00Z");
 
@@ -55,7 +57,7 @@ describe("cash.app link validation", () => {
 describe("generic destinations", () => {
   it("allows a safe generic https link without a Cash App tag", () => {
     const r = validateRecipientInput({ paymentHandle: "Family Fund at First Bank", paymentUrl: "https://pay.example.org/reunion" });
-    expect(r).toEqual({ ok: true, values: { cashAppTag: null, paymentHandle: "Family Fund at First Bank", paymentUrl: "https://pay.example.org/reunion" } });
+    expect(r).toEqual({ ok: true, values: { cashAppTag: null, paymentHandle: "Family Fund at First Bank", paymentUrl: "https://pay.example.org/reunion", zelleRecipientName: null, zelleContact: null } });
   });
   it.each([
     "http://pay.example.org",
@@ -118,13 +120,13 @@ describe("resolvePublicRecipient (fail closed)", () => {
 
 describe("withoutCashApp", () => {
   it("keeps generic destinations and drops Cash App ones", () => {
-    expect(withoutCashApp({ cashAppTag: "FamilyFund", paymentHandle: "Bank transfer", paymentUrl: "https://cash.app/$FamilyFund" }))
-      .toEqual({ cashAppTag: null, paymentHandle: "Bank transfer", paymentUrl: null });
-    expect(withoutCashApp({ cashAppTag: "FamilyFund", paymentHandle: "$FamilyFund", paymentUrl: "https://pay.example.org" }))
-      .toEqual({ cashAppTag: null, paymentHandle: null, paymentUrl: "https://pay.example.org" });
+    expect(withoutCashApp({ cashAppTag: "FamilyFund", paymentHandle: "Bank transfer", paymentUrl: "https://cash.app/$FamilyFund" , zelleRecipientName: null, zelleContact: null }))
+      .toEqual({ cashAppTag: null, paymentHandle: "Bank transfer", paymentUrl: null , zelleRecipientName: null, zelleContact: null });
+    expect(withoutCashApp({ cashAppTag: "FamilyFund", paymentHandle: "$FamilyFund", paymentUrl: "https://pay.example.org" , zelleRecipientName: null, zelleContact: null }))
+      .toEqual({ cashAppTag: null, paymentHandle: null, paymentUrl: "https://pay.example.org" , zelleRecipientName: null, zelleContact: null });
   });
   it("returns null when nothing else is approved", () => {
-    expect(withoutCashApp({ cashAppTag: "FamilyFund", paymentHandle: "$FamilyFund", paymentUrl: null })).toBeNull();
+    expect(withoutCashApp({ cashAppTag: "FamilyFund", paymentHandle: "$FamilyFund", paymentUrl: null , zelleRecipientName: null, zelleContact: null })).toBeNull();
   });
 });
 
@@ -149,5 +151,52 @@ describe("owner configuration (fail closed)", () => {
     expect(isPaymentOwner("user_TestOwner000001")).toBe(true);
     expect(isPaymentOwner("user_testowner000001")).toBe(false);
     expect(isPaymentOwner(undefined)).toBe(false);
+  });
+});
+
+describe("Zelle recipient", () => {
+  const now = new Date("2026-01-01T00:00:00Z");
+  it.each([
+    ["Treasurer@Example.ORG", "treasurer@example.org"],
+    ["312-555-0147", "(312) 555-0147"],
+    ["+1 (312) 555-0147", "(312) 555-0147"],
+    ["13125550147", "(312) 555-0147"],
+    ["312.555.0147", "(312) 555-0147"],
+  ])("normalizes %s", (input, out) => expect(normalizeZelleContact(input)).toBe(out));
+  it.each(["", "not-an-email", "a@b", "a..b@example.org", "555-0147", "012-555-0147", "312-155-0147", "+44 20 7946 0958", "3125550147x", "https://zelle.example/x", "a@example.org<script>"])(
+    "rejects invalid contact %j",
+    (input) => expect(normalizeZelleContact(input)).toBeNull(),
+  );
+  it("requires name and contact together", () => {
+    expect(validateRecipientInput({ zelleRecipientName: "Rhonda Goudy" }).ok).toBe(false);
+    expect(validateRecipientInput({ zelleContact: "rhonda@example.org" }).ok).toBe(false);
+    expect(validateRecipientInput({ zelleRecipientName: "Rhonda Goudy", zelleContact: "555" }).ok).toBe(false);
+    expect(validateRecipientInput({ zelleRecipientName: "https://x.example", zelleContact: "rhonda@example.org" }).ok).toBe(false);
+    expect(validateRecipientInput({ zelleRecipientName: "<b>R</b>", zelleContact: "rhonda@example.org" }).ok).toBe(false);
+  });
+  it("accepts a Zelle-only destination and normalizes it", () => {
+    expect(validateRecipientInput({ zelleRecipientName: "  Rhonda   Goudy ", zelleContact: "(312) 555-0147" })).toEqual({
+      ok: true,
+      values: { cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147" },
+    });
+  });
+  it("resolves Zelle only for approved valid rows", () => {
+    const row = { status: "approved" as const, cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", updatedAt: now };
+    const r = resolvePublicRecipient(9, row);
+    expect(r).toMatchObject({ status: "approved", zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", cashAppTag: null, paymentUrl: null });
+    expect(zelleAvailable(r)).toBe(true);
+    expect(cashAppAvailable(r)).toBe(false);
+    expect(zelleAvailable(resolvePublicRecipient(9, { ...row, status: "disabled" }))).toBe(false);
+    expect(resolvePublicRecipient(9, { ...row, zelleContact: "bogus" })).toMatchObject({ status: "pending_review", zelleContact: null });
+    expect(zelleAvailable(resolvePublicRecipient(9, null))).toBe(false);
+  });
+  it("disabling one method keeps the other", () => {
+    const both = { cashAppTag: "FamilyFund", paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org" };
+    expect(withoutCashApp(both)).toEqual({ ...both, cashAppTag: null });
+    expect(withoutZelle(both)).toEqual({ ...both, zelleRecipientName: null, zelleContact: null });
+    expect(withoutZelle({ ...both, cashAppTag: null })).toBeNull();
+  });
+  it("treats Zelle fields as destination keys", () => {
+    expect(findDestinationKeys({ zelleContact: "x", zelleRecipientName: "y" })).toEqual(["zelleRecipientName", "zelleContact"]);
   });
 });

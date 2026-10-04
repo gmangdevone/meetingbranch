@@ -73,6 +73,7 @@ import { upsertUserFromClerk } from "../lib/users";
 import {
   findDestinationKeys,
   resolveRecipient,
+  unavailableMethodError,
   withResolvedRecipient,
 } from "../lib/paymentRecipients";
 
@@ -2027,9 +2028,12 @@ router.post(
       res.status(400).json({ error: "Payment submissions cannot set a receiving destination." });
       return;
     }
-    if (body.data.method === "cashapp" && (await resolveRecipient(reunionId)).cashAppTag === null) {
-      res.status(409).json({ error: "Cash App is not configured for this reunion. Choose another payment method." });
-      return;
+    {
+      const unavailable = await unavailableMethodError(body.data.method, reunionId);
+      if (unavailable) {
+        res.status(409).json({ error: unavailable });
+        return;
+      }
     }
     const userId = (req as any).userId as string;
     const contributionIds = [...new Set(body.data.contributionIds ?? [])];

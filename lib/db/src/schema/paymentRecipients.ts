@@ -24,6 +24,11 @@ export const paymentRecipientsTable = pgTable("payment_recipients", {
   paymentHandle: text("payment_handle"),
   // Optional https://cash.app/$tag link; must agree with cashAppTag.
   paymentUrl: text("payment_url"),
+  // Owner-approved Zelle recipient display name and contact (email or US
+  // phone, stored normalized). Both null, or both set. Payers send from their
+  // own banking app; the app never builds a Zelle link.
+  zelleRecipientName: text("zelle_recipient_name"),
+  zelleContact: text("zelle_contact"),
   // Optimistic concurrency counter. Starts at 1 on first owner write.
   version: integer("version").notNull().default(1),
   updatedBy: text("updated_by").notNull(),
@@ -35,6 +40,7 @@ export const paymentRecipientAuditActionEnum = pgEnum("payment_recipient_audit_a
   "change",
   "disable",
   "disable_cashapp",
+  "disable_zelle",
 ]);
 
 /** Append-only history of every owner recipient write. Never updated or deleted by the app. */

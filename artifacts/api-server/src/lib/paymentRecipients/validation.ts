@@ -8,6 +8,8 @@ export interface RecipientValues {
   cashAppTag: string | null;
   paymentHandle: string | null;
   paymentUrl: string | null;
+  zelleRecipientName: string | null;
+  zelleContact: string | null;
 }
 
 export interface PublicRecipient extends RecipientValues {
@@ -15,6 +17,32 @@ export interface PublicRecipient extends RecipientValues {
   status: RecipientStatus;
   cashAppUrl: string | null;
   approvedAt: string | null;
+}
+
+const ZELLE_NAME_MAX = 80;
+const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.[A-Za-z]{2,24}$/;
+
+/**
+ * Normalizes a Zelle contact: an email (lowercased) or a US phone number
+ * formatted as "(312) 555-0147". Returns null when neither is valid.
+ */
+export function normalizeZelleContact(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const v = input.trim();
+  if (!v || v.length > 254) return null;
+  if (v.includes("@")) {
+    if (!EMAIL.test(v) || v.includes("..")) return null;
+    const [local] = v.split("@");
+    if (local.length > 64 || local.startsWith(".") || local.endsWith(".")) return null;
+    return v.toLowerCase();
+  }
+  if (!/^[+0-9().\s-]+$/.test(v)) return null;
+  let digits = v.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  else if (v.startsWith("+")) return null; // non-US country code
+  // NANP: area code and exchange cannot start with 0 or 1.
+  if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(digits)) return null;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 }
 
 /** Cash App cashtags: 1-20 letters/digits, at least one letter. */
@@ -121,6 +149,8 @@ export function validateRecipientInput(input: {
   cashAppTag?: unknown;
   paymentHandle?: unknown;
   paymentUrl?: unknown;
+  zelleRecipientName?: unknown;
+  zelleContact?: unknown;
 }): ValidationResult {
   let tag: string | null = null;
   if (input.cashAppTag != null && !(typeof input.cashAppTag === "string" && input.cashAppTag.trim() === "")) {
@@ -153,10 +183,34 @@ export function validateRecipientInput(input: {
       url = u;
     }
   }
-  if (!tag && !handle && !url) {
-    return { ok: false, error: "Enter at least one destination: a $Cashtag, a payment label, or a payment link." };
+  const blank = (x: unknown) => x == null || (typeof x === "string" && x.trim() === "");
+  let zelleName: string | null = null;
+  let zelleContact: string | null = null;
+  const hasName = !blank(input.zelleRecipientName);
+  const hasContact = !blank(input.zelleContact);
+  if (hasName !== hasContact) {
+    return { ok: false, error: "Zelle needs both the recipient name and the email or US phone registered with Zelle." };
   }
-  return { ok: true, values: { cashAppTag: tag, paymentHandle: handle, paymentUrl: url } };
+  if (hasName) {
+    if (typeof input.zelleRecipientName !== "string") return { ok: false, error: "Zelle recipient name must be text." };
+    const n = input.zelleRecipientName.trim().replace(/\s+/g, " ");
+    if (n.length > ZELLE_NAME_MAX) return { ok: false, error: `Zelle recipient name must be ${ZELLE_NAME_MAX} characters or fewer.` };
+    if (UNSAFE_HANDLE.test(n) || /[<>]/.test(n)) return { ok: false, error: "Zelle recipient name contains unsupported characters." };
+    if (/https?:\/\/|@|www\./i.test(n)) return { ok: false, error: "Zelle recipient name should be the account holder's name, not a link or email." };
+    if (!/[A-Za-z]/.test(n)) return { ok: false, error: "Zelle recipient name must include letters." };
+    zelleName = n;
+    zelleContact = normalizeZelleContact(input.zelleContact);
+    if (!zelleContact) {
+      return { ok: false, error: "Enter a valid Zelle email address or 10-digit US phone number." };
+    }
+  }
+  if (!tag && !handle && !url && !zelleContact) {
+    return { ok: false, error: "Enter at least one destination: a $Cashtag, Zelle details, a payment label, or a payment link." };
+  }
+  return {
+    ok: true,
+    values: { cashAppTag: tag, paymentHandle: handle, paymentUrl: url, zelleRecipientName: zelleName, zelleContact },
+  };
 }
 
 export interface StoredRecipient {
@@ -164,6 +218,8 @@ export interface StoredRecipient {
   cashAppTag: string | null;
   paymentHandle: string | null;
   paymentUrl: string | null;
+  zelleRecipientName?: string | null;
+  zelleContact?: string | null;
   updatedAt: Date | string;
 }
 
@@ -182,13 +238,15 @@ export function resolvePublicRecipient(
     cashAppUrl: null,
     paymentHandle: null,
     paymentUrl: null,
+    zelleRecipientName: null,
+    zelleContact: null,
     approvedAt: null,
   });
   if (!row) return none("pending_review");
   if (row.status !== "approved") return none("disabled");
   const check = validateRecipientInput(row);
   if (!check.ok) return none("pending_review");
-  const { cashAppTag: tag, paymentHandle, paymentUrl } = check.values;
+  const { cashAppTag: tag, paymentHandle, paymentUrl, zelleRecipientName, zelleContact } = check.values;
   const cashAppUrl = tag ? buildCashAppUrl(tag) : null;
   return {
     reunionId,
@@ -197,6 +255,8 @@ export function resolvePublicRecipient(
     cashAppUrl,
     paymentHandle: paymentHandle ?? (tag ? `$${tag}` : null),
     paymentUrl: paymentUrl ?? cashAppUrl,
+    zelleRecipientName,
+    zelleContact,
     approvedAt: new Date(row.updatedAt).toISOString(),
   };
 }
@@ -206,8 +266,13 @@ export function cashAppAvailable(r: PublicRecipient): boolean {
   return r.status === "approved" && !!r.cashAppTag && !!r.cashAppUrl;
 }
 
+/** True when payers may use Zelle: approved AND a valid name+contact pair is on file. */
+export function zelleAvailable(r: PublicRecipient): boolean {
+  return r.status === "approved" && !!r.zelleRecipientName && !!r.zelleContact;
+}
+
 /** Body keys that would set a receiving destination through a non-owner API. */
-export const DESTINATION_KEYS = ["paymentHandle", "paymentUrl", "cashAppTag", "paymentRecipient"] as const;
+export const DESTINATION_KEYS = ["paymentHandle", "paymentUrl", "cashAppTag", "zelleRecipientName", "zelleContact", "paymentRecipient"] as const;
 
 export function findDestinationKeys(body: unknown): string[] {
   if (!body || typeof body !== "object") return [];

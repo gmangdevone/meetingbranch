@@ -13,4 +13,8 @@ export interface PaymentRecipientValues {
   paymentHandle: string | null;
   /** @nullable */
   paymentUrl: string | null;
+  /** @nullable */
+  zelleRecipientName: string | null;
+  /** @nullable */
+  zelleContact: string | null;
 }

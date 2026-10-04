@@ -39,4 +39,22 @@ describe("confirmation email payment instructions", () => {
     expect(html).toContain("https://pay.example.org/r");
     expect(html).toContain("Family Fund");
   });
+  it("adds approved Zelle details alongside Cash App with no Zelle link", () => {
+    const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "approved", cashAppTag: "FamilyFund", paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", updatedAt: t })));
+    expect(html).toContain("https://cash.app/$FamilyFund");
+    expect(html).toContain("Rhonda Goudy");
+    expect(html).toContain("rhonda@example.org");
+    expect(html).not.toMatch(/href="[^"]*zelle/i);
+  });
+  it("renders Zelle-only instructions instead of not configured", () => {
+    const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "approved", cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147", updatedAt: t })));
+    expect(html).toContain("(312) 555-0147");
+    expect(html).toContain("own bank");
+    expect(html).not.toContain("not configured");
+    expect(html).not.toContain("cash.app");
+  });
+  it("hides Zelle when the recipient is disabled", () => {
+    const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "disabled", cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", updatedAt: t })));
+    expect(html).not.toContain("rhonda@example.org");
+  });
 });

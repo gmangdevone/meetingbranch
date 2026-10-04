@@ -11,7 +11,7 @@ export interface OwnerRecipientDisableInput {
   /** @minimum 0 */
   expectedVersion: number;
   confirm: boolean;
-  /** cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion. */
+  /** cashapp = remove only the Cash App tag and cash.app links, keeping other approved destinations; zelle = remove only the Zelle name and contact; all = disable every payment destination for the reunion. */
   scope: OwnerRecipientDisableInputScope;
   /**
      * @maxLength 500

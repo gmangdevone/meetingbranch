@@ -32,6 +32,13 @@ export interface PaymentRecipientPublic {
   /** @nullable */
   paymentUrl: string | null;
   /** @nullable */
+  zelleRecipientName: string | null;
+  /**
+     * Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.
+     * @nullable
+     */
+  zelleContact: string | null;
+  /** @nullable */
   approvedAt: string | null;
 }
 
@@ -46,6 +53,10 @@ export interface PaymentRecipientValues {
   paymentHandle: string | null;
   /** @nullable */
   paymentUrl: string | null;
+  /** @nullable */
+  zelleRecipientName: string | null;
+  /** @nullable */
+  zelleContact: string | null;
 }
 
 export interface OwnerRecipientListItem {
@@ -56,6 +67,8 @@ export interface OwnerRecipientListItem {
   status: PaymentRecipientStatus;
   /** @nullable */
   cashAppTag: string | null;
+  /** @nullable */
+  zelleContact: string | null;
   hasLegacyValues: boolean;
   version: number;
   /** @nullable */
@@ -79,7 +92,7 @@ export interface OwnerRecipientDetail {
 }
 
 /**
- * At least one of cashAppTag, paymentHandle or paymentUrl is required. Generic https links are allowed; any cash.app link must match cashAppTag.
+ * At least one destination (cashAppTag, paymentHandle, paymentUrl, or the Zelle name+contact pair) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together.
  */
 export interface OwnerRecipientSaveInput {
   /**
@@ -97,6 +110,17 @@ export interface OwnerRecipientSaveInput {
      * @nullable
      */
   paymentUrl?: string | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  zelleRecipientName?: string | null;
+  /**
+     * Email address or US phone number registered with Zelle.
+     * @maxLength 254
+     * @nullable
+     */
+  zelleContact?: string | null;
   /** @minimum 0 */
   expectedVersion: number;
   /** Must be true: the owner explicitly confirmed the before/after values. */
@@ -109,13 +133,14 @@ export interface OwnerRecipientSaveInput {
 }
 
 /**
- * cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion.
+ * cashapp = remove only the Cash App tag and cash.app links, keeping other approved destinations; zelle = remove only the Zelle name and contact; all = disable every payment destination for the reunion.
  */
 export type OwnerRecipientDisableInputScope = typeof OwnerRecipientDisableInputScope[keyof typeof OwnerRecipientDisableInputScope];
 
 
 export const OwnerRecipientDisableInputScope = {
   cashapp: 'cashapp',
+  zelle: 'zelle',
   all: 'all',
 } as const;
 
@@ -123,7 +148,7 @@ export interface OwnerRecipientDisableInput {
   /** @minimum 0 */
   expectedVersion: number;
   confirm: boolean;
-  /** cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion. */
+  /** cashapp = remove only the Cash App tag and cash.app links, keeping other approved destinations; zelle = remove only the Zelle name and contact; all = disable every payment destination for the reunion. */
   scope: OwnerRecipientDisableInputScope;
   /**
      * @maxLength 500
@@ -140,8 +165,12 @@ export const OwnerRecipientAuditEntryAction = {
   change: 'change',
   disable: 'disable',
   disable_cashapp: 'disable_cashapp',
+  disable_zelle: 'disable_zelle',
 } as const;
 
+/**
+ * Zelle fields are absent on entries written before Zelle support.
+ */
 export interface PaymentRecipientAuditValue {
   status: PaymentRecipientStatus;
   /** @nullable */
@@ -150,6 +179,10 @@ export interface PaymentRecipientAuditValue {
   paymentHandle: string | null;
   /** @nullable */
   paymentUrl: string | null;
+  /** @nullable */
+  zelleRecipientName?: string | null;
+  /** @nullable */
+  zelleContact?: string | null;
 }
 
 export interface OwnerRecipientAuditEntry {

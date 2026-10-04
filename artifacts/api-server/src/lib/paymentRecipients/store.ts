@@ -14,6 +14,24 @@ import {
   type RecipientValues,
 } from "./validation";
 import { getConfiguredPaymentOwnerId } from "./owner";
+import { cashAppAvailable, zelleAvailable } from "./validation";
+
+/**
+ * Fresh server check for submissions that name a receiving method. Returns an
+ * error message when Cash App or Zelle is chosen without a current approved
+ * destination, otherwise null. Cash and check are always accepted.
+ */
+export async function unavailableMethodError(method: string, reunionId: number): Promise<string | null> {
+  if (method !== "cashapp" && method !== "zelle") return null;
+  const r = await resolveRecipient(reunionId);
+  if (method === "cashapp" && !cashAppAvailable(r)) {
+    return "Cash App is not configured for this reunion. Choose another payment method.";
+  }
+  if (method === "zelle" && !zelleAvailable(r)) {
+    return "Zelle is not configured for this reunion. Choose another payment method.";
+  }
+  return null;
+}
 
 /** Freshly resolve one reunion's approved destination (never cached). */
 export async function resolveRecipient(reunionId: number): Promise<PublicRecipient> {
@@ -55,8 +73,18 @@ function statusOf(row: PaymentRecipientRow | undefined): RecipientStatus {
   return row ? row.status : "pending_review";
 }
 
-function valuesOf(row: { cashAppTag: string | null; paymentHandle: string | null; paymentUrl: string | null } | undefined): RecipientValues {
+type RawValues = {
+  cashAppTag: string | null;
+  paymentHandle: string | null;
+  paymentUrl: string | null;
+  zelleRecipientName?: string | null;
+  zelleContact?: string | null;
+};
+
+function valuesOf(row: RawValues | undefined): RecipientValues {
   return {
+    zelleRecipientName: row?.zelleRecipientName?.trim() || null,
+    zelleContact: row?.zelleContact?.trim() || null,
     cashAppTag: row?.cashAppTag?.trim().replace(/^\$/, "") || null,
     paymentHandle: row?.paymentHandle?.trim() || null,
     paymentUrl: row?.paymentUrl?.trim() || null,
@@ -87,6 +115,7 @@ export async function listOwnerRecipients() {
       startDate: r.startDate,
       status: statusOf(row),
       cashAppTag: row?.cashAppTag ?? null,
+      zelleContact: row?.zelleContact ?? null,
       hasLegacyValues: !!(r.legacyTag?.trim() || r.legacyHandle?.trim() || r.legacyUrl?.trim()),
       version: row?.version ?? 0,
       updatedAt: row ? row.updatedAt.toISOString() : null,
@@ -142,7 +171,7 @@ export async function writeRecipient(params: {
   next: AuditValue & { status: "approved" | "disabled" };
   note: string | null;
   /** Explicit audit action; derived from the transition when omitted. */
-  action?: "disable_cashapp";
+  action?: "disable_cashapp" | "disable_zelle";
 }): Promise<void> {
   const { reunionId, actorUserId, expectedVersion, next, note } = params;
   await db.transaction(async (tx) => {
@@ -167,6 +196,8 @@ export async function writeRecipient(params: {
       cashAppTag: next.cashAppTag,
       paymentHandle: next.paymentHandle,
       paymentUrl: next.paymentUrl,
+      zelleRecipientName: next.zelleRecipientName,
+      zelleContact: next.zelleContact,
       version: versionAfter,
       updatedBy: actorUserId,
       updatedAt: now,
@@ -187,7 +218,14 @@ export async function writeRecipient(params: {
       actorUserId,
       action,
       previousValue,
-      newValue: { status: next.status, cashAppTag: next.cashAppTag, paymentHandle: next.paymentHandle, paymentUrl: next.paymentUrl },
+      newValue: {
+        status: next.status,
+        cashAppTag: next.cashAppTag,
+        paymentHandle: next.paymentHandle,
+        paymentUrl: next.paymentUrl,
+        zelleRecipientName: next.zelleRecipientName,
+        zelleContact: next.zelleContact,
+      },
       versionAfter,
       note,
     });
@@ -231,9 +269,19 @@ export function withoutCashApp(current: RecipientValues): RecipientValues | null
     }
   }
   const next: RecipientValues = {
+    ...current,
     cashAppTag: null,
     paymentHandle: current.paymentHandle && /^\$[A-Za-z0-9]+$/.test(current.paymentHandle) ? null : current.paymentHandle,
     paymentUrl: urlIsCashApp ? null : url,
   };
-  return next.paymentHandle || next.paymentUrl ? next : null;
+  return next.paymentHandle || next.paymentUrl || next.zelleContact ? next : null;
+}
+
+/**
+ * Values left after removing only Zelle. Cash App and generic destinations
+ * stay untouched. Returns null when nothing would remain.
+ */
+export function withoutZelle(current: RecipientValues): RecipientValues | null {
+  const next: RecipientValues = { ...current, zelleRecipientName: null, zelleContact: null };
+  return next.cashAppTag || next.paymentHandle || next.paymentUrl ? next : null;
 }

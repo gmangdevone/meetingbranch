@@ -22,5 +22,12 @@ export interface PaymentRecipientPublic {
   /** @nullable */
   paymentUrl: string | null;
   /** @nullable */
+  zelleRecipientName: string | null;
+  /**
+     * Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.
+     * @nullable
+     */
+  zelleContact: string | null;
+  /** @nullable */
   approvedAt: Date | null;
 }

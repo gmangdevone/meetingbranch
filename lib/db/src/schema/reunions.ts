@@ -26,7 +26,7 @@ export const reunionsTable = pgTable(
     // Seconds between hero slides (3–8, enforced at the API).
     heroRotationSeconds: integer("hero_rotation_seconds").notNull().default(3),
     // Payment method configuration (all optional; a method is offered to
-    // registrants when its recipient info is set — Zelle/cash are always offered)
+    // registrants when its recipient info is set — cash is always offered; Zelle requires an owner-approved Zelle recipient)
     cashAppTag: text("cash_app_tag"),
     checkPayee: text("check_payee"),
     scheduleCardImageUrl: text("schedule_card_image_url"),

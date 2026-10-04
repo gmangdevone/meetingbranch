@@ -98,7 +98,7 @@ vi.mock("@workspace/db", () => {
       "createdBy",
       "createdAt",
     ],
-    payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "version", "updatedBy", "updatedAt"],
+    payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "zelleRecipientName", "zelleContact", "version", "updatedBy", "updatedAt"],
     payment_submissions: [
       "id",
       "reunionId",
@@ -793,6 +793,41 @@ describe("receiving destination is server-controlled", () => {
     const res = await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com", cashAppTag: "attacker" });
     expect(res.status).toBe(400);
     expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects a Zelle submission without a current approved Zelle recipient", async () => {
+    authAs(MEMBER);
+    expect((await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com" })).status).toBe(409);
+    // Cash App approved but no Zelle: still refused.
+    state.rows.payment_recipients = [
+      { reunionId: REUNION_ID, status: "approved", cashAppTag: "FamilyFund", paymentHandle: null, paymentUrl: null, zelleRecipientName: null, zelleContact: null, version: 1, updatedBy: "user_owner", updatedAt: new Date() },
+    ];
+    expect((await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com" })).status).toBe(409);
+    // Disabled row with leftover Zelle values: refused.
+    state.rows.payment_recipients = [
+      { reunionId: REUNION_ID, status: "disabled", cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", version: 2, updatedBy: "user_owner", updatedAt: new Date() },
+    ];
+    expect((await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com" })).status).toBe(409);
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects submissions that try to supply a Zelle destination", async () => {
+    authAs(MEMBER);
+    for (const extra of [{ zelleContact: "attacker@example.org" }, { zelleRecipientName: "Attacker" }]) {
+      expect((await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com", ...extra })).status).toBe(400);
+    }
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("accepts a Zelle submission with the payer's own reference and never marks paid", async () => {
+    authAs(MEMBER);
+    state.rows.payment_recipients = [
+      { reunionId: REUNION_ID, status: "approved", cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", version: 1, updatedBy: "user_owner", updatedAt: new Date() },
+    ];
+    const res = await submit(REG_A, { method: "zelle", amount: 25, reference: "payer@example.com" });
+    expect(res.status).toBe(201);
+    expect(res.body.reference).toBe("payer@example.com");
+    expect(state.rows.registrations.find((r: any) => r.id === REG_A)?.paymentStatus).not.toBe("paid");
   });
 
   it("accepts the payer's own $cashtag as a reference without changing the receiving account", async () => {

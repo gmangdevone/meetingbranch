@@ -7,7 +7,7 @@
  */
 
 /**
- * At least one of cashAppTag, paymentHandle or paymentUrl is required. Generic https links are allowed; any cash.app link must match cashAppTag.
+ * At least one destination (cashAppTag, paymentHandle, paymentUrl, or the Zelle name+contact pair) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together.
  */
 export interface OwnerRecipientSaveInput {
   /**
@@ -25,6 +25,17 @@ export interface OwnerRecipientSaveInput {
      * @nullable
      */
   paymentUrl?: string | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  zelleRecipientName?: string | null;
+  /**
+     * Email address or US phone number registered with Zelle.
+     * @maxLength 254
+     * @nullable
+     */
+  zelleContact?: string | null;
   /** @minimum 0 */
   expectedVersion: number;
   /** Must be true: the owner explicitly confirmed the before/after values. */

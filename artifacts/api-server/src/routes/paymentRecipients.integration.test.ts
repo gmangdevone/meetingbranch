@@ -265,6 +265,67 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     }
   });
 
+  it("Zelle lifecycle: owner-only writes, validation, independent disabling, fresh resolve", async () => {
+    const url = `/api/owner/payment-recipients/${REUNION_B}`;
+    // Non-owners cannot set Zelle.
+    for (const user of [ADMIN, ORGANIZER, MEMBER]) {
+      const r = await as(user).put(url).send(save({ zelleRecipientName: "Attacker", zelleContact: "attacker@example.org" }));
+      expect(r.status).toBe(403);
+    }
+    // Invalid pairs and contacts are rejected without writing history.
+    for (const bad of [
+      { zelleRecipientName: "Rhonda Goudy" },
+      { zelleContact: "rhonda@example.org" },
+      { zelleRecipientName: "Rhonda Goudy", zelleContact: "555-0147" },
+      { zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@" },
+      { zelleRecipientName: "https://evil.example", zelleContact: "rhonda@example.org" },
+    ]) {
+      expect((await as(OWNER).put(url).send(save(bad))).status).toBe(400);
+    }
+    expect((await as(OWNER).get(`${url}/history`)).body).toHaveLength(0);
+    // Reunion B has no recipient yet: Zelle submissions are refused.
+    // Approve Cash App + Zelle together.
+    const both = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "312.555.0147", note: "Verified by phone" }));
+    expect(both.status).toBe(200);
+    expect(both.body.current).toMatchObject({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147" });
+    let pub = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    expect(pub).toMatchObject({ status: "approved", cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147" });
+    expect((await as(ORGANIZER).get(`/api/reunions/${REUNION_B}`)).body.reunion.paymentRecipient).toMatchObject({ zelleContact: "(312) 555-0147" });
+    // Stale write rejected.
+    expect((await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: 0 })).status).toBe(409);
+    // Disable Cash App keeps Zelle.
+    const offCash = await as(OWNER).post(`${url}/disable`).send({ scope: "cashapp", confirm: true, expectedVersion: both.body.version });
+    expect(offCash.status).toBe(200);
+    expect(offCash.body).toMatchObject({ status: "approved", current: { cashAppTag: null, zelleContact: "(312) 555-0147" } });
+    pub = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    expect(pub).toMatchObject({ cashAppTag: null, cashAppUrl: null, zelleRecipientName: "Rhonda Goudy" });
+    // Re-add Cash App, then disable Zelle only: Cash App stays.
+    const re = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", expectedVersion: offCash.body.version }));
+    expect(re.status).toBe(200);
+    const offZelle = await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: re.body.version });
+    expect(offZelle.status).toBe(200);
+    expect(offZelle.body).toMatchObject({ status: "approved", current: { cashAppTag: "BranchFund", zelleRecipientName: null, zelleContact: null } });
+    // Disabling Zelle again is a 400 (not approved), with no extra history.
+    expect((await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: offZelle.body.version })).status).toBe(400);
+    pub = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    expect(pub).toMatchObject({ cashAppTag: "BranchFund", zelleRecipientName: null, zelleContact: null });
+    const hist = (await as(OWNER).get(`${url}/history`)).body;
+    expect(hist.map((h: any) => h.action)).toEqual(["disable_zelle", "change", "disable_cashapp", "approve"]);
+    expect(hist[0].previousValue).toMatchObject({ zelleContact: "rhonda@example.org" });
+    // Restore a Zelle-only state; disabling Zelle then disables payments entirely.
+    const only = await as(OWNER).put(url).send(save({ zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", expectedVersion: offZelle.body.version }));
+    expect(only.body.current).toMatchObject({ cashAppTag: null, zelleContact: "rhonda@example.org" });
+    const last = await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: only.body.version });
+    expect(last.body.status).toBe("disabled");
+    // Non-owner routes cannot smuggle Zelle destinations.
+    for (const t of [{ zelleContact: "attacker@example.org" }, { zelleRecipientName: "Attacker" }]) {
+      expect((await as(ORGANIZER).put(`/api/reunions/${REUNION_B}`).send({ name: "x", ...t })).status).toBe(403);
+    }
+    // Cleanup so later tests see Reunion B with no recipient row.
+    await db.delete(paymentRecipientAuditTable).where(eq(paymentRecipientAuditTable.reunionId, REUNION_B));
+    await db.delete(paymentRecipientsTable).where(eq(paymentRecipientsTable.reunionId, REUNION_B));
+  });
+
   it("organizer and admin cannot set destinations through reunion create/update", async () => {
     const tamper = [{ cashAppTag: "Attacker1" }, { paymentHandle: "$Attacker1" }, { paymentUrl: "https://cash.app/$Attacker1" }, { cashAppTag: null }];
     for (const user of [ORGANIZER, ADMIN]) {

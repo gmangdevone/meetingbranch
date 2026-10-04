@@ -2512,7 +2512,7 @@ components:
     PaymentRecipientPublic:
       type: object
       description: "Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation."
-      required: [reunionId, status, cashAppTag, cashAppUrl, paymentHandle, paymentUrl, approvedAt]
+      required: [reunionId, status, cashAppTag, cashAppUrl, paymentHandle, paymentUrl, zelleRecipientName, zelleContact, approvedAt]
       properties:
         reunionId:
           type: integer
@@ -2526,6 +2526,11 @@ components:
           type: ["string", "null"]
         paymentUrl:
           type: ["string", "null"]
+        zelleRecipientName:
+          type: ["string", "null"]
+        zelleContact:
+          type: ["string", "null"]
+          description: "Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link."
         approvedAt:
           type: ["string", "null"]
           format: date-time
@@ -2537,7 +2542,7 @@ components:
           type: boolean
     PaymentRecipientValues:
       type: object
-      required: [cashAppTag, paymentHandle, paymentUrl]
+      required: [cashAppTag, paymentHandle, paymentUrl, zelleRecipientName, zelleContact]
       properties:
         cashAppTag:
           type: ["string", "null"]
@@ -2545,9 +2550,13 @@ components:
           type: ["string", "null"]
         paymentUrl:
           type: ["string", "null"]
+        zelleRecipientName:
+          type: ["string", "null"]
+        zelleContact:
+          type: ["string", "null"]
     OwnerRecipientListItem:
       type: object
-      required: [reunionId, reunionName, reunionCode, startDate, status, cashAppTag, hasLegacyValues, version, updatedAt]
+      required: [reunionId, reunionName, reunionCode, startDate, status, cashAppTag, zelleContact, hasLegacyValues, version, updatedAt]
       properties:
         reunionId:
           type: integer
@@ -2560,6 +2569,8 @@ components:
         status:
           $ref: "#/components/schemas/PaymentRecipientStatus"
         cashAppTag:
+          type: ["string", "null"]
+        zelleContact:
           type: ["string", "null"]
         hasLegacyValues:
           type: boolean
@@ -2599,7 +2610,7 @@ components:
     OwnerRecipientSaveInput:
       type: object
       required: [expectedVersion, confirm]
-      description: "At least one of cashAppTag, paymentHandle or paymentUrl is required. Generic https links are allowed; any cash.app link must match cashAppTag."
+      description: "At least one destination (cashAppTag, paymentHandle, paymentUrl, or the Zelle name+contact pair) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together."
       properties:
         cashAppTag:
           type: ["string", "null"]
@@ -2610,6 +2621,13 @@ components:
         paymentUrl:
           type: ["string", "null"]
           maxLength: 300
+        zelleRecipientName:
+          type: ["string", "null"]
+          maxLength: 80
+        zelleContact:
+          type: ["string", "null"]
+          maxLength: 254
+          description: "Email address or US phone number registered with Zelle."
         expectedVersion:
           type: integer
           minimum: 0
@@ -2630,8 +2648,8 @@ components:
           type: boolean
         scope:
           type: string
-          enum: [cashapp, all]
-          description: "cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion."
+          enum: [cashapp, zelle, all]
+          description: "cashapp = remove only the Cash App tag and cash.app links, keeping other approved destinations; zelle = remove only the Zelle name and contact; all = disable every payment destination for the reunion."
         note:
           type: ["string", "null"]
           maxLength: 500
@@ -2648,7 +2666,7 @@ components:
           description: "Display label for the actor (\"Platform owner\" for the configured owner)."
         action:
           type: string
-          enum: [approve, change, disable, disable_cashapp]
+          enum: [approve, change, disable, disable_cashapp, disable_zelle]
         previousValue:
           oneOf:
             - $ref: "#/components/schemas/PaymentRecipientAuditValue"
@@ -2665,6 +2683,7 @@ components:
     PaymentRecipientAuditValue:
       type: object
       required: [status, cashAppTag, paymentHandle, paymentUrl]
+      description: "Zelle fields are absent on entries written before Zelle support."
       properties:
         status:
           $ref: "#/components/schemas/PaymentRecipientStatus"
@@ -2673,6 +2692,10 @@ components:
         paymentHandle:
           type: ["string", "null"]
         paymentUrl:
+          type: ["string", "null"]
+        zelleRecipientName:
+          type: ["string", "null"]
+        zelleContact:
           type: ["string", "null"]
     MemberProfile:
       type: object

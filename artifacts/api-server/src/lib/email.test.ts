@@ -112,6 +112,8 @@ function makeParams() {
         cashAppUrl: "https://cash.app/$goudycgp",
         paymentHandle: "$goudycgp",
         paymentUrl: "https://cash.app/$goudycgp",
+        zelleRecipientName: null as string | null,
+        zelleContact: null as string | null,
         approvedAt: "2026-01-01T00:00:00.000Z",
       },
     },

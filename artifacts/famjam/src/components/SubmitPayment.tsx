@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
+import { ZelleRecipientCard } from "./payments/ZelleRecipientCard";
 import { CheckCircle2, Info, Banknote, Landmark, DollarSign, FileText } from "lucide-react";
 
 type Method = "cashapp" | "zelle" | "cash" | "check";
@@ -42,6 +43,7 @@ export function SubmitPayment({
   registrations,
   chipIns = [],
   cashAppAvailable,
+  zelle = null,
   checkPayee,
 }: {
   reunionId: number;
@@ -51,6 +53,8 @@ export function SubmitPayment({
   chipIns?: PayableChipIn[];
   /** Display hint only; the destination is always re-resolved from the server at handoff. */
   cashAppAvailable: boolean;
+  /** Display hint only; re-resolved from the server after a Zelle submission. */
+  zelle?: { name: string; contact: string } | null;
   checkPayee: string | null;
 }) {
   const [method, setMethod] = useState<Method | null>(null);
@@ -86,6 +90,8 @@ export function SubmitPayment({
   // Link resolved fresh from the server after the submission is saved.
   const [handoffUrl, setHandoffUrl] = useState<string | null>(null);
   const [handoffError, setHandoffError] = useState<string | null>(null);
+  // Zelle destination re-resolved from the server after the submission is saved.
+  const [freshZelle, setFreshZelle] = useState<{ name: string; contact: string } | null>(null);
 
   const createSubmission = useCreatePaymentSubmission();
   const createChipInSubmission = useCreateContributionPaymentSubmission();
@@ -93,7 +99,7 @@ export function SubmitPayment({
 
   const methods: { id: Method; icon: React.ReactNode; available: boolean }[] = [
     { id: "cashapp", icon: <DollarSign className="w-4 h-4" />, available: cashAppAvailable },
-    { id: "zelle", icon: <Landmark className="w-4 h-4" />, available: true },
+    { id: "zelle", icon: <Landmark className="w-4 h-4" />, available: !!zelle },
     { id: "check", icon: <FileText className="w-4 h-4" />, available: !!checkPayee },
     { id: "cash", icon: <Banknote className="w-4 h-4" />, available: true },
   ];
@@ -125,6 +131,17 @@ export function SubmitPayment({
         setSubmitted(method);
         setHandoffUrl(null);
         setHandoffError(null);
+        setFreshZelle(null);
+        if (method === "zelle") {
+          getReunionPaymentRecipient(reunionId)
+            .then((r) => {
+              if (r.status !== "approved" || !r.zelleRecipientName || !r.zelleContact) throw new Error("not configured");
+              setFreshZelle({ name: r.zelleRecipientName, contact: r.zelleContact });
+            })
+            .catch(() =>
+              setHandoffError("Zelle is not configured for this reunion right now. Do not send money until your organizers share current instructions."),
+            );
+        }
         if (method === "cashapp") {
           // Open a placeholder synchronously (keeps popup blockers happy), then
           // point it at the destination the server resolves right now. Opening
@@ -211,10 +228,15 @@ export function SubmitPayment({
               <p className="text-sm text-muted-foreground">Getting the approved Cash App link...</p>
             )}
             {submitted === "zelle" && (
-              <p className="text-sm text-muted-foreground">
-                Now open your <span className="font-bold text-foreground">banking app</span> and send your
-                Zelle payment. Once the organizers confirm it was received, they'll mark your account as paid.
-              </p>
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Now open your <span className="font-bold text-foreground">banking app</span> and send your
+                  Zelle payment. Once the organizers confirm it was received, they'll mark your account as paid.
+                </p>
+                {freshZelle && <ZelleRecipientCard name={freshZelle.name} contact={freshZelle.contact} amount={amountNum} />}
+                {handoffError && <p className="text-sm text-destructive font-medium">{handoffError}</p>}
+                {!freshZelle && !handoffError && <p className="text-sm text-muted-foreground">Getting the approved Zelle details...</p>}
+              </>
             )}
             {submitted === "check" && checkPayee && (
               <p className="text-sm text-muted-foreground">
@@ -334,9 +356,12 @@ export function SubmitPayment({
               </p>
             </div>
           )}
+          {method === "zelle" && zelle && (
+            <ZelleRecipientCard name={zelle.name} contact={zelle.contact} amount={validAmount ? amountNum : null} />
+          )}
           {method === "zelle" && (
             <p className="text-sm text-muted-foreground">
-              Enter the Zelle ID (email or phone number) you'll be sending from. The organizers use it
+              Below, enter the Zelle ID (email or phone number) you'll be sending from. The organizers use it
               to confirm your payment arrived and mark your account as paid.
             </p>
           )}

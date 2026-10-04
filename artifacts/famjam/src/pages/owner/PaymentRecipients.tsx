@@ -37,6 +37,21 @@ const STATUS_STYLE: Record<PaymentRecipientStatus, { label: string; bg: string; 
   disabled: { label: "Disabled", bg: "#F3DDE3", fg: "#9E3A54" },
 };
 
+const ACTION_LABEL: Record<string, string> = {
+  approve: "Approved",
+  change: "Changed",
+  disable: "Disabled all",
+  disable_cashapp: "Disabled Cash App",
+  disable_zelle: "Disabled Zelle",
+};
+
+type AuditLike = { cashAppTag: string | null; paymentUrl: string | null; zelleContact?: string | null };
+function summarize(v: AuditLike) {
+  const parts = [v.cashAppTag ? "$" + v.cashAppTag : "-", v.paymentUrl ?? "-"];
+  if (v.zelleContact) parts.push(`Zelle ${v.zelleContact}`);
+  return parts.join(" / ");
+}
+
 function StatusPill({ status }: { status: PaymentRecipientStatus }) {
   const s = STATUS_STYLE[status];
   return (
@@ -57,11 +72,29 @@ function previewCashAppUrl(tag: string) {
   return /^(?=.*[A-Za-z])[A-Za-z0-9]{1,20}$/.test(t) ? `https://cash.app/$${t}` : null;
 }
 
+// Mirrors the server's Zelle contact rules (email, or a 10-digit US phone).
+export function previewZelleContact(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  if (v.includes("@")) {
+    return /^[^\s@<>]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,24}$/.test(v) && !v.includes("..") ? v.toLowerCase() : null;
+  }
+  if (!/^[+0-9().\s-]+$/.test(v)) return null;
+  let d = v.replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+  else if (v.startsWith("+")) return null;
+  return /^[2-9]\d{2}[2-9]\d{6}$/.test(d) ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : null;
+}
+
+const EMPTY_VALUES: PaymentRecipientValues = { cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: null, zelleContact: null };
+
 function ValuesTable({ values, emptyLabel = "Not set" }: { values: PaymentRecipientValues; emptyLabel?: string }) {
   const rows: [string, string | null][] = [
     ["Cash App tag", values.cashAppTag ? `$${values.cashAppTag}` : null],
     ["Payment label", values.paymentHandle],
     ["Payment link", values.paymentUrl],
+    ["Zelle name", values.zelleRecipientName ?? null],
+    ["Zelle contact", values.zelleContact ?? null],
   ];
   return (
     <dl className="space-y-1.5 text-sm">
@@ -85,9 +118,11 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
   const [tag, setTag] = useState(detail.current.cashAppTag ?? "");
   const [handle, setHandle] = useState(detail.current.paymentHandle ?? "");
   const [url, setUrl] = useState(detail.current.paymentUrl ?? "");
+  const [zName, setZName] = useState(detail.current.zelleRecipientName ?? "");
+  const [zContact, setZContact] = useState(detail.current.zelleContact ?? "");
   const [note, setNote] = useState("");
   const [confirmSave, setConfirmSave] = useState(false);
-  const [confirmDisable, setConfirmDisable] = useState<"cashapp" | "all" | null>(null);
+  const [confirmDisable, setConfirmDisable] = useState<"cashapp" | "zelle" | "all" | null>(null);
   const [error, setError] = useState<{ status?: number; message: string } | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -96,21 +131,31 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
     setTag(detail.current.cashAppTag ?? "");
     setHandle(detail.current.paymentHandle ?? "");
     setUrl(detail.current.paymentUrl ?? "");
+    setZName(detail.current.zelleRecipientName ?? "");
+    setZContact(detail.current.zelleContact ?? "");
   }, [detail.reunionId, detail.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const proposed: PaymentRecipientValues = {
     cashAppTag: tag.trim().replace(/^\$/, "") || null,
     paymentHandle: handle.trim() || null,
     paymentUrl: url.trim() || null,
+    zelleRecipientName: zName.trim().replace(/\s+/g, " ") || null,
+    zelleContact: zContact.trim() || null,
   };
-  const hasAny = !!(proposed.cashAppTag || proposed.paymentHandle || proposed.paymentUrl);
+  const zellePreview = proposed.zelleContact ? previewZelleContact(proposed.zelleContact) : null;
+  const zelleHalf = !!proposed.zelleRecipientName !== !!proposed.zelleContact;
+  const zelleInvalid = zelleHalf || (!!proposed.zelleContact && !zellePreview);
+  const hasZelle = !!(proposed.zelleRecipientName && zellePreview);
+  const hasAny = !!(proposed.cashAppTag || proposed.paymentHandle || proposed.paymentUrl || hasZelle);
   const cashPreview = proposed.cashAppTag ? previewCashAppUrl(proposed.cashAppTag) : null;
   const effectiveLink = proposed.paymentUrl ?? cashPreview;
   const unchanged =
     detail.status === "approved" &&
     proposed.cashAppTag === detail.current.cashAppTag &&
     proposed.paymentHandle === detail.current.paymentHandle &&
-    proposed.paymentUrl === detail.current.paymentUrl;
+    proposed.paymentUrl === detail.current.paymentUrl &&
+    proposed.zelleRecipientName === (detail.current.zelleRecipientName ?? null) &&
+    (zellePreview ?? proposed.zelleContact) === (detail.current.zelleContact ?? null);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getOwnerGetPaymentRecipientQueryKey(id) });
@@ -135,13 +180,13 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
       { reunionId: id, data: { ...proposed, expectedVersion: detail.version, confirm: true, note: note.trim() || null } },
       { onSuccess: (d) => { setConfirmSave(false); onDone("Recipient saved. Payers now see the new destination.")(d); }, onError: onFail },
     );
-  const doDisable = (scope: "cashapp" | "all") =>
+  const doDisable = (scope: "cashapp" | "zelle" | "all") =>
     disable.mutate(
       { reunionId: id, data: { scope, expectedVersion: detail.version, confirm: true, note: note.trim() || null } },
       {
         onSuccess: (d) => {
           setConfirmDisable(null);
-          onDone(scope === "all" ? "All payment links disabled." : "Cash App disabled.")(d);
+          onDone(scope === "all" ? "All payment links disabled." : scope === "zelle" ? "Zelle disabled." : "Cash App disabled.")(d);
         },
         onError: onFail,
       },
@@ -149,6 +194,9 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
 
   const hasLegacy = !!(detail.legacy.cashAppTag || detail.legacy.paymentHandle || detail.legacy.paymentUrl);
   const cashAppOn = detail.status === "approved" && !!detail.current.cashAppTag;
+  const zelleOn = detail.status === "approved" && !!detail.current.zelleContact;
+  const zelleKept = cashAppOn && zelleOn;
+  const othersKeptForZelle = zelleOn && !!(detail.current.cashAppTag || detail.current.paymentHandle || detail.current.paymentUrl);
   const genericKept = cashAppOn && !!(
     (detail.current.paymentHandle && !/^\$/.test(detail.current.paymentHandle)) ||
     (detail.current.paymentUrl && !/^https:\/\/(www\.)?cash\.app\//i.test(detail.current.paymentUrl))
@@ -190,7 +238,7 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
         <section className="rounded-2xl border bg-card p-4">
           <h3 className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground mb-3">Live for payers</h3>
           {detail.resolved.status === "approved" ? (
-            <ValuesTable values={{ cashAppTag: detail.resolved.cashAppTag, paymentHandle: detail.resolved.paymentHandle, paymentUrl: detail.resolved.paymentUrl }} />
+            <ValuesTable values={{ cashAppTag: detail.resolved.cashAppTag, paymentHandle: detail.resolved.paymentHandle, paymentUrl: detail.resolved.paymentUrl, zelleRecipientName: detail.resolved.zelleRecipientName, zelleContact: detail.resolved.zelleContact }} />
           ) : (
             <p className="text-sm text-muted-foreground">Nothing. Payers see "payment is not configured" and are told to contact organizers.</p>
           )}
@@ -213,7 +261,7 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
 
       <section className="rounded-2xl border bg-card p-4 space-y-4">
         <h3 className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Approved destination</h3>
-        <p className="text-sm text-muted-foreground">Fill any combination. Cash App needs a $Cashtag. Use the label and link for a non-Cash App destination such as a bank or fundraising page.</p>
+        <p className="text-sm text-muted-foreground">Fill any combination. Cash App needs a $Cashtag. Zelle needs the account holder's name and the email or US phone registered with Zelle. Use the label and link for another destination such as a fundraising page.</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="own-tag">Cash App $Cashtag</Label>
@@ -228,6 +276,26 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
             <Input id="own-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." inputMode="url" maxLength={300} className="rounded-xl text-base" />
             <p className="text-xs text-muted-foreground">Any cash.app link must use the same $Cashtag. Lookalike Cash App domains are rejected.</p>
           </div>
+          <fieldset className="sm:col-span-2 rounded-2xl border p-3 sm:p-4 space-y-3" style={{ background: "color-mix(in srgb, var(--fj-brand) 4%, transparent)" }}>
+            <legend className="px-1.5 text-xs font-extrabold uppercase tracking-widest" style={{ color: "var(--fj-brand)" }}>Zelle</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="own-zelle-name">Recipient name</Label>
+                <Input id="own-zelle-name" value={zName} onChange={(e) => setZName(e.target.value)} placeholder="Rhonda Goudy" maxLength={80} autoComplete="off" className="rounded-xl text-base" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="own-zelle-contact">Zelle email or US phone</Label>
+                <Input id="own-zelle-contact" value={zContact} onChange={(e) => setZContact(e.target.value)} placeholder="treasurer@example.org or (312) 555-0147" maxLength={254} autoComplete="off" className="rounded-xl text-base" aria-invalid={zelleInvalid || undefined} />
+              </div>
+            </div>
+            {zelleHalf ? (
+              <p className="text-xs text-destructive">Enter both the recipient name and the Zelle email or phone, or clear both.</p>
+            ) : proposed.zelleContact && !zellePreview ? (
+              <p className="text-xs text-destructive">Use an email address or a 10-digit US phone number.</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Payers see the name and contact and send from their own bank's app. There is no Zelle link. The name should match what their bank shows before they send.</p>
+            )}
+          </fieldset>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="own-note">Audit note (optional)</Label>
             <Textarea id="own-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="Verified with the treasurer by phone" className="rounded-xl min-h-[60px] text-base" />
@@ -236,22 +304,36 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
         <div className="rounded-xl border border-dashed p-3 text-sm">
           <p className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground mb-1">Payer preview</p>
           {hasAny ? (
+            <div className="space-y-1">
+            {(proposed.cashAppTag || proposed.paymentHandle || proposed.paymentUrl) && (
             <p className="break-all">
               Send to <span className="font-bold">{proposed.paymentHandle ?? (proposed.cashAppTag ? `$${proposed.cashAppTag}` : "the link")}</span>
               {effectiveLink && <> · <span className="font-mono text-xs">{effectiveLink}</span></>}
               {proposed.cashAppTag && !cashPreview && <span className="block text-destructive text-xs mt-1">That $Cashtag is not valid.</span>}
             </p>
+            )}
+            {hasZelle && (
+              <p className="break-all">
+                Zelle to <span className="font-bold">{proposed.zelleRecipientName}</span> · <span className="font-mono text-xs">{zellePreview}</span>
+              </p>
+            )}
+            </div>
           ) : (
             <p className="text-muted-foreground">Enter at least one destination.</p>
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button className="rounded-full font-bold" disabled={!hasAny || unchanged || save.isPending} onClick={() => { setSaved(null); setConfirmSave(true); }}>
+          <Button className="rounded-full font-bold" disabled={!hasAny || unchanged || zelleInvalid || save.isPending} onClick={() => { setSaved(null); setConfirmSave(true); }}>
             Review and save
           </Button>
           {cashAppOn && (
             <Button variant="outline" className="rounded-full" onClick={() => { setSaved(null); setConfirmDisable("cashapp"); }}>
               Disable Cash App only
+            </Button>
+          )}
+          {zelleOn && (
+            <Button variant="outline" className="rounded-full" onClick={() => { setSaved(null); setConfirmDisable("zelle"); }}>
+              Disable Zelle only
             </Button>
           )}
           {detail.status === "approved" && (
@@ -275,13 +357,13 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
             {history.data.map((h) => (
               <li key={h.id} className="rounded-xl border p-3 text-sm">
                 <div className="flex flex-wrap justify-between gap-2 mb-1">
-                  <span className="font-bold capitalize">{h.action.replace("_", " ")} · v{h.versionAfter}</span>
+                  <span className="font-bold">{ACTION_LABEL[h.action] ?? h.action} · v{h.versionAfter}</span>
                   <span className="text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString()} · {h.actor}</span>
                 </div>
                 <p className="text-xs text-muted-foreground break-all">
-                  {h.previousValue ? `${h.previousValue.cashAppTag ? "$" + h.previousValue.cashAppTag : "-"} / ${h.previousValue.paymentUrl ?? "-"}` : "none"}
+                  {h.previousValue ? summarize(h.previousValue) : "none"}
                   {" -> "}
-                  {h.newValue.status === "disabled" ? "disabled" : `${h.newValue.cashAppTag ? "$" + h.newValue.cashAppTag : "-"} / ${h.newValue.paymentUrl ?? "-"}`}
+                  {h.newValue.status === "disabled" ? "disabled" : summarize(h.newValue)}
                 </p>
                 {h.note && <p className="text-xs mt-1 italic">{h.note}</p>}
               </li>
@@ -297,8 +379,8 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
             <DialogDescription>Money for {detail.reunionName} will go here. Check every character.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border p-3"><p className="text-xs font-bold uppercase text-muted-foreground mb-2">Before</p><ValuesTable values={detail.status === "approved" ? detail.current : { cashAppTag: null, paymentHandle: null, paymentUrl: null }} /></div>
-            <div className="rounded-xl border p-3" style={{ borderColor: "var(--fj-brand)" }}><p className="text-xs font-bold uppercase mb-2" style={{ color: "var(--fj-brand)" }}>After</p><ValuesTable values={proposed} /></div>
+            <div className="rounded-xl border p-3"><p className="text-xs font-bold uppercase text-muted-foreground mb-2">Before</p><ValuesTable values={detail.status === "approved" ? detail.current : EMPTY_VALUES} /></div>
+            <div className="rounded-xl border p-3" style={{ borderColor: "var(--fj-brand)" }}><p className="text-xs font-bold uppercase mb-2" style={{ color: "var(--fj-brand)" }}>After</p><ValuesTable values={{ ...proposed, zelleContact: zellePreview ?? proposed.zelleContact }} /></div>
           </div>
           {effectiveLink && (
             <a href={effectiveLink} target="_blank" rel="noopener noreferrer" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "var(--fj-brand)" }}>
@@ -315,13 +397,17 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
       <Dialog open={confirmDisable !== null} onOpenChange={(o) => !o && setConfirmDisable(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{confirmDisable === "all" ? "Disable all payment links?" : "Disable Cash App?"}</DialogTitle>
+            <DialogTitle>{confirmDisable === "all" ? "Disable all payment links?" : confirmDisable === "zelle" ? "Disable Zelle?" : "Disable Cash App?"}</DialogTitle>
             <DialogDescription>
               {confirmDisable === "all"
-                ? "Payers will see no Cash App or payment link for this reunion and will be told to contact organizers. Existing payment records are not changed."
-                : genericKept
-                  ? "Cash App will be removed. The approved non-Cash App label and link stay live for payers."
-                  : "Cash App will be removed. No other destination is approved, so payers will see no payment link at all."}
+                ? "Payers will see no Cash App, Zelle, or payment link for this reunion and will be told to contact organizers. Existing payment records are not changed."
+                : confirmDisable === "zelle"
+                  ? othersKeptForZelle
+                    ? "Zelle will be removed. Cash App and any other approved destination stay live for payers. New Zelle submissions will be refused."
+                    : "Zelle will be removed. No other destination is approved, so payers will see no payment option at all."
+                  : genericKept || zelleKept
+                    ? `Cash App will be removed. ${[genericKept && "The approved non-Cash App label and link", zelleKept && "Zelle"].filter(Boolean).join(" and ")} stay live for payers.`
+                    : "Cash App will be removed. No other destination is approved, so payers will see no payment link at all."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
@@ -413,7 +499,7 @@ export function PaymentRecipients() {
                       <span className="font-bold truncate">{r.reunionName}</span>
                       <StatusPill status={r.status} />
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">{r.reunionCode}{r.cashAppTag ? ` · $${r.cashAppTag}` : ""}{r.hasLegacyValues && r.status === "pending_review" ? " · legacy values" : ""}</span>
+                    <span className="text-xs text-muted-foreground font-mono">{r.reunionCode}{r.cashAppTag ? ` · $${r.cashAppTag}` : ""}{r.zelleContact ? " · Zelle" : ""}{r.hasLegacyValues && r.status === "pending_review" ? " · legacy values" : ""}</span>
                   </button>
                 </li>
               ))}

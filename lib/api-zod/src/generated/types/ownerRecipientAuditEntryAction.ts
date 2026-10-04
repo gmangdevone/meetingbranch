@@ -14,4 +14,5 @@ export const OwnerRecipientAuditEntryAction = {
   change: 'change',
   disable: 'disable',
   disable_cashapp: 'disable_cashapp',
+  disable_zelle: 'disable_zelle',
 } as const;

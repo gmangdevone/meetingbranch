@@ -7,6 +7,9 @@
  */
 import type { PaymentRecipientStatus } from './paymentRecipientStatus';
 
+/**
+ * Zelle fields are absent on entries written before Zelle support.
+ */
 export interface PaymentRecipientAuditValue {
   status: PaymentRecipientStatus;
   /** @nullable */
@@ -15,4 +18,8 @@ export interface PaymentRecipientAuditValue {
   paymentHandle: string | null;
   /** @nullable */
   paymentUrl: string | null;
+  /** @nullable */
+  zelleRecipientName?: string | null;
+  /** @nullable */
+  zelleContact?: string | null;
 }

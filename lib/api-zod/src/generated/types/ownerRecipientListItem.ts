@@ -15,6 +15,8 @@ export interface OwnerRecipientListItem {
   status: PaymentRecipientStatus;
   /** @nullable */
   cashAppTag: string | null;
+  /** @nullable */
+  zelleContact: string | null;
   hasLegacyValues: boolean;
   version: number;
   /** @nullable */

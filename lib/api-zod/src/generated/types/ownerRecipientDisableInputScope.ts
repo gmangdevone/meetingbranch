@@ -7,12 +7,13 @@
  */
 
 /**
- * cashapp = remove only the Cash App tag and cash.app links, keeping approved generic destinations; all = disable every payment destination for the reunion.
+ * cashapp = remove only the Cash App tag and cash.app links, keeping other approved destinations; zelle = remove only the Zelle name and contact; all = disable every payment destination for the reunion.
  */
 export type OwnerRecipientDisableInputScope = typeof OwnerRecipientDisableInputScope[keyof typeof OwnerRecipientDisableInputScope];
 
 
 export const OwnerRecipientDisableInputScope = {
   cashapp: 'cashapp',
+  zelle: 'zelle',
   all: 'all',
 } as const;

@@ -13,6 +13,7 @@ export function RecipientStatusCard({ recipient }: { recipient: PaymentRecipient
         <dl className="text-sm space-y-1">
           {recipient?.cashAppTag && <div><dt className="inline text-muted-foreground">Cash App: </dt><dd className="inline font-mono font-bold">${recipient.cashAppTag}</dd></div>}
           {recipient?.paymentHandle && <div><dt className="inline text-muted-foreground">Label: </dt><dd className="inline font-bold">{recipient.paymentHandle}</dd></div>}
+          {recipient?.zelleContact && <div><dt className="inline text-muted-foreground">Zelle: </dt><dd className="inline font-bold">{recipient.zelleRecipientName}</dd> <dd className="inline font-mono">{recipient.zelleContact}</dd></div>}
           {recipient?.paymentUrl && <div><dt className="inline text-muted-foreground">Link: </dt><dd className="inline font-mono break-all">{recipient.paymentUrl}</dd></div>}
         </dl>
       ) : (
