@@ -18,7 +18,7 @@ interface ReunionInfo {
   endDate: string; // ISO YYYY-MM-DD
   fees: ReunionFee[];
   /** Freshly resolved owner-approved recipient. Only "approved" shows pay instructions. */
-  recipient: PublicRecipient;
+  recipient: Omit<PublicRecipient, "paymentInstructions"> & { paymentInstructions?: string | null };
 }
 
 export interface SendConfirmationEmailParams {
@@ -121,6 +121,13 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
     ? `<p style="margin:16px 0 4px;color:#166534;font-size:14px;font-weight:600;">Or pay with Zelle</p>
                     <p style="margin:0;color:#4b5563;font-size:13px;">In your own bank's app, send to <strong>${zelle.name}</strong> at <strong>${zelle.contact}</strong>. Check the recipient name before you send.</p>`
     : "";
+  // Owner-written plain text: escaped first, then line breaks become <br>.
+  const notes = r.status === "approved" && r.paymentInstructions?.trim() ? r.paymentInstructions.trim() : null;
+  const notesHtml = notes ? escapeHtml(notes).replace(/\r?\n/g, "<br>") : null;
+  const notesBlock = notesHtml
+    ? `<p style="margin:16px 0 4px;color:#166534;font-size:14px;font-weight:600;">Special payment instructions</p>
+                    <p style="margin:0;color:#4b5563;font-size:13px;text-align:left;">${notesHtml}</p>`
+    : "";
   const payHandle = approved ? escapeHtml(r.paymentHandle ?? "the link below") : "";
   const payUrl = approved && r.paymentUrl ? escapeHtml(r.paymentUrl) : null;
 
@@ -139,7 +146,10 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
     ? null
     : zelle
     ? `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Pay your reunion fees with Zelle</p>
-                    <p style="margin:0;color:#4b5563;font-size:13px;">Send <strong>$${totalFee.toFixed(2)}</strong> from your own bank's app to <strong>${zelle.name}</strong> at <strong>${zelle.contact}</strong>. Check the recipient name before you send, and include your name and "${escapeHtml(reunion.name)}" in the memo.</p>`
+                    <p style="margin:0;color:#4b5563;font-size:13px;">Send <strong>$${totalFee.toFixed(2)}</strong> from your own bank's app to <strong>${zelle.name}</strong> at <strong>${zelle.contact}</strong>. Check the recipient name before you send, and include your name and "${escapeHtml(reunion.name)}" in the memo.</p>${notesBlock}`
+    : notesHtml
+    ? `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Payment instructions</p>
+                    <p style="margin:0;color:#4b5563;font-size:13px;text-align:left;">${notesHtml}</p>`
     : `<p style="margin:0 0 4px;color:#166534;font-size:14px;font-weight:600;">Payment instructions</p>
                     <p style="margin:0;color:#4b5563;font-size:13px;">Online payment is not configured for this reunion yet (Cash App is not set up). Check the reunion page for current payment options or contact your organizers.</p>`;
 
@@ -221,6 +231,7 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
                     <p style="margin:0 0 16px;color:#4b5563;font-size:13px;">Send <strong>$${totalFee.toFixed(2)}</strong> to <strong>${payHandle}</strong></p>
                     ${payCta}
                     ${zelleBlock}
+                    ${notesBlock}
                     <p style="margin:12px 0 0;color:#9ca3af;font-size:11px;">Please include your name and "${reunion.name}" in the payment note</p>`}
                   </td>
                 </tr>

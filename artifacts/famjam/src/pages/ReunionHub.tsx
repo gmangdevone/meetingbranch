@@ -16,6 +16,7 @@ import { eventCodePath } from "../lib/eventCode";
 import { getEventCountdownLabel, getRegistrationMomentumLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
 import { Greeting } from "../components/Greeting";
 import { ZelleRecipientCard } from "../components/payments/ZelleRecipientCard";
+import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 import { SubmitPayment } from "../components/SubmitPayment";
 import { useEffect } from "react";
 
@@ -574,6 +575,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                   compact
                                 />
                               )}
+                              {approvedInstructions(reunion.paymentRecipient) && (
+                                <SpecialInstructionsNote text={approvedInstructions(reunion.paymentRecipient)!} compact />
+                              )}
                             </>
                           ) : (
                             <p className="text-sm text-muted-foreground">
@@ -608,6 +612,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       amount: c.amount,
                     }))}
                     cashAppAvailable={!!reunion.paymentRecipient?.cashAppTag}
+                    instructions={approvedInstructions(reunion.paymentRecipient)}
                     zelle={
                       reunion.paymentRecipient?.status === "approved" &&
                       reunion.paymentRecipient.zelleRecipientName &&

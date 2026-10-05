@@ -38,6 +38,11 @@ export interface PaymentRecipientPublic {
      * @nullable
      */
   zelleContact: string | null;
+  /**
+     * Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.
+     * @nullable
+     */
+  paymentInstructions: string | null;
   /** @nullable */
   approvedAt: string | null;
 }
@@ -57,6 +62,8 @@ export interface PaymentRecipientValues {
   zelleRecipientName: string | null;
   /** @nullable */
   zelleContact: string | null;
+  /** @nullable */
+  paymentInstructions: string | null;
 }
 
 export interface OwnerRecipientListItem {
@@ -92,7 +99,7 @@ export interface OwnerRecipientDetail {
 }
 
 /**
- * At least one destination (cashAppTag, paymentHandle, paymentUrl, or the Zelle name+contact pair) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together.
+ * At least one destination (cashAppTag, paymentHandle, paymentUrl, the Zelle name+contact pair, or paymentInstructions) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together.
  */
 export interface OwnerRecipientSaveInput {
   /**
@@ -121,6 +128,11 @@ export interface OwnerRecipientSaveInput {
      * @nullable
      */
   zelleContact?: string | null;
+  /**
+     * Max 2000 characters after normalization (checked by the server). Public plain-text special payment instructions. Blank or null clears them.
+     * @nullable
+     */
+  paymentInstructions?: string | null;
   /** @minimum 0 */
   expectedVersion: number;
   /** Must be true: the owner explicitly confirmed the before/after values. */
@@ -183,6 +195,8 @@ export interface PaymentRecipientAuditValue {
   zelleRecipientName?: string | null;
   /** @nullable */
   zelleContact?: string | null;
+  /** @nullable */
+  paymentInstructions?: string | null;
 }
 
 export interface OwnerRecipientAuditEntry {

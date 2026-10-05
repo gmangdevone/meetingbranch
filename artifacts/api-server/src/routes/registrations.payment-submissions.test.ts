@@ -98,7 +98,7 @@ vi.mock("@workspace/db", () => {
       "createdBy",
       "createdAt",
     ],
-    payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "zelleRecipientName", "zelleContact", "version", "updatedBy", "updatedAt"],
+    payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "zelleRecipientName", "zelleContact", "paymentInstructions", "version", "updatedBy", "updatedAt"],
     payment_submissions: [
       "id",
       "reunionId",
@@ -816,6 +816,13 @@ describe("receiving destination is server-controlled", () => {
     for (const extra of [{ zelleContact: "attacker@example.org" }, { zelleRecipientName: "Attacker" }]) {
       expect((await submit(REG_A, { method: "zelle", amount: 25, reference: "me@example.com", ...extra })).status).toBe(400);
     }
+    expect(submissions()).toHaveLength(0);
+  });
+
+  it("rejects submissions that try to supply payment instructions", async () => {
+    authAs(MEMBER);
+    const res = await submit(REG_A, { method: "cash", amount: 25, reference: "Aunt Denise", givenDate: "2026-06-01", paymentInstructions: "Send to 312-555-0000" });
+    expect(res.status).toBe(400);
     expect(submissions()).toHaveLength(0);
   });
 

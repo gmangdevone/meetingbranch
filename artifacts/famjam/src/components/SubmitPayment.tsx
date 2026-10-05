@@ -9,6 +9,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { ZelleRecipientCard } from "./payments/ZelleRecipientCard";
+import { SpecialInstructionsNote } from "./payments/SpecialInstructionsNote";
 import { CheckCircle2, Info, Banknote, Landmark, DollarSign, FileText } from "lucide-react";
 
 type Method = "cashapp" | "zelle" | "cash" | "check";
@@ -44,6 +45,7 @@ export function SubmitPayment({
   chipIns = [],
   cashAppAvailable,
   zelle = null,
+  instructions = null,
   checkPayee,
 }: {
   reunionId: number;
@@ -55,6 +57,8 @@ export function SubmitPayment({
   cashAppAvailable: boolean;
   /** Display hint only; re-resolved from the server after a Zelle submission. */
   zelle?: { name: string; contact: string } | null;
+  /** Owner-approved special payment instructions (plain text). */
+  instructions?: string | null;
   checkPayee: string | null;
 }) {
   const [method, setMethod] = useState<Method | null>(null);
@@ -238,6 +242,7 @@ export function SubmitPayment({
                 {!freshZelle && !handoffError && <p className="text-sm text-muted-foreground">Getting the approved Zelle details...</p>}
               </>
             )}
+            {instructions && <SpecialInstructionsNote text={instructions} compact />}
             {submitted === "check" && checkPayee && (
               <p className="text-sm text-muted-foreground">
                 Remember to make your check out to{" "}
@@ -278,6 +283,12 @@ export function SubmitPayment({
         Choose how you're paying and add your details so the organizers can match your payment to
         your account. Your status stays pending until an organizer confirms it.
       </p>
+
+      {instructions && (
+        <div className="mb-5">
+          <SpecialInstructionsNote text={instructions} compact />
+        </div>
+      )}
 
       {registrations.length + chipIns.length > 1 && (
         <div className="mb-5 space-y-2">

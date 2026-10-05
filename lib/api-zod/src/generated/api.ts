@@ -32,6 +32,7 @@ export const GetReunionPaymentRecipientResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
 
@@ -73,14 +74,16 @@ export const OwnerGetPaymentRecipientResponse = zod.object({
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
-  "zelleContact": zod.string().nullable()
+  "zelleContact": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable()
 }),
   "legacy": zod.object({
   "cashAppTag": zod.string().nullable(),
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
-  "zelleContact": zod.string().nullable()
+  "zelleContact": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable()
 }),
   "version": zod.number().describe('0 when the owner has never saved this reunion. Send as expectedVersion.'),
   "updatedAt": zod.coerce.date().nullable(),
@@ -93,6 +96,7 @@ export const OwnerGetPaymentRecipientResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
 })
@@ -127,10 +131,11 @@ export const OwnerSavePaymentRecipientBody = zod.object({
   "paymentUrl": zod.string().max(ownerSavePaymentRecipientBodyPaymentUrlMax).nullish(),
   "zelleRecipientName": zod.string().max(ownerSavePaymentRecipientBodyZelleRecipientNameMax).nullish(),
   "zelleContact": zod.string().max(ownerSavePaymentRecipientBodyZelleContactMax).nullish().describe('Email address or US phone number registered with Zelle.'),
+  "paymentInstructions": zod.string().nullish().describe('Max 2000 characters after normalization (checked by the server). Public plain-text special payment instructions. Blank or null clears them.'),
   "expectedVersion": zod.number().min(ownerSavePaymentRecipientBodyExpectedVersionMin),
   "confirm": zod.boolean().describe('Must be true: the owner explicitly confirmed the before\/after values.'),
   "note": zod.string().max(ownerSavePaymentRecipientBodyNoteMax).nullish()
-}).describe('At least one destination (cashAppTag, paymentHandle, paymentUrl, or the Zelle name+contact pair) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together.')
+}).describe('At least one destination (cashAppTag, paymentHandle, paymentUrl, the Zelle name+contact pair, or paymentInstructions) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together.')
 
 export const OwnerSavePaymentRecipientResponse = zod.object({
   "reunionId": zod.number(),
@@ -144,14 +149,16 @@ export const OwnerSavePaymentRecipientResponse = zod.object({
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
-  "zelleContact": zod.string().nullable()
+  "zelleContact": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable()
 }),
   "legacy": zod.object({
   "cashAppTag": zod.string().nullable(),
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
-  "zelleContact": zod.string().nullable()
+  "zelleContact": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable()
 }),
   "version": zod.number().describe('0 when the owner has never saved this reunion. Send as expectedVersion.'),
   "updatedAt": zod.coerce.date().nullable(),
@@ -164,6 +171,7 @@ export const OwnerSavePaymentRecipientResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
 })
@@ -201,14 +209,16 @@ export const OwnerDisablePaymentRecipientResponse = zod.object({
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
-  "zelleContact": zod.string().nullable()
+  "zelleContact": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable()
 }),
   "legacy": zod.object({
   "cashAppTag": zod.string().nullable(),
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
-  "zelleContact": zod.string().nullable()
+  "zelleContact": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable()
 }),
   "version": zod.number().describe('0 when the owner has never saved this reunion. Send as expectedVersion.'),
   "updatedAt": zod.coerce.date().nullable(),
@@ -221,6 +231,7 @@ export const OwnerDisablePaymentRecipientResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.')
 })
@@ -244,7 +255,8 @@ export const OwnerListPaymentRecipientHistoryResponseItem = zod.object({
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullish(),
-  "zelleContact": zod.string().nullish()
+  "zelleContact": zod.string().nullish(),
+  "paymentInstructions": zod.string().nullish()
 }).describe('Zelle fields are absent on entries written before Zelle support.'),zod.null()]),
   "newValue": zod.object({
   "status": zod.enum(['approved', 'pending_review', 'disabled']).describe('approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.'),
@@ -252,7 +264,8 @@ export const OwnerListPaymentRecipientHistoryResponseItem = zod.object({
   "paymentHandle": zod.string().nullable(),
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullish(),
-  "zelleContact": zod.string().nullish()
+  "zelleContact": zod.string().nullish(),
+  "paymentInstructions": zod.string().nullish()
 }).describe('Zelle fields are absent on entries written before Zelle support.'),
   "versionAfter": zod.number(),
   "note": zod.string().nullable(),
@@ -423,6 +436,7 @@ export const CreateReunionResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
@@ -499,6 +513,7 @@ export const ListMyReunionsResponseItem = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
@@ -612,6 +627,7 @@ export const GetReunionByCodeResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
@@ -692,6 +708,7 @@ export const GetReunionResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
@@ -811,6 +828,7 @@ export const UpdateReunionResponse = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
@@ -2944,6 +2962,7 @@ export const AdminListReunionsResponseItem = zod.object({
   "paymentUrl": zod.string().nullable(),
   "zelleRecipientName": zod.string().nullable(),
   "zelleContact": zod.string().nullable().describe('Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link.'),
+  "paymentInstructions": zod.string().nullable().describe('Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.'),
   "approvedAt": zod.coerce.date().nullable()
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),

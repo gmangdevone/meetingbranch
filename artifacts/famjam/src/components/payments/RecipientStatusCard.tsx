@@ -15,6 +15,12 @@ export function RecipientStatusCard({ recipient }: { recipient: PaymentRecipient
           {recipient?.paymentHandle && <div><dt className="inline text-muted-foreground">Label: </dt><dd className="inline font-bold">{recipient.paymentHandle}</dd></div>}
           {recipient?.zelleContact && <div><dt className="inline text-muted-foreground">Zelle: </dt><dd className="inline font-bold">{recipient.zelleRecipientName}</dd> <dd className="inline font-mono">{recipient.zelleContact}</dd></div>}
           {recipient?.paymentUrl && <div><dt className="inline text-muted-foreground">Link: </dt><dd className="inline font-mono break-all">{recipient.paymentUrl}</dd></div>}
+          {recipient?.paymentInstructions && (
+            <div>
+              <dt className="text-muted-foreground">Special payment instructions (shown to payers):</dt>
+              <dd className="whitespace-pre-wrap break-words bg-background/70 border rounded-lg px-3 py-2 mt-1">{recipient.paymentInstructions}</dd>
+            </div>
+          )}
         </dl>
       ) : (
         <p className="text-sm text-muted-foreground">

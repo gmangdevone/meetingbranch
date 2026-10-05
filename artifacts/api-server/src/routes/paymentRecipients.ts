@@ -161,6 +161,7 @@ router.post("/owner/payment-recipients/:reunionId/disable", requirePaymentOwner,
     paymentUrl: null,
     zelleRecipientName: null,
     zelleContact: null,
+    paymentInstructions: null,
   };
   let action: "disable_cashapp" | "disable_zelle" | undefined;
   if (body.data.scope === "cashapp" || body.data.scope === "zelle") {

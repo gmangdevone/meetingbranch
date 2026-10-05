@@ -16,6 +16,7 @@ import { useToast } from "../hooks/use-toast";
 import { eventCodePath } from "../lib/eventCode";
 import { computeTotal, computeFeeAmount, feeApplies, describeFee } from "../lib/fees";
 import { registrationPricingReady } from "../lib/registrationReadiness";
+import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
@@ -528,7 +529,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   
                   <div className="bg-muted p-4 rounded-xl mt-6 text-sm">
                     <span className="font-bold block mb-1">How to pay:</span>
-                    {reunion.paymentRecipient?.status === "approved" && (reunion.paymentRecipient.paymentHandle || reunion.paymentRecipient.zelleContact) ? (
+                    {reunion.paymentRecipient?.status === "approved" && (reunion.paymentRecipient.paymentHandle || reunion.paymentRecipient.zelleContact || reunion.paymentRecipient.paymentInstructions) ? (
                       <>
                         {reunion.paymentRecipient.paymentHandle && (
                           <>Pay via <span className="font-mono bg-background px-1 rounded">{reunion.paymentRecipient.paymentHandle}</span> after submitting.</>
@@ -539,6 +540,11 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                             <span className="font-bold">{reunion.paymentRecipient.zelleRecipientName}</span> at{" "}
                             <span className="font-mono bg-background px-1 rounded">{reunion.paymentRecipient.zelleContact}</span>.
                           </span>
+                        )}
+                        {approvedInstructions(reunion.paymentRecipient) && (
+                          <div className="mt-3">
+                            <SpecialInstructionsNote text={approvedInstructions(reunion.paymentRecipient)!} compact />
+                          </div>
                         )}
                       </>
                     ) : (

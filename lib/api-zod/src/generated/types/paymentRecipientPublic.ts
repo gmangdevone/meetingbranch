@@ -28,6 +28,11 @@ export interface PaymentRecipientPublic {
      * @nullable
      */
   zelleContact: string | null;
+  /**
+     * Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML.
+     * @nullable
+     */
+  paymentInstructions: string | null;
   /** @nullable */
   approvedAt: Date | null;
 }

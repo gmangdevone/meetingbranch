@@ -10,9 +10,12 @@ export interface RecipientValues {
   paymentUrl: string | null;
   zelleRecipientName: string | null;
   zelleContact: string | null;
+  /** Optional in the type for legacy callers; writers always coerce to null. */
+  paymentInstructions?: string | null;
 }
 
 export interface PublicRecipient extends RecipientValues {
+  paymentInstructions: string | null;
   reunionId: number;
   status: RecipientStatus;
   cashAppUrl: string | null;
@@ -20,6 +23,32 @@ export interface PublicRecipient extends RecipientValues {
 }
 
 const ZELLE_NAME_MAX = 80;
+export const INSTRUCTIONS_MAX = 2000;
+// Control characters except tab/newline, plus bidi overrides and zero-width chars.
+const UNSAFE_INSTRUCTIONS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/;
+
+/**
+ * Normalizes owner payment instructions: CRLF/CR to LF, trailing spaces per
+ * line trimmed, runs of 3+ blank lines collapsed, whole text trimmed.
+ * Empty means "clear" (null). Plain text only; callers must never render it as HTML.
+ */
+export function normalizePaymentInstructions(input: unknown):
+  | { ok: true; value: string | null }
+  | { ok: false; error: string } {
+  if (input == null) return { ok: true, value: null };
+  if (typeof input !== "string") return { ok: false, error: "Special payment instructions must be text." };
+  const v = input
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+$/, ""))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!v) return { ok: true, value: null };
+  if (v.length > INSTRUCTIONS_MAX) return { ok: false, error: `Special payment instructions must be ${INSTRUCTIONS_MAX} characters or fewer.` };
+  if (UNSAFE_INSTRUCTIONS.test(v)) return { ok: false, error: "Special payment instructions contain unsupported invisible or control characters." };
+  return { ok: true, value: v };
+}
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*\.[A-Za-z]{2,24}$/;
 
 /**
@@ -151,6 +180,7 @@ export function validateRecipientInput(input: {
   paymentUrl?: unknown;
   zelleRecipientName?: unknown;
   zelleContact?: unknown;
+  paymentInstructions?: unknown;
 }): ValidationResult {
   let tag: string | null = null;
   if (input.cashAppTag != null && !(typeof input.cashAppTag === "string" && input.cashAppTag.trim() === "")) {
@@ -204,12 +234,16 @@ export function validateRecipientInput(input: {
       return { ok: false, error: "Enter a valid Zelle email address or 10-digit US phone number." };
     }
   }
-  if (!tag && !handle && !url && !zelleContact) {
-    return { ok: false, error: "Enter at least one destination: a $Cashtag, Zelle details, a payment label, or a payment link." };
+  const instr = normalizePaymentInstructions(input.paymentInstructions);
+  if (!instr.ok) return { ok: false, error: instr.error };
+  // Instructions alone are a valid approval (e.g. "Pay cash at check-in" or a
+  // treasurer phone number); they count as payer-facing content.
+  if (!tag && !handle && !url && !zelleContact && !instr.value) {
+    return { ok: false, error: "Enter at least one destination: a $Cashtag, Zelle details, a payment label, a payment link, or special payment instructions." };
   }
   return {
     ok: true,
-    values: { cashAppTag: tag, paymentHandle: handle, paymentUrl: url, zelleRecipientName: zelleName, zelleContact },
+    values: { cashAppTag: tag, paymentHandle: handle, paymentUrl: url, zelleRecipientName: zelleName, zelleContact, paymentInstructions: instr.value },
   };
 }
 
@@ -220,6 +254,7 @@ export interface StoredRecipient {
   paymentUrl: string | null;
   zelleRecipientName?: string | null;
   zelleContact?: string | null;
+  paymentInstructions?: string | null;
   updatedAt: Date | string;
 }
 
@@ -240,13 +275,14 @@ export function resolvePublicRecipient(
     paymentUrl: null,
     zelleRecipientName: null,
     zelleContact: null,
+    paymentInstructions: null,
     approvedAt: null,
   });
   if (!row) return none("pending_review");
   if (row.status !== "approved") return none("disabled");
   const check = validateRecipientInput(row);
   if (!check.ok) return none("pending_review");
-  const { cashAppTag: tag, paymentHandle, paymentUrl, zelleRecipientName, zelleContact } = check.values;
+  const { cashAppTag: tag, paymentHandle, paymentUrl, zelleRecipientName, zelleContact, paymentInstructions } = check.values;
   const cashAppUrl = tag ? buildCashAppUrl(tag) : null;
   return {
     reunionId,
@@ -257,6 +293,7 @@ export function resolvePublicRecipient(
     paymentUrl: paymentUrl ?? cashAppUrl,
     zelleRecipientName,
     zelleContact,
+    paymentInstructions: paymentInstructions ?? null,
     approvedAt: new Date(row.updatedAt).toISOString(),
   };
 }
@@ -272,7 +309,7 @@ export function zelleAvailable(r: PublicRecipient): boolean {
 }
 
 /** Body keys that would set a receiving destination through a non-owner API. */
-export const DESTINATION_KEYS = ["paymentHandle", "paymentUrl", "cashAppTag", "zelleRecipientName", "zelleContact", "paymentRecipient"] as const;
+export const DESTINATION_KEYS = ["paymentHandle", "paymentUrl", "cashAppTag", "zelleRecipientName", "zelleContact", "paymentInstructions", "paymentRecipient"] as const;
 
 export function findDestinationKeys(body: unknown): string[] {
   if (!body || typeof body !== "object") return [];

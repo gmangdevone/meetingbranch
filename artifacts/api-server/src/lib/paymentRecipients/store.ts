@@ -79,12 +79,14 @@ type RawValues = {
   paymentUrl: string | null;
   zelleRecipientName?: string | null;
   zelleContact?: string | null;
+  paymentInstructions?: string | null;
 };
 
 function valuesOf(row: RawValues | undefined): RecipientValues {
   return {
     zelleRecipientName: row?.zelleRecipientName?.trim() || null,
     zelleContact: row?.zelleContact?.trim() || null,
+    paymentInstructions: row?.paymentInstructions?.trim() || null,
     cashAppTag: row?.cashAppTag?.trim().replace(/^\$/, "") || null,
     paymentHandle: row?.paymentHandle?.trim() || null,
     paymentUrl: row?.paymentUrl?.trim() || null,
@@ -198,6 +200,7 @@ export async function writeRecipient(params: {
       paymentUrl: next.paymentUrl,
       zelleRecipientName: next.zelleRecipientName,
       zelleContact: next.zelleContact,
+      paymentInstructions: next.paymentInstructions ?? null,
       version: versionAfter,
       updatedBy: actorUserId,
       updatedAt: now,
@@ -225,6 +228,7 @@ export async function writeRecipient(params: {
         paymentUrl: next.paymentUrl,
         zelleRecipientName: next.zelleRecipientName,
         zelleContact: next.zelleContact,
+        paymentInstructions: next.paymentInstructions ?? null,
       },
       versionAfter,
       note,
@@ -274,6 +278,8 @@ export function withoutCashApp(current: RecipientValues): RecipientValues | null
     paymentHandle: current.paymentHandle && /^\$[A-Za-z0-9]+$/.test(current.paymentHandle) ? null : current.paymentHandle,
     paymentUrl: urlIsCashApp ? null : url,
   };
+  // Instructions are preserved only alongside another real destination; a
+  // method-disable never silently leaves an instructions-only approval.
   return next.paymentHandle || next.paymentUrl || next.zelleContact ? next : null;
 }
 

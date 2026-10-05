@@ -2535,7 +2535,7 @@ components:
     PaymentRecipientPublic:
       type: object
       description: "Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation."
-      required: [reunionId, status, cashAppTag, cashAppUrl, paymentHandle, paymentUrl, zelleRecipientName, zelleContact, approvedAt]
+      required: [reunionId, status, cashAppTag, cashAppUrl, paymentHandle, paymentUrl, zelleRecipientName, zelleContact, paymentInstructions, approvedAt]
       properties:
         reunionId:
           type: integer
@@ -2554,6 +2554,9 @@ components:
         zelleContact:
           type: ["string", "null"]
           description: "Owner-approved Zelle email or US phone. Payers send from their own banking app; there is no Zelle link."
+        paymentInstructions:
+          type: ["string", "null"]
+          description: "Owner-approved public plain-text payment instructions (line breaks allowed). Render as text, never HTML."
         approvedAt:
           type: ["string", "null"]
           format: date-time
@@ -2565,7 +2568,7 @@ components:
           type: boolean
     PaymentRecipientValues:
       type: object
-      required: [cashAppTag, paymentHandle, paymentUrl, zelleRecipientName, zelleContact]
+      required: [cashAppTag, paymentHandle, paymentUrl, zelleRecipientName, zelleContact, paymentInstructions]
       properties:
         cashAppTag:
           type: ["string", "null"]
@@ -2576,6 +2579,8 @@ components:
         zelleRecipientName:
           type: ["string", "null"]
         zelleContact:
+          type: ["string", "null"]
+        paymentInstructions:
           type: ["string", "null"]
     OwnerRecipientListItem:
       type: object
@@ -2633,7 +2638,7 @@ components:
     OwnerRecipientSaveInput:
       type: object
       required: [expectedVersion, confirm]
-      description: "At least one destination (cashAppTag, paymentHandle, paymentUrl, or the Zelle name+contact pair) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together."
+      description: "At least one destination (cashAppTag, paymentHandle, paymentUrl, the Zelle name+contact pair, or paymentInstructions) is required. Generic https links are allowed; any cash.app link must match cashAppTag. Zelle name and contact must be provided together."
       properties:
         cashAppTag:
           type: ["string", "null"]
@@ -2651,6 +2656,9 @@ components:
           type: ["string", "null"]
           maxLength: 254
           description: "Email address or US phone number registered with Zelle."
+        paymentInstructions:
+          type: ["string", "null"]
+          description: "Max 2000 characters after normalization (checked by the server). Public plain-text special payment instructions. Blank or null clears them."
         expectedVersion:
           type: integer
           minimum: 0
@@ -2719,6 +2727,8 @@ components:
         zelleRecipientName:
           type: ["string", "null"]
         zelleContact:
+          type: ["string", "null"]
+        paymentInstructions:
           type: ["string", "null"]
     MemberProfile:
       type: object

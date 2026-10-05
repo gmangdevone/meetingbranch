@@ -22,4 +22,6 @@ export interface PaymentRecipientAuditValue {
   zelleRecipientName?: string | null;
   /** @nullable */
   zelleContact?: string | null;
+  /** @nullable */
+  paymentInstructions?: string | null;
 }

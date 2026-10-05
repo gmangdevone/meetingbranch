@@ -326,6 +326,49 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     await db.delete(paymentRecipientsTable).where(eq(paymentRecipientsTable.reunionId, REUNION_B));
   });
 
+  it("special payment instructions: owner-only, validated, audited, clearable, preserved across method disables", async () => {
+    const url = `/api/owner/payment-recipients/${REUNION_B}`;
+    const pubUrl = `/api/reunions/${REUNION_B}/payment-recipient`;
+    for (const user of [ADMIN, ORGANIZER, MEMBER]) {
+      expect((await as(user).put(url).send(save({ paymentInstructions: "Call 312-555-0000" }))).status).toBe(403);
+    }
+    for (const bad of [{ paymentInstructions: "x".repeat(2001) }, { paymentInstructions: "pay\u202eme" }, { paymentInstructions: 42 }]) {
+      expect((await as(OWNER).put(url).send(save(bad))).status).toBe(400);
+    }
+    expect((await as(OWNER).get(`${url}/history`)).body).toHaveLength(0);
+    // Instructions alone are a valid approval; CRLF normalized, HTML stays literal text.
+    const text = "Pay cash at check-in.\r\nQuestions: call Rhonda (312) 555-0147  \r\n<b>no html</b>";
+    const only = await as(OWNER).put(url).send(save({ paymentInstructions: text }));
+    expect(only.status).toBe(200);
+    const stored = "Pay cash at check-in.\nQuestions: call Rhonda (312) 555-0147\n<b>no html</b>";
+    expect(only.body.current.paymentInstructions).toBe(stored);
+    expect((await as(null).get(pubUrl)).body).toMatchObject({ status: "approved", cashAppTag: null, zelleContact: null, paymentInstructions: stored });
+    // Add Cash App + Zelle keeping the note; disabling each method keeps the note while another destination remains.
+    const all = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", paymentInstructions: stored, expectedVersion: only.body.version }));
+    const offCash = await as(OWNER).post(`${url}/disable`).send({ scope: "cashapp", confirm: true, expectedVersion: all.body.version });
+    expect(offCash.body).toMatchObject({ status: "approved", current: { cashAppTag: null, paymentInstructions: stored } });
+    // Last real destination removed: payments disabled entirely and the note is hidden.
+    const offZelle = await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: offCash.body.version });
+    expect(offZelle.body.status).toBe("disabled");
+    expect((await as(null).get(pubUrl)).body.paymentInstructions).toBeNull();
+    // Re-approve, then clear with a blank value; disable all hides everything.
+    const back = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", paymentInstructions: stored, expectedVersion: offZelle.body.version }));
+    const cleared = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", paymentInstructions: "   \n ", expectedVersion: back.body.version }));
+    expect(cleared.body.current.paymentInstructions).toBeNull();
+    const hist = (await as(OWNER).get(`${url}/history`)).body;
+    expect(hist[0]).toMatchObject({ previousValue: { paymentInstructions: stored }, newValue: { paymentInstructions: null } });
+    // Stale version is rejected.
+    expect((await as(OWNER).put(url).send(save({ paymentInstructions: "late", expectedVersion: back.body.version }))).status).toBe(409);
+    const withNote = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", paymentInstructions: "Bring exact change", expectedVersion: cleared.body.version }));
+    const off = await as(OWNER).post(`${url}/disable`).send({ scope: "all", confirm: true, expectedVersion: withNote.body.version });
+    expect(off.body.status).toBe("disabled");
+    expect((await as(null).get(pubUrl)).body).toMatchObject({ status: "disabled", paymentInstructions: null });
+    // Ordinary reunion routes cannot set it.
+    expect((await as(ORGANIZER).put(`/api/reunions/${REUNION_B}`).send({ name: "x", paymentInstructions: "Send to me" })).status).toBe(403);
+    await db.delete(paymentRecipientAuditTable).where(eq(paymentRecipientAuditTable.reunionId, REUNION_B));
+    await db.delete(paymentRecipientsTable).where(eq(paymentRecipientsTable.reunionId, REUNION_B));
+  });
+
   it("organizer and admin cannot set destinations through reunion create/update", async () => {
     const tamper = [{ cashAppTag: "Attacker1" }, { paymentHandle: "$Attacker1" }, { paymentUrl: "https://cash.app/$Attacker1" }, { cashAppTag: null }];
     for (const user of [ORGANIZER, ADMIN]) {

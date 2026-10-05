@@ -57,4 +57,19 @@ describe("confirmation email payment instructions", () => {
     const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "disabled", cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", updatedAt: t })));
     expect(html).not.toContain("rhonda@example.org");
   });
+  it("renders owner instructions as escaped text with line breaks", () => {
+    const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "approved", cashAppTag: "FamilyFund", paymentHandle: null, paymentUrl: null, paymentInstructions: "Call Rhonda\n<script>x</script> & co", updatedAt: t })));
+    expect(html).toContain("Special payment instructions");
+    expect(html).toContain("Call Rhonda<br>&lt;script&gt;x&lt;/script&gt; &amp; co");
+    expect(html).not.toContain("<script>");
+  });
+  it("uses instructions alone instead of 'not configured'", () => {
+    const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "approved", cashAppTag: null, paymentHandle: null, paymentUrl: null, paymentInstructions: "Pay cash at check-in", updatedAt: t })));
+    expect(html).toContain("Pay cash at check-in");
+    expect(html).not.toContain("not configured");
+  });
+  it("hides instructions when the recipient is disabled", () => {
+    const html = buildEmailHtml(params(resolvePublicRecipient(1, { status: "disabled", cashAppTag: null, paymentHandle: null, paymentUrl: null, paymentInstructions: "Secret", updatedAt: t })));
+    expect(html).not.toContain("Secret");
+  });
 });

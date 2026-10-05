@@ -12,3 +12,11 @@ describe("owner Zelle contact preview mirrors server rules", () => {
     expect(previewZelleContact(i)).toBeNull(),
   );
 });
+
+const { normalizeInstructions } = await import("./PaymentRecipients");
+describe("owner special instructions normalization mirrors the server", () => {
+  it("normalizes line endings and blank runs, and blank clears", () => {
+    expect(normalizeInstructions("  a  \r\n\r\n\r\n\r\nb\rc ")).toBe("a\n\nb\nc");
+    expect(normalizeInstructions(" \n\t ")).toBeNull();
+  });
+});

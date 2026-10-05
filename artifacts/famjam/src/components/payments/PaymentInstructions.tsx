@@ -1,11 +1,13 @@
 import type { PaymentRecipientPublic } from "@workspace/api-client-react";
 import { ZelleRecipientCard } from "./ZelleRecipientCard";
+import { SpecialInstructionsNote, approvedInstructions } from "./SpecialInstructionsNote";
 
 export function PaymentInstructions({ recipient, checkPayee }: {
   recipient?: PaymentRecipientPublic | null;
   checkPayee?: string | null;
 }) {
   const approved = recipient?.status === "approved";
+  const notes = approvedInstructions(recipient);
   return (
     <div className="space-y-4">
       <h4 className="font-bold">Payment instructions</h4>
@@ -23,6 +25,7 @@ export function PaymentInstructions({ recipient, checkPayee }: {
           {recipient.paymentUrl && recipient.paymentUrl !== recipient.cashAppUrl && (
             <a href={recipient.paymentUrl} target="_blank" rel="noopener noreferrer" className="block text-primary underline">Open approved payment link</a>
           )}
+          {notes && <SpecialInstructionsNote text={notes} />}
         </>
       ) : <p>Online payment instructions are not available yet. Contact your organizers before sending payment.</p>}
       {checkPayee && <p>For checks, make payable to <strong>{checkPayee}</strong>. Contact your organizers for delivery instructions.</p>}

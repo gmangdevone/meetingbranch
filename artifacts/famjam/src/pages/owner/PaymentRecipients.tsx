@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from "../../components/ui/dialog";
 import { ArrowLeft, History, Lock, Search, ShieldCheck, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
+import { SpecialInstructionsNote } from "../../components/payments/SpecialInstructionsNote";
 
 /* Owner-only screen. The server enforces authority; this UI only reflects it. */
 
@@ -45,12 +46,27 @@ const ACTION_LABEL: Record<string, string> = {
   disable_zelle: "Disabled Zelle",
 };
 
-type AuditLike = { cashAppTag: string | null; paymentUrl: string | null; zelleContact?: string | null };
+type AuditLike = { cashAppTag: string | null; paymentUrl: string | null; zelleContact?: string | null; paymentInstructions?: string | null };
 function summarize(v: AuditLike) {
   const parts = [v.cashAppTag ? "$" + v.cashAppTag : "-", v.paymentUrl ?? "-"];
   if (v.zelleContact) parts.push(`Zelle ${v.zelleContact}`);
+  if (v.paymentInstructions) parts.push(`Instructions (${v.paymentInstructions.length} chars)`);
   return parts.join(" / ");
 }
+
+export const INSTRUCTIONS_MAX = 2000;
+// Mirrors the server: CRLF to LF, trailing spaces per line, 3+ blank lines collapsed, trimmed.
+export function normalizeInstructions(raw: string): string | null {
+  const v = raw
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+$/, ""))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return v || null;
+}
+const UNSAFE_INSTRUCTIONS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/;
 
 function StatusPill({ status }: { status: PaymentRecipientStatus }) {
   const s = STATUS_STYLE[status];
@@ -86,7 +102,7 @@ export function previewZelleContact(raw: string): string | null {
   return /^[2-9]\d{2}[2-9]\d{6}$/.test(d) ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : null;
 }
 
-const EMPTY_VALUES: PaymentRecipientValues = { cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: null, zelleContact: null };
+const EMPTY_VALUES: PaymentRecipientValues = { cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: null, zelleContact: null, paymentInstructions: null };
 
 function ValuesTable({ values, emptyLabel = "Not set" }: { values: PaymentRecipientValues; emptyLabel?: string }) {
   const rows: [string, string | null][] = [
@@ -104,6 +120,10 @@ function ValuesTable({ values, emptyLabel = "Not set" }: { values: PaymentRecipi
           <dd className={v ? "font-mono break-all" : "text-muted-foreground italic"}>{v ?? emptyLabel}</dd>
         </div>
       ))}
+      <div className="grid grid-cols-[110px_1fr] gap-2">
+        <dt className="text-muted-foreground">Instructions</dt>
+        <dd className={values.paymentInstructions ? "whitespace-pre-wrap break-words" : "text-muted-foreground italic"}>{values.paymentInstructions ?? emptyLabel}</dd>
+      </div>
     </dl>
   );
 }
@@ -120,6 +140,7 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
   const [url, setUrl] = useState(detail.current.paymentUrl ?? "");
   const [zName, setZName] = useState(detail.current.zelleRecipientName ?? "");
   const [zContact, setZContact] = useState(detail.current.zelleContact ?? "");
+  const [instructions, setInstructions] = useState(detail.current.paymentInstructions ?? "");
   const [note, setNote] = useState("");
   const [confirmSave, setConfirmSave] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState<"cashapp" | "zelle" | "all" | null>(null);
@@ -133,6 +154,7 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
     setUrl(detail.current.paymentUrl ?? "");
     setZName(detail.current.zelleRecipientName ?? "");
     setZContact(detail.current.zelleContact ?? "");
+    setInstructions(detail.current.paymentInstructions ?? "");
   }, [detail.reunionId, detail.version]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const proposed: PaymentRecipientValues = {
@@ -141,12 +163,15 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
     paymentUrl: url.trim() || null,
     zelleRecipientName: zName.trim().replace(/\s+/g, " ") || null,
     zelleContact: zContact.trim() || null,
+    paymentInstructions: normalizeInstructions(instructions),
   };
+  const instrLen = proposed.paymentInstructions?.length ?? 0;
+  const instrInvalid = instrLen > INSTRUCTIONS_MAX || (!!proposed.paymentInstructions && UNSAFE_INSTRUCTIONS.test(proposed.paymentInstructions));
   const zellePreview = proposed.zelleContact ? previewZelleContact(proposed.zelleContact) : null;
   const zelleHalf = !!proposed.zelleRecipientName !== !!proposed.zelleContact;
   const zelleInvalid = zelleHalf || (!!proposed.zelleContact && !zellePreview);
   const hasZelle = !!(proposed.zelleRecipientName && zellePreview);
-  const hasAny = !!(proposed.cashAppTag || proposed.paymentHandle || proposed.paymentUrl || hasZelle);
+  const hasAny = !!(proposed.cashAppTag || proposed.paymentHandle || proposed.paymentUrl || hasZelle || proposed.paymentInstructions);
   const cashPreview = proposed.cashAppTag ? previewCashAppUrl(proposed.cashAppTag) : null;
   const effectiveLink = proposed.paymentUrl ?? cashPreview;
   const unchanged =
@@ -155,7 +180,8 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
     proposed.paymentHandle === detail.current.paymentHandle &&
     proposed.paymentUrl === detail.current.paymentUrl &&
     proposed.zelleRecipientName === (detail.current.zelleRecipientName ?? null) &&
-    (zellePreview ?? proposed.zelleContact) === (detail.current.zelleContact ?? null);
+    (zellePreview ?? proposed.zelleContact) === (detail.current.zelleContact ?? null) &&
+    proposed.paymentInstructions === (detail.current.paymentInstructions ?? null);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: getOwnerGetPaymentRecipientQueryKey(id) });
@@ -238,7 +264,7 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
         <section className="rounded-2xl border bg-card p-4">
           <h3 className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground mb-3">Live for payers</h3>
           {detail.resolved.status === "approved" ? (
-            <ValuesTable values={{ cashAppTag: detail.resolved.cashAppTag, paymentHandle: detail.resolved.paymentHandle, paymentUrl: detail.resolved.paymentUrl, zelleRecipientName: detail.resolved.zelleRecipientName, zelleContact: detail.resolved.zelleContact }} />
+            <ValuesTable values={{ cashAppTag: detail.resolved.cashAppTag, paymentHandle: detail.resolved.paymentHandle, paymentUrl: detail.resolved.paymentUrl, zelleRecipientName: detail.resolved.zelleRecipientName, zelleContact: detail.resolved.zelleContact, paymentInstructions: detail.resolved.paymentInstructions }} />
           ) : (
             <p className="text-sm text-muted-foreground">Nothing. Payers see "payment is not configured" and are told to contact organizers.</p>
           )}
@@ -296,8 +322,32 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
               <p className="text-xs text-muted-foreground">Payers see the name and contact and send from their own bank's app. There is no Zelle link. The name should match what their bank shows before they send.</p>
             )}
           </fieldset>
+          <fieldset className="sm:col-span-2 rounded-2xl border-2 border-dashed border-amber-300/80 bg-amber-50/40 dark:bg-amber-900/10 p-3 space-y-2">
+            <legend className="px-1.5 text-xs font-extrabold uppercase tracking-widest text-amber-800 dark:text-amber-200">Public note for payers</legend>
+            <div className="flex items-baseline justify-between gap-2">
+              <Label htmlFor="own-instructions">Special payment instructions</Label>
+              <span className={`text-xs tabular-nums ${instrLen > INSTRUCTIONS_MAX ? "text-destructive font-bold" : "text-muted-foreground"}`} aria-live="polite">{instrLen}/{INSTRUCTIONS_MAX}</span>
+            </div>
+            <Textarea
+              id="own-instructions"
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder={"For example: Cash and checks can be handed to the treasurer at check-in.\nQuestions about payment? Call or text the treasurer."}
+              className="rounded-xl min-h-[110px] text-base bg-background"
+              aria-describedby="own-instructions-help"
+              aria-invalid={instrInvalid || undefined}
+            />
+            <p id="own-instructions-help" className={`text-xs ${instrInvalid ? "text-destructive" : "text-muted-foreground"}`}>
+              {instrInvalid
+                ? instrLen > INSTRUCTIONS_MAX ? `Keep it to ${INSTRUCTIONS_MAX} characters or fewer.` : "Remove invisible or control characters."
+                : "Shown to every payer on the reunion page, registration, payment form and confirmation email. Plain text only; line breaks are kept. Leave blank to remove it. This is public, unlike the private audit note below."}
+            </p>
+            {detail.status === "approved" && detail.current.paymentInstructions && !proposed.paymentInstructions && (
+              <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Saving will remove the current instructions for payers.</p>
+            )}
+          </fieldset>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="own-note">Audit note (optional)</Label>
+            <Label htmlFor="own-note">Audit note (private, optional)</Label>
             <Textarea id="own-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="Verified with the treasurer by phone" className="rounded-xl min-h-[60px] text-base" />
           </div>
         </div>
@@ -317,13 +367,16 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
                 Zelle to <span className="font-bold">{proposed.zelleRecipientName}</span> · <span className="font-mono text-xs">{zellePreview}</span>
               </p>
             )}
+            {proposed.paymentInstructions && (
+              <div className="pt-1"><SpecialInstructionsNote text={proposed.paymentInstructions} compact /></div>
+            )}
             </div>
           ) : (
             <p className="text-muted-foreground">Enter at least one destination.</p>
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button className="rounded-full font-bold" disabled={!hasAny || unchanged || zelleInvalid || save.isPending} onClick={() => { setSaved(null); setConfirmSave(true); }}>
+          <Button className="rounded-full font-bold" disabled={!hasAny || unchanged || zelleInvalid || instrInvalid || save.isPending} onClick={() => { setSaved(null); setConfirmSave(true); }}>
             Review and save
           </Button>
           {cashAppOn && (
@@ -380,7 +433,7 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl border p-3"><p className="text-xs font-bold uppercase text-muted-foreground mb-2">Before</p><ValuesTable values={detail.status === "approved" ? detail.current : EMPTY_VALUES} /></div>
-            <div className="rounded-xl border p-3" style={{ borderColor: "var(--fj-brand)" }}><p className="text-xs font-bold uppercase mb-2" style={{ color: "var(--fj-brand)" }}>After</p><ValuesTable values={{ ...proposed, zelleContact: zellePreview ?? proposed.zelleContact }} /></div>
+            <div className="rounded-xl border p-3" style={{ borderColor: "var(--fj-brand)" }}><p className="text-xs font-bold uppercase mb-2" style={{ color: "var(--fj-brand)" }}>After</p><ValuesTable values={{ ...proposed, zelleContact: zellePreview ?? proposed.zelleContact }} />{!proposed.cashAppTag && !proposed.paymentHandle && !proposed.paymentUrl && !hasZelle && proposed.paymentInstructions && <p className="text-xs mt-2 text-muted-foreground">Instructions only: payers see this note and no online destination.</p>}</div>
           </div>
           {effectiveLink && (
             <a href={effectiveLink} target="_blank" rel="noopener noreferrer" className="text-sm font-bold inline-flex items-center gap-1" style={{ color: "var(--fj-brand)" }}>
@@ -408,6 +461,12 @@ function RecipientEditor({ detail, onBack }: { detail: OwnerRecipientDetail; onB
                   : genericKept || zelleKept
                     ? `Cash App will be removed. ${[genericKept && "The approved non-Cash App label and link", zelleKept && "Zelle"].filter(Boolean).join(" and ")} stay live for payers.`
                     : "Cash App will be removed. No other destination is approved, so payers will see no payment link at all."}
+              {confirmDisable !== "all" && detail.current.paymentInstructions && (
+                (confirmDisable === "zelle" ? othersKeptForZelle : genericKept || zelleKept)
+                  ? " The special payment instructions stay visible."
+                  : " The special payment instructions will be hidden too."
+              )}
+              {confirmDisable === "all" && detail.current.paymentInstructions && " The special payment instructions will be hidden too."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

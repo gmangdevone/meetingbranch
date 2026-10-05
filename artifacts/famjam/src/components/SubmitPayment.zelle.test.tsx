@@ -68,3 +68,21 @@ describe("Zelle payments", () => {
     expect(screen.queryByText("rhonda@example.org")).toBeNull();
   });
 });
+
+describe("special payment instructions in the payment form", () => {
+  it("shows the owner's note before and after submitting, as text", async () => {
+    render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} instructions={"Hand cash to Rhonda.\n<b>x</b>"} checkPayee={null} />);
+    expect(screen.getByTestId("special-payment-instructions")).toHaveTextContent("Hand cash to Rhonda.");
+    expect(document.querySelector("[data-testid=special-payment-instructions] b")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Cash$/ }));
+    fireEvent.change(screen.getByLabelText(/Who did you give/), { target: { value: "Rhonda" } });
+    fireEvent.change(screen.getByLabelText(/Date given/), { target: { value: "2026-06-01" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit Payment" }));
+    expect(h.mutate.mock.calls[0][0].data).not.toHaveProperty("paymentInstructions");
+    expect(await screen.findByTestId("special-payment-instructions")).toBeInTheDocument();
+  });
+  it("shows nothing when no instructions are provided", () => {
+    render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} checkPayee={null} />);
+    expect(screen.queryByTestId("special-payment-instructions")).toBeNull();
+  });
+});

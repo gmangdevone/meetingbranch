@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import {
+  normalizePaymentInstructions,
   normalizeCashtag,
   cashAppUrlError,
   paymentUrlError,
@@ -57,7 +58,7 @@ describe("cash.app link validation", () => {
 describe("generic destinations", () => {
   it("allows a safe generic https link without a Cash App tag", () => {
     const r = validateRecipientInput({ paymentHandle: "Family Fund at First Bank", paymentUrl: "https://pay.example.org/reunion" });
-    expect(r).toEqual({ ok: true, values: { cashAppTag: null, paymentHandle: "Family Fund at First Bank", paymentUrl: "https://pay.example.org/reunion", zelleRecipientName: null, zelleContact: null } });
+    expect(r).toEqual({ ok: true, values: { cashAppTag: null, paymentHandle: "Family Fund at First Bank", paymentUrl: "https://pay.example.org/reunion", zelleRecipientName: null, zelleContact: null, paymentInstructions: null } });
   });
   it.each([
     "http://pay.example.org",
@@ -177,7 +178,7 @@ describe("Zelle recipient", () => {
   it("accepts a Zelle-only destination and normalizes it", () => {
     expect(validateRecipientInput({ zelleRecipientName: "  Rhonda   Goudy ", zelleContact: "(312) 555-0147" })).toEqual({
       ok: true,
-      values: { cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147" },
+      values: { cashAppTag: null, paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147", paymentInstructions: null },
     });
   });
   it("resolves Zelle only for approved valid rows", () => {
@@ -198,5 +199,41 @@ describe("Zelle recipient", () => {
   });
   it("treats Zelle fields as destination keys", () => {
     expect(findDestinationKeys({ zelleContact: "x", zelleRecipientName: "y" })).toEqual(["zelleRecipientName", "zelleContact"]);
+  });
+});
+
+describe("special payment instructions", () => {
+  it("normalizes line endings, trailing spaces and blank runs; blank clears", () => {
+    expect(normalizePaymentInstructions("  a  \r\n\r\n\r\n\r\nb\rc ")).toEqual({ ok: true, value: "a\n\nb\nc" });
+    expect(normalizePaymentInstructions("  \n\t ")).toEqual({ ok: true, value: null });
+    expect(normalizePaymentInstructions(null)).toEqual({ ok: true, value: null });
+  });
+  it("rejects non-text, over-length and invisible/control characters", () => {
+    expect(normalizePaymentInstructions(5).ok).toBe(false);
+    expect(normalizePaymentInstructions("x".repeat(2001)).ok).toBe(false);
+    expect(normalizePaymentInstructions("x".repeat(2000)).ok).toBe(true);
+    for (const bad of ["a\u0000b", "a\u202eb", "a\u200bb"]) expect(normalizePaymentInstructions(bad).ok).toBe(false);
+  });
+  it("keeps HTML-looking text literally (rendering escapes it)", () => {
+    expect(normalizePaymentInstructions("<b>hi</b>")).toEqual({ ok: true, value: "<b>hi</b>" });
+  });
+  it("allows instructions as the only approved content and resolves them publicly", () => {
+    const v = validateRecipientInput({ paymentInstructions: "Pay cash at check-in" });
+    expect(v.ok).toBe(true);
+    const pub = resolvePublicRecipient(1, { status: "approved", cashAppTag: null, paymentHandle: null, paymentUrl: null, paymentInstructions: "Pay cash", updatedAt: new Date() });
+    expect(pub).toMatchObject({ status: "approved", paymentInstructions: "Pay cash" });
+  });
+  it("hides instructions when disabled or unapproved", () => {
+    expect(resolvePublicRecipient(1, { status: "disabled", cashAppTag: null, paymentHandle: null, paymentUrl: null, paymentInstructions: "x", updatedAt: new Date() }).paymentInstructions).toBeNull();
+    expect(resolvePublicRecipient(1, null).paymentInstructions).toBeNull();
+  });
+  it("method disables preserve instructions only when another destination remains", () => {
+    const base = { cashAppTag: "Fund1", paymentHandle: null, paymentUrl: null, zelleRecipientName: "Rhonda Goudy", zelleContact: "r@example.org", paymentInstructions: "note" };
+    expect(withoutCashApp(base)?.paymentInstructions).toBe("note");
+    expect(withoutZelle(base)?.paymentInstructions).toBe("note");
+    expect(withoutZelle({ ...base, cashAppTag: null })).toBeNull();
+  });
+  it("is a blocked destination key on ordinary routes", () => {
+    expect(findDestinationKeys({ paymentInstructions: "x" })).toEqual(["paymentInstructions"]);
   });
 });
