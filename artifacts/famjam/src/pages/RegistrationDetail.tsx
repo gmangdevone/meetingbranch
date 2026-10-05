@@ -84,10 +84,10 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
     <div className="max-w-2xl mx-auto py-8">
       <Button 
         variant="ghost" 
-        onClick={() => setLocation("/dashboard")} 
+        onClick={() => setLocation(reg.reunionCode ? eventCodePath(reg.reunionCode) : "/")}
         className="mb-6 -ml-4 text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
       </Button>
 
       <div className="flex flex-col gap-6">
