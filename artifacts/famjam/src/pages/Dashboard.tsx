@@ -1,68 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useListMyReunions, useListMyRegistrations, useGetSettings } from "@workspace/api-client-react";
-import { CalendarDays, Settings, ArrowRight, Key } from "lucide-react";
+import { useListMyReunions, useGetSettings } from "@workspace/api-client-react";
+import { Settings, ArrowRight, Key } from "lucide-react";
 import { format } from "date-fns";
 import { Greeting } from "../components/Greeting";
 import { Skeleton } from "../components/ui/skeleton";
-import { eventCodePath } from "../lib/eventCode";
-import { getEventCountdownLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
-
-function RegisteredEventCountdownCard({ code, now }: { code: string; now: Date }) {
-  const { data: reunion } = useGetReunionByCode(code, {
-    query: {
-      enabled: !!code,
-      retry: false,
-      queryKey: getGetReunionByCodeQueryKey(code),
-    },
-  });
-
-  if (!reunion) return null;
-
-  return (
-    <Link
-      href={eventCodePath(reunion.code)}
-      className="group flex flex-col gap-4 rounded-3xl border border-primary/20 bg-primary/10 p-6 transition-all hover:border-primary/40 hover:bg-primary/15 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
-    >
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <CalendarDays className="h-6 w-6" />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Event Countdown</p>
-          <h3 className="font-serif text-xl font-bold text-foreground">{reunion.name}</h3>
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(reunion.startDate), "MMM d")} - {format(new Date(reunion.endDate), "MMM d, yyyy")}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 sm:text-right">
-        <span className="text-lg font-bold text-primary">
-          {getEventCountdownLabel(new Date(reunion.startDate), new Date(reunion.endDate), now)}
-        </span>
-        <ArrowRight className="h-5 w-5 text-primary transition-transform group-hover:translate-x-1" />
-        <span className="sr-only">Go to Reunion Hub</span>
-      </div>
-    </Link>
-  );
-}
+import { millisecondsUntilNextDay } from "../lib/eventMomentum";
+import { MyEvents } from "../components/dashboard/MyEvents";
 
 export function Dashboard() {
   const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
-  const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
   const { data: settings } = useGetSettings();
   const canCreateReunion = settings?.reunionCreationEnabled ?? false;
 
   const [countdownNow, setCountdownNow] = useState(() => new Date());
-  const registeredEventCodes = Array.from(
-    new Set(
-      (registrations ?? [])
-        .filter((registration) => registration.status === "active")
-        .map((registration) => registration.reunionCode)
-        .filter((code): code is string => !!code),
-    ),
-  );
-
   useEffect(() => {
     const scheduleRefresh = () => {
       const now = new Date();
@@ -81,18 +32,7 @@ export function Dashboard() {
         <p className="text-lg text-muted-foreground">Manage your upcoming family gatherings.</p>
       </div>
 
-      {!loadingRegistrations && registeredEventCodes.length > 0 && (
-        <section>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="font-serif text-2xl font-bold text-foreground">Upcoming Reunions</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-4">
-            {registeredEventCodes.map((eventCode) => (
-              <RegisteredEventCountdownCard key={eventCode} code={eventCode} now={countdownNow} />
-            ))}
-          </div>
-        </section>
-      )}
+      <MyEvents now={countdownNow} />
 
       <section>
         <Link

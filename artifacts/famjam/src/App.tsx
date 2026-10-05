@@ -2,15 +2,13 @@ import { useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, RedirectToSignIn } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
-import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from "wouter";
+import { Switch, Route, useLocation, Router as WouterRouter, Link } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
-import { eventCodePath } from "./lib/eventCode";
-import { useListMyRegistrations, useListMyReunions } from "@workspace/api-client-react";
 
 import { Layout } from "./components/Layout";
 import { AccessGate } from "./components/AccessGate";
-import { Greeting } from "./components/Greeting";
+import { PostLoginLanding } from "./components/PostLoginLanding";
 import { ProfileProvider } from "./lib/profile";
 import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
@@ -168,75 +166,6 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-function PostLoginLanding() {
-  const { data: registrations, isLoading: loadingRegistrations } = useListMyRegistrations();
-  const { data: reunions, isLoading: loadingReunions } = useListMyReunions();
-
-  if (loadingRegistrations || loadingReunions) {
-    return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  // Organizers go to the dashboard where their reunions are managed.
-  if (reunions && reunions.length > 0) {
-    return <Redirect to="/dashboard" />;
-  }
-
-  // Unique reunions the user has an active registration in.
-  const joined = new Map<string, { code: string; name: string }>();
-  for (const reg of registrations ?? []) {
-    if (reg.status === "cancelled" || !reg.reunionCode) continue;
-    if (!joined.has(reg.reunionCode)) {
-      joined.set(reg.reunionCode, {
-        code: reg.reunionCode,
-        name: reg.reunionName || `Reunion ${reg.reunionCode}`,
-      });
-    }
-  }
-
-  if (joined.size === 0) {
-    return <Redirect to="/dashboard" />;
-  }
-
-  if (joined.size === 1) {
-    const only = joined.values().next().value!;
-    return <Redirect to={eventCodePath(only.code)} />;
-  }
-
-  return (
-    <div className="max-w-xl mx-auto py-16 px-4 flex flex-col gap-8">
-      <div className="text-center">
-        <Greeting className="font-serif text-2xl font-bold text-primary mb-1" />
-        <h1 className="font-serif text-4xl font-bold mb-2">Choose a Reunion</h1>
-        <p className="text-lg text-muted-foreground">Which reunion would you like to visit?</p>
-      </div>
-      <div className="flex flex-col gap-4">
-        {[...joined.values()].map((r) => (
-          <Link
-            key={r.code}
-            href={eventCodePath(r.code)}
-            className="bg-card border shadow-sm rounded-3xl p-6 flex items-center justify-between gap-4 hover:border-primary/50 hover:shadow-md transition-all group"
-          >
-            <div>
-              <h3 className="font-bold text-lg group-hover:text-primary transition-colors">{r.name}</h3>
-              <p className="text-sm text-muted-foreground font-mono">{r.code}</p>
-            </div>
-            <span className="text-primary font-medium shrink-0">Go to Hub →</span>
-          </Link>
-        ))}
-      </div>
-      <div className="text-center">
-        <Link href="/dashboard" className="text-muted-foreground hover:text-foreground text-sm font-medium hover:underline">
-          Go to my dashboard instead
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 function HomeRedirect() {
   return (
     <>
@@ -292,6 +221,10 @@ function ClerkProviderWithRoutes() {
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
+      // Only used when no explicit redirect_url/returnTo is present, so deep
+      // links and protected-route returns still win; "/" then resolves membership.
+      signInFallbackRedirectUrl={`${basePath}/`}
+      signUpFallbackRedirectUrl={`${basePath}/`}
       localization={{
         signIn: {
           start: {

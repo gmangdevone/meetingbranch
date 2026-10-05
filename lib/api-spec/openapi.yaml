@@ -440,6 +440,29 @@ paths:
         "401":
           description: Unauthorized
 
+  /me/event-memberships:
+    get:
+      operationId: listMyEventMemberships
+      tags: [reunions]
+      summary: Events the current user is associated with (deduplicated by reunion id)
+      description: >
+        One entry per reunion where the user is the organizer, an added co-organizer,
+        or has at least one active (non-cancelled) registration. Admin visibility does
+        not count as membership.
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Associated events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventMembership"
+        "401":
+          description: Unauthorized
+
   /reunions/by-code/{code}:
     get:
       operationId: getReunionByCode
@@ -3506,6 +3529,26 @@ components:
           minLength: 1
           description: The user id of an existing co-organizer to promote to owner
 
+    EventMembership:
+      type: object
+      required: [reunionId, code, name, startDate, endDate, isOrganizer, isCoOrganizer, activeRegistrationCount]
+      properties:
+        reunionId:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        isOrganizer:
+          type: boolean
+        isCoOrganizer:
+          type: boolean
+        activeRegistrationCount:
+          type: integer
     ReunionSummary:
       type: object
       required: [reunion, registrationCount, attendeeCount]

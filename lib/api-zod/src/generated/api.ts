@@ -547,6 +547,23 @@ export const ListMyReunionsResponse = zod.array(ListMyReunionsResponseItem)
 
 
 /**
+ * One entry per reunion where the user is the organizer, an added co-organizer, or has at least one active (non-cancelled) registration. Admin visibility does not count as membership.
+ * @summary Events the current user is associated with (deduplicated by reunion id)
+ */
+export const ListMyEventMembershipsResponseItem = zod.object({
+  "reunionId": zod.number(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "isOrganizer": zod.boolean(),
+  "isCoOrganizer": zod.boolean(),
+  "activeRegistrationCount": zod.number()
+})
+export const ListMyEventMembershipsResponse = zod.array(ListMyEventMembershipsResponseItem)
+
+
+/**
  * @summary Public lookup of an event by its event code
  */
 export const getReunionByCodePathCodeMin = 7;

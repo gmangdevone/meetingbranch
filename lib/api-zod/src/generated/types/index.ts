@@ -36,6 +36,7 @@ export * from './checkInInput';
 export * from './dayRegistrationCount';
 export * from './errorEnvelope';
 export * from './errorResponse';
+export * from './eventMembership';
 export * from './feeAgeTier';
 export * from './feeChargeType';
 export * from './feeInput';

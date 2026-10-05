@@ -45,6 +45,7 @@ import type {
   CheckInInput,
   ErrorEnvelope,
   ErrorResponse,
+  EventMembership,
   FeeInput,
   HealthStatus,
   ManageActivityChoice,
@@ -1398,6 +1399,84 @@ export function useListMyReunions<TData = Awaited<ReturnType<typeof listMyReunio
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListMyReunionsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListMyEventMembershipsUrl = () => {
+
+
+
+
+  return `/api/me/event-memberships`
+}
+
+/**
+ * One entry per reunion where the user is the organizer, an added co-organizer, or has at least one active (non-cancelled) registration. Admin visibility does not count as membership.
+ * @summary Events the current user is associated with (deduplicated by reunion id)
+ */
+export const listMyEventMemberships = async ( options?: RequestInit): Promise<EventMembership[]> => {
+
+  return customFetch<EventMembership[]>(getListMyEventMembershipsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyEventMembershipsQueryKey = () => {
+    return [
+    `/api/me/event-memberships`
+    ] as const;
+    }
+
+
+export const getListMyEventMembershipsQueryOptions = <TData = Awaited<ReturnType<typeof listMyEventMemberships>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyEventMemberships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyEventMembershipsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyEventMemberships>>> = ({ signal }) => listMyEventMemberships({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyEventMemberships>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyEventMembershipsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyEventMemberships>>>
+export type ListMyEventMembershipsQueryError = ErrorType<void>
+
+
+/**
+ * @summary Events the current user is associated with (deduplicated by reunion id)
+ */
+
+export function useListMyEventMemberships<TData = Awaited<ReturnType<typeof listMyEventMemberships>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyEventMemberships>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyEventMembershipsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

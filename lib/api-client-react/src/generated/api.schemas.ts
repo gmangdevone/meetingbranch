@@ -922,6 +922,17 @@ export interface TransferOwnershipInput {
   userId: string;
 }
 
+export interface EventMembership {
+  reunionId: number;
+  code: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isOrganizer: boolean;
+  isCoOrganizer: boolean;
+  activeRegistrationCount: number;
+}
+
 export interface ReunionSummary {
   reunion: Reunion;
   registrationCount: number;
