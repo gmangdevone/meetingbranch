@@ -160,7 +160,7 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             
             <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
               {!isPaid && !isCancelled ? (
-                <Button asChild variant="outline" className="rounded-xl w-full sm:w-auto">
+                <Button asChild className="rounded-xl w-full sm:w-auto bg-red-600 text-white hover:bg-red-700 hover:text-white">
                   <a href="#payment-instructions">Go to Payment Instructions</a>
                 </Button>
               ) : (
