@@ -159,9 +159,15 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             </div>
             
             <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
-              <Button onClick={() => setLocation(eventCodePath(reg.reunionCode!))} variant="outline" className="rounded-xl w-full sm:w-auto">
-                Go to Reunion Hub
-              </Button>
+              {!isPaid && !isCancelled ? (
+                <Button asChild variant="outline" className="rounded-xl w-full sm:w-auto">
+                  <a href="#payment-instructions">Go to Payment Instructions</a>
+                </Button>
+              ) : (
+                <Button onClick={() => setLocation(eventCodePath(reg.reunionCode!))} variant="outline" className="rounded-xl w-full sm:w-auto">
+                  Go to Reunion Hub
+                </Button>
+              )}
 
               {!isCancelled && canEdit && (
                 <Button
@@ -260,7 +266,7 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
               Your registration is saved, but you still need to pay the organizer to complete it. They will update your status once payment is received.
             </p>
             
-            <div className="bg-white dark:bg-background border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 w-full text-left">
+            <div id="payment-instructions" tabIndex={-1} className="scroll-mt-6 bg-white dark:bg-background border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 w-full text-left">
               {fetchingReunion ? <p role="status">Loading payment instructions…</p> :
                 reunionError ? <div role="alert">
                   <p>Could not load payment instructions.</p>
