@@ -15,16 +15,18 @@ import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
 import { eventCodePath } from "../lib/eventCode";
 import { computeTotal, computeFeeAmount, feeApplies, describeFee } from "../lib/fees";
+import { registrationPricingReady } from "../lib/registrationReadiness";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
 const formSchema = z.object({
   branchName: z.string().min(1, "Please select your family branch"),
   attendees: z.array(z.object({
-    name: z.string().min(1, "Name is required"),
+    name: z.string().trim().min(1, "Name is required"),
     shirtSize: z.enum(SHIRT_SIZES, { required_error: "Shirt size is required" }),
     dietaryRestrictions: z.string().optional(),
-    age: z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age"),
+    age: z.preprocess((value) => value == null || String(value).trim() === "" ? undefined : value,
+      z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age")),
   })).min(1, "Add at least one attendee"),
   sponsorshipContribution: z.coerce.number().int().min(0).optional(),
 });
@@ -80,34 +82,35 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
 
   const watchAttendees = form.watch("attendees");
   const watchSponsorshipContribution = form.watch("sponsorshipContribution");
+  const pricingReady = registrationPricingReady(watchAttendees, watchSponsorshipContribution);
+  const pendingPriceMessage = "Enter each attendee's name and valid age to calculate your total.";
 
   // Live totals: parse ages defensively since inputs emit strings before submit.
-  const feeAttendees = useMemo(
-    () =>
-      watchAttendees.map((a) => {
-        const n = Number(a?.age);
-        return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n };
-      }),
-    [watchAttendees],
-  );
+  // React Hook Form can mutate the watched array in place. Derive ages on
+  // every render rather than memoizing on that array's identity.
+  const feeAttendees = watchAttendees.map((a) => {
+    const n = Number(a?.age);
+    return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n };
+  });
 
   const fees = reunion?.fees ?? [];
   const optionalFees = useMemo(() => fees.filter((f) => f.isOptional), [fees]);
   const feeLines = useMemo(
     () =>
-      fees
+      (pricingReady ? fees : [])
         .filter((f) => feeApplies(f, selectedFeeIds))
         .map((f) => ({ id: f.id, label: f.label, amount: computeFeeAmount(f, feeAttendees) }))
         .filter((line) => line.amount > 0),
-    [fees, selectedFeeIds, feeAttendees],
+    [fees, selectedFeeIds, feeAttendees, pricingReady],
   );
   const totalCost = useMemo(
     () => {
+      if (!pricingReady) return null;
       const baseTotal = reunion ? computeTotal(fees, feeAttendees, selectedFeeIds) : 0;
       const contribution = Number(watchSponsorshipContribution) || 0;
       return baseTotal + contribution;
     },
-    [reunion, fees, feeAttendees, selectedFeeIds, watchSponsorshipContribution],
+    [reunion, fees, feeAttendees, selectedFeeIds, watchSponsorshipContribution, pricingReady],
   );
 
   const toggleFee = (feeId: number, checked: boolean) =>
@@ -238,9 +241,10 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
           </span>
           <span className="flex items-baseline gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/70">Total</span>
-            <span className="font-serif text-2xl font-bold tabular-nums">${totalCost}</span>
+            <span className="font-serif text-2xl font-bold tabular-nums">{pricingReady ? `$${totalCost}` : "—"}</span>
           </span>
         </div>
+        {!pricingReady && <p className="text-sm text-muted-foreground mt-2">{pendingPriceMessage}</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -452,7 +456,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                     <span>Attendees</span>
                     <span>{watchAttendees.length}</span>
                   </div>
-                  {feeLines.length > 0 && (
+                  {!pricingReady && <p className="text-sm mt-4">{pendingPriceMessage}</p>}
+                  {pricingReady && (
                     <>
                       <div className="mb-4 pb-4 border-b border-primary-foreground/20 space-y-1">
                         {feeLines.map((line) => (
@@ -496,7 +501,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                 <span className="font-bold text-xl">{watchAttendees.length}</span>
               </div>
               
-              {(feeLines.length > 0 || Number(watchSponsorshipContribution) > 0) && (
+              {!pricingReady && <p className="text-sm text-muted-foreground">{pendingPriceMessage}</p>}
+              {pricingReady && (
                 <>
                   <div className="space-y-2 pt-2">
                     {feeLines.map((line) => (
