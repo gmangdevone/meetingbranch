@@ -11,6 +11,7 @@ import { Input } from "../components/ui/input";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { eventCodePath } from "../lib/eventCode";
+import { PaymentInstructions } from "../components/payments/PaymentInstructions";
 
 export function RegistrationDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
@@ -28,10 +29,11 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
 
   const transferMutation = useTransferRegistration();
 
-  const { data: regReunion } = useGetReunionByCode(reg?.reunionCode ?? "", {
+  const { data: regReunion, isFetching: fetchingReunion, isError: reunionError, refetch: reloadReunion } = useGetReunionByCode(reg?.reunionCode ?? "", {
     query: {
       enabled: !!reg?.reunionCode,
       retry: false,
+      refetchOnMount: "always",
       queryKey: getGetReunionByCodeQueryKey(reg?.reunionCode ?? ""),
     },
   });
@@ -259,13 +261,12 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             </p>
             
             <div className="bg-white dark:bg-background border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 w-full text-left">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Send payment to</p>
-              <p className="font-mono text-xl font-bold mb-4">{/* Fallback generic text since we don't have reunion info directly on reg object without fetching reunion */}
-                 See Reunion Hub for payment details
-              </p>
-              <Button onClick={() => setLocation(eventCodePath(reg.reunionCode!))} className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-lg">
-                View Payment Instructions
-              </Button>
+              {fetchingReunion ? <p role="status">Loading payment instructions…</p> :
+                reunionError ? <div role="alert">
+                  <p>Could not load payment instructions.</p>
+                  <Button variant="outline" onClick={() => reloadReunion()}>Try again</Button>
+                </div> :
+                <PaymentInstructions recipient={regReunion?.paymentRecipient} checkPayee={regReunion?.checkPayee} />}
             </div>
           </div>
         )}
