@@ -989,7 +989,7 @@ paths:
     put:
       operationId: updateBranchSpecialFee
       tags: [manage]
-      summary: Configure a branch's one shared special fee (power users)
+      summary: Configure a branch's once-per-branch special fee (power users). Unpaid elections follow the new amount.
       security:
         - clerkAuth: []
       parameters:
@@ -1018,7 +1018,7 @@ paths:
     get:
       operationId: listBranchFees
       tags: [manage]
-      summary: Shared branch fee balances and confirmed history (power users and registration managers)
+      summary: Branch fee status, elected payer, confirmed history and report totals (power users, registration managers, reports)
       security:
         - clerkAuth: []
       parameters:
@@ -1031,26 +1031,132 @@ paths:
               schema: { $ref: "#/components/schemas/BranchFeeLedgerList" }
         "403": { description: Forbidden }
 
-  /registrations/{id}/branch-fee:
+  /reunions/{reunionId}/branch-fee-options:
     get:
-      operationId: getRegistrationBranchFee
+      operationId: listBranchFeeOptions
       tags: [registrations]
-      summary: The shared special fee for this registration's branch (registrant or registration manager; payers hidden)
+      summary: Each active branch's special fee and whether the signed-in member can elect it (no other payer identities)
       security:
         - clerkAuth: []
       parameters:
-        - name: id
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Branch fee options
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BranchFeeOptionList" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
+  /reunions/{reunionId}/branch-fee-elections:
+    post:
+      operationId: electBranchFee
+      tags: [registrations]
+      summary: Elect to pay a branch's special fee in full (once per branch). Idempotent for the same member.
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchFeeElectionInput" }
+      responses:
+        "200":
+          description: The member's election (new or existing)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyBranchFeeElection" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+        "409":
+          description: Already paid, claimed by someone else, disabled, or the amount changed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /reunions/{reunionId}/branch-fee-elections/mine:
+    get:
+      operationId: listMyBranchFeeElections
+      tags: [registrations]
+      summary: The signed-in member's branch fee elections with status and confirmed history
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: My elections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MyBranchFeeElectionList" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
+  /branch-fee-elections/{electionId}:
+    delete:
+      operationId: releaseBranchFeeElection
+      tags: [registrations]
+      summary: Release an unpaid election (its owner, or a registration manager / power user) so the branch can be elected again
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: electionId
           in: path
           required: true
           schema: { type: integer }
       responses:
-        "200":
-          description: Branch fee (null when the branch has none)
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/RegistrationBranchFee" }
+        "204": { description: Released }
         "403": { description: Forbidden }
         "404": { description: Not found }
+        "409":
+          description: Already paid or awaiting confirmation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /branch-fee-elections/{electionId}/payment-submissions:
+    post:
+      operationId: createBranchFeePaymentSubmission
+      tags: [registrations]
+      summary: Report a full branch fee payment on its own (no attendee registration). Pending until an organizer confirms.
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchFeePaymentInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentSubmission" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+        "409":
+          description: Already paid or already reported
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /reunions/{reunionId}/receipts:
     post:
@@ -3064,15 +3170,15 @@ components:
           type: array
           items:
             type: integer
-          description: "All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report."
+          description: "All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. Must not be empty (use the branch fee endpoint for a fee-only report)."
         contributionIds:
           type: array
           items:
             type: integer
           description: "Standalone fund chip-ins (contribution ids with no registration) this payment also covers."
-        branchFeeAmount:
-          type: ["number", "null"]
-          description: "Portion (dollars and cents) for the path registration's branch special fee. Explicit opt-in only. Informational until confirmed."
+        branchFeeElectionId:
+          type: ["integer", "null"]
+          description: "The member's own unpaid branch fee election to include IN FULL. Explicit opt-in only. Pending until confirmed."
         reference:
           type: ["string", "null"]
           description: "Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check)."
@@ -3515,7 +3621,7 @@ components:
 
     BranchFeeEntry:
       type: object
-      required: [receiptId, kind, cents, createdAt, reversed]
+      required: [receiptId, kind, cents, createdAt, reversed, legacy]
       properties:
         receiptId: { type: integer }
         kind: { type: string }
@@ -3525,52 +3631,134 @@ components:
         createdAt: { type: string, format: date-time }
         reversed: { type: boolean }
         reversalReason: { type: string, nullable: true }
-        payerRegistrationId:
-          type: integer
-          nullable: true
-          description: Organizer view only (null for members; payers are private).
+        legacy: { type: boolean, description: "Pooled partial money from the earlier model. Kept for review; never marks the fee paid." }
         payerName:
           type: string
           nullable: true
-          description: Organizer view only (null for members; payers are private).
+          description: Organizer view only.
+
+    BranchFeeElectionSummary:
+      type: object
+      required: [id, status, amountCents, createdAt]
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [unpaid, reported, paid] }
+        amountCents: { type: integer }
+        createdAt: { type: string, format: date-time }
+        userName: { type: string, nullable: true }
+        userEmail: { type: string, nullable: true }
+        pendingSubmissionId: { type: integer, nullable: true }
 
     BranchFeeLedger:
       type: object
-      required: [branchId, branchName, label, enabled, archived, amountCents, paidCents, remainingCents, creditCents, pendingReportedCents, settled, entries]
+      required: [branchId, branchName, label, enabled, archived, amountCents, state, paidCents, legacyCents, entries]
       properties:
         branchId: { type: integer }
         branchName: { type: string }
         label: { type: string }
         enabled: { type: boolean }
         archived: { type: boolean }
-        amountCents: { type: integer }
-        paidCents: { type: integer, description: Confirmed receipts only. }
-        remainingCents: { type: integer }
-        creditCents: { type: integer, description: Confirmed money above the current amount (e.g. after a reduction), kept for organizer review. }
-        pendingReportedCents: { type: integer, description: Self-reported, not yet confirmed. Never reduces the balance. }
-        settled: { type: boolean }
+        amountCents: { type: integer, description: Configured full fee. }
+        state: { type: string, enum: [off, open, elected, reported, paid, legacy_review], description: "off: not collecting; open: nobody has elected; elected/reported: an unpaid election; paid: confirmed in full (by an election, or by legacy pooled money covering the full fee); legacy_review: partial legacy pooled money awaits organizer review, so new elections are blocked." }
+        paidCents: { type: integer, description: Confirmed full-fee payment (0 until paid). }
+        legacyCents: { type: integer, description: Non-reversed pooled partial money from the earlier model, for review. }
+        election:
+          oneOf:
+            - $ref: "#/components/schemas/BranchFeeElectionSummary"
+            - type: "null"
         entries: { type: array, items: { $ref: "#/components/schemas/BranchFeeEntry" } }
+
+    BranchFeeOutstanding:
+      type: object
+      required: [branchId, branchName, label, amountCents, elected]
+      properties:
+        branchId: { type: integer }
+        branchName: { type: string }
+        label: { type: string }
+        amountCents: { type: integer }
+        elected: { type: boolean }
+
+    BranchFeeSummary:
+      type: object
+      required: [paidCount, paidCents, outstandingCount, outstandingCents, outstanding]
+      properties:
+        paidCount: { type: integer }
+        paidCents: { type: integer }
+        outstandingCount: { type: integer }
+        outstandingCents: { type: integer }
+        outstanding: { type: array, items: { $ref: "#/components/schemas/BranchFeeOutstanding" } }
 
     BranchFeeLedgerList:
       type: object
-      required: [branches]
+      required: [branches, summary]
       properties:
         branches: { type: array, items: { $ref: "#/components/schemas/BranchFeeLedger" } }
+        summary: { $ref: "#/components/schemas/BranchFeeSummary" }
 
-    RegistrationBranchFee:
+    BranchFeeOption:
       type: object
-      required: [branchFee]
+      required: [branchId, branchName, label, amountCents, state]
       properties:
-        branchFee:
-          oneOf:
-            - $ref: "#/components/schemas/BranchFeeLedger"
-            - type: "null"
+        branchId: { type: integer }
+        branchName: { type: string }
+        label: { type: string }
+        amountCents: { type: integer }
+        state:
+          type: string
+          enum: [available, yours_unpaid, yours_reported, yours_paid, paid, claimed, under_review, yours_disabled]
+          description: "claimed: another member elected it (identity hidden)."
+        electionId: { type: integer, nullable: true, description: Only for the member's own election. }
+
+    BranchFeeOptionList:
+      type: object
+      required: [options]
+      properties:
+        options: { type: array, items: { $ref: "#/components/schemas/BranchFeeOption" } }
+
+    BranchFeeElectionInput:
+      type: object
+      required: [branchId, expectedAmountCents]
+      properties:
+        branchId: { type: integer }
+        expectedAmountCents: { type: integer, description: The full fee the member saw; a mismatch returns 409 so they can re-confirm. }
+
+    MyBranchFeeElection:
+      type: object
+      required: [id, reunionId, branchId, branchName, label, amountCents, status, collecting, createdAt, history]
+      properties:
+        id: { type: integer }
+        collecting: { type: boolean, description: "False when the branch fee is turned off or the branch removed; unpaid elections then can't be paid." }
+        reunionId: { type: integer }
+        branchId: { type: integer }
+        branchName: { type: string }
+        label: { type: string }
+        amountCents: { type: integer }
+        status: { type: string, enum: [unpaid, reported, paid] }
+        createdAt: { type: string, format: date-time }
+        pendingSubmissionId: { type: integer, nullable: true }
+        history: { type: array, items: { $ref: "#/components/schemas/BranchFeeEntry" } }
+
+    MyBranchFeeElectionList:
+      type: object
+      required: [elections]
+      properties:
+        elections: { type: array, items: { $ref: "#/components/schemas/MyBranchFeeElection" } }
+
+    BranchFeePaymentInput:
+      type: object
+      required: [method]
+      properties:
+        method: { type: string, enum: [cashapp, zelle, cash, check] }
+        reference: { type: string, nullable: true, maxLength: 200 }
+        givenDate: { type: string, nullable: true }
+        note: { type: string, nullable: true, maxLength: 1000 }
 
     SubmissionBranchFee:
       type: object
       required: [branchId, label, amountCents]
       properties:
         branchId: { type: integer }
+        electionId: { type: integer, nullable: true }
         branchName: { type: string, nullable: true }
         label: { type: string }
         amountCents: { type: integer }
@@ -3804,7 +3992,7 @@ components:
 
     EventMembership:
       type: object
-      required: [reunionId, code, name, startDate, endDate, isOrganizer, isCoOrganizer, activeRegistrationCount]
+      required: [reunionId, code, name, startDate, endDate, isOrganizer, isCoOrganizer, activeRegistrationCount, activeBranchFeeElectionCount]
       properties:
         reunionId:
           type: integer
@@ -3820,6 +4008,9 @@ components:
           type: boolean
         isCoOrganizer:
           type: boolean
+        activeBranchFeeElectionCount:
+          type: integer
+          description: Active branch fees this member chose to pay (fee-only members have no registration). Not headcount.
         activeRegistrationCount:
           type: integer
     ReunionSummary:
@@ -4581,11 +4772,7 @@ components:
         branchId:
           type: integer
           nullable: true
-          description: Branch special fee (shared once per branch). Never touches registration balances or the fund.
-        payerRegistrationId:
-          type: integer
-          nullable: true
-          description: Who paid the branch fee (private, organizer-only). Must be an active registration in that branch.
+          description: Branch special fee. Pays the branch's active election IN FULL (amount must equal it); a branch can be marked paid only once.
         amountCents: { type: integer }
     ReceiptInput:
       type: object

@@ -13,6 +13,7 @@ import imagesRouter from "./images";
 import profileRouter from "./profile";
 import paymentRecipientsRouter from "./paymentRecipients";
 import ledgerRouter from "./ledger";
+import branchFeeElectionsRouter from "./branchFeeElections";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(healthRouter);
 // router's global requireAdmin (owner authority never derives from isAdmin).
 router.use(paymentRecipientsRouter);
 router.use(ledgerRouter);
+router.use(branchFeeElectionsRouter);
 router.use(profileRouter);
 router.use(settingsRouter);
 router.use(pollsRouter);

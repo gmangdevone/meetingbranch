@@ -3,6 +3,7 @@ import { OrganizerLayout } from "./OrganizerLayout";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Users, Shirt, Utensils, CreditCard } from "lucide-react";
 import { money } from "../../components/payments/money";
+import { BranchFeeReport } from "../../components/payments/BranchFeeReport";
 
 const COLORS = ['hsl(15 80% 55%)', 'hsl(190 40% 30%)', 'hsl(45 90% 60%)', 'hsl(0 84% 60%)', '#8b5cf6', '#10b981', '#f97316'];
 
@@ -132,6 +133,7 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
             )}
           </div>
         </div>
+        <BranchFeeReport reunionId={reunionId} />
       </div>
     </OrganizerLayout>
   );

@@ -3,7 +3,10 @@ import {
   getReunionPaymentRecipient,
   useCreatePaymentSubmission,
   useCreateContributionPaymentSubmission,
+  useCreateBranchFeePaymentSubmission,
   getGetMyContributionsQueryKey,
+  getListMyBranchFeeElectionsQueryKey,
+  getListBranchFeeOptionsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidateMoney } from "./payments/money";
@@ -43,22 +46,17 @@ export interface PayableChipIn {
 }
 
 /**
- * A branch's ONE shared special fee (once per branch, not per registration).
- * Always opt-in: it starts unchecked and is never folded into dues.
+ * A branch special fee the member chose to pay (their own election). Always
+ * the FULL fee, once per branch; never part of registration dues.
  */
 export interface PayableBranchFee {
-  /** The registrant's registration in that branch (the report is filed under it). */
-  registrationId: number;
+  electionId: number;
   branchId: number;
   branchName: string;
   label: string;
-  remainingCents: number;
+  amountCents: number;
 }
 
-const centsOf = (v: string) => {
-  const m = /^\$?(\d{1,7})(?:\.(\d{1,2}))?$/.exec(v.trim().replace(/,/g, ""));
-  return m ? Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0")) : 0;
-};
 
 export function SubmitPayment({
   reunionId,
@@ -92,30 +90,30 @@ export function SubmitPayment({
     registrations.filter((r) => regIds.includes(r.id)).reduce((sum, r) => sum + r.amount, 0) +
     chipIns.filter((c) => chipInIds.includes(c.id)).reduce((sum, c) => sum + c.amount, 0);
   const selectedTotal = computeSelectedTotal(selectedIds, selectedChipInIds);
-  const [amount, setAmount] = useState(selectedTotal > 0 ? selectedTotal.toFixed(2) : "");
-  // Only one branch fee per report (it's filed under that branch's registration).
-  const [feeBranchId, setFeeBranchId] = useState<number | null>(null);
-  const [feeAmount, setFeeAmount] = useState("");
-  const selectedFee = branchFees.find((f) => f.branchId === feeBranchId) ?? null;
-  const feeCents = selectedFee ? centsOf(feeAmount) : 0;
+  const initialFeeCents = registrations.length + chipIns.length === 0 && branchFees.length > 0 ? branchFees[0].amountCents : 0;
+  const [amount, setAmount] = useState(() => {
+    const c = Math.round(selectedTotal * 100) + initialFeeCents;
+    return c > 0 ? (c / 100).toFixed(2) : "";
+  });
+  // One branch fee per report, always in full. Pre-checked only when it's the
+  // only thing owed (fee-only members); otherwise an explicit opt-in.
+  const [feeElectionId, setFeeElectionId] = useState<number | null>(
+    registrations.length + chipIns.length === 0 && branchFees.length > 0 ? branchFees[0].electionId : null,
+  );
+  const selectedFee = branchFees.find((f) => f.electionId === feeElectionId) ?? null;
+  const feeCents = selectedFee ? selectedFee.amountCents : 0;
   const syncAmount = (regIds: number[], chipInIds: number[], feeC: number) => {
     const total = Math.round(computeSelectedTotal(regIds, chipInIds) * 100) + feeC;
     setAmount(total > 0 ? (total / 100).toFixed(2) : "");
   };
   const toggleBranchFee = (fee: PayableBranchFee) => {
-    if (feeBranchId === fee.branchId) {
-      setFeeBranchId(null);
-      setFeeAmount("");
+    if (feeElectionId === fee.electionId) {
+      setFeeElectionId(null);
       syncAmount(selectedIds, selectedChipInIds, 0);
     } else {
-      setFeeBranchId(fee.branchId);
-      setFeeAmount((fee.remainingCents / 100).toFixed(2));
-      syncAmount(selectedIds, selectedChipInIds, fee.remainingCents);
+      setFeeElectionId(fee.electionId);
+      syncAmount(selectedIds, selectedChipInIds, fee.amountCents);
     }
-  };
-  const changeFeeAmount = (v: string) => {
-    setFeeAmount(v);
-    syncAmount(selectedIds, selectedChipInIds, centsOf(v));
   };
 
   const toggleRegistration = (id: number) => {
@@ -146,7 +144,8 @@ export function SubmitPayment({
   const queryClient = useQueryClient();
   const createSubmission = useCreatePaymentSubmission();
   const createChipInSubmission = useCreateContributionPaymentSubmission();
-  const isSaving = createSubmission.isPending || createChipInSubmission.isPending;
+  const createFeeSubmission = useCreateBranchFeePaymentSubmission();
+  const isSaving = createSubmission.isPending || createChipInSubmission.isPending || createFeeSubmission.isPending;
 
   const methods: { id: Method; icon: React.ReactNode; available: boolean }[] = [
     { id: "cashapp", icon: <DollarSign className="w-4 h-4" />, available: cashAppAvailable },
@@ -169,19 +168,16 @@ export function SubmitPayment({
   const amountNum = amountCents / 100;
   const validAmount = amountCents > 0;
   const referenceRequired = method === "cashapp" || method === "zelle" || method === "cash";
+  const feeOnly = !!selectedFee && selectedIds.length === 0;
   const feeError = !selectedFee
     ? null
-    : feeCents <= 0
-      ? "Enter how much of the branch fee you're paying."
-      : feeCents > selectedFee.remainingCents
-        ? `Only $${(selectedFee.remainingCents / 100).toFixed(2)} is left on this branch fee.`
-        : feeCents > amountCents
-          ? "The branch fee portion can't be more than the total amount."
-          : selectedIds.length > 0 && !selectedIds.includes(selectedFee.registrationId)
-            ? `Include your ${selectedFee.branchName} registration, or report the branch fee by itself.`
-            : selectedIds.length + selectedChipInIds.length === 0 && feeCents !== amountCents
-              ? "For a branch fee payment, the amount must match the branch fee portion."
-              : null;
+    : feeOnly && selectedChipInIds.length > 0
+      ? "Report the branch fee by itself or together with a registration."
+      : feeOnly && amountCents !== feeCents
+        ? `The branch fee is paid in full: the amount must be $${(feeCents / 100).toFixed(2)}.`
+        : !feeOnly && amountCents <= feeCents
+          ? `The amount must include the full $${(feeCents / 100).toFixed(2)} ${selectedFee.label} plus your registration payment.`
+          : null;
   const canSubmit =
     !!method &&
     selectedIds.length + selectedChipInIds.length + (selectedFee ? 1 : 0) > 0 &&
@@ -199,6 +195,10 @@ export function SubmitPayment({
         // Reported amounts show as "awaiting confirmation" right away; the
         // balance itself only changes when an organizer confirms receipt.
         invalidateMoney(queryClient, reunionId, selectedIds);
+        if (selectedFee) {
+          queryClient.invalidateQueries({ queryKey: getListMyBranchFeeElectionsQueryKey(reunionId) });
+          queryClient.invalidateQueries({ queryKey: getListBranchFeeOptionsQueryKey(reunionId) });
+        }
         queryClient.invalidateQueries({ queryKey: getGetMyContributionsQueryKey(reunionId) });
         setSubmitted(method);
         setHandoffUrl(null);
@@ -245,11 +245,17 @@ export function SubmitPayment({
       givenDate: method === "cash" ? givenDate : null,
       note: note.trim() || null,
     };
-    if (selectedFee) {
+    if (selectedFee && feeOnly) {
+      // Fee only: no attendee registration involved.
+      createFeeSubmission.mutate(
+        { electionId: selectedFee.electionId, data: { method, reference: data.reference, givenDate: data.givenDate, note: data.note } },
+        callbacks,
+      );
+    } else if (selectedFee) {
       createSubmission.mutate(
         {
-          id: selectedFee.registrationId,
-          data: { ...data, registrationIds: selectedIds, contributionIds: selectedChipInIds, branchFeeAmount: feeCents / 100 },
+          id: selectedIds[0],
+          data: { ...data, registrationIds: selectedIds, contributionIds: selectedChipInIds, branchFeeElectionId: selectedFee.electionId },
         },
         callbacks,
       );
@@ -406,44 +412,26 @@ export function SubmitPayment({
             </label>
           ))}
           {branchFees.map((f) => {
-            const on = feeBranchId === f.branchId;
+            const on = feeElectionId === f.electionId;
             return (
-              <div key={`fee-${f.branchId}`} className={`rounded-xl border px-4 py-2.5 transition-colors ${on ? "bg-background border-primary/50" : "bg-background border-dashed"}`}>
-                <label className="flex items-center justify-between gap-3 cursor-pointer">
-                  <span className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      onChange={() => toggleBranchFee(f)}
-                      className="w-4 h-4 accent-primary"
-                      aria-label={`Add ${f.label} for the ${f.branchName} branch`}
-                    />
-                    <span>
-                      <span className="font-medium">{f.label}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        Once per branch, shared by everyone in {f.branchName}. Optional.
-                      </span>
+              <label key={`fee-${f.electionId}`} className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 cursor-pointer transition-colors bg-background ${on ? "border-primary/50" : "border-dashed"}`}>
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() => toggleBranchFee(f)}
+                    className="w-4 h-4 accent-primary"
+                    aria-label={`Include the ${f.label} for the ${f.branchName} branch`}
+                  />
+                  <span>
+                    <span className="font-medium">{f.label}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {f.branchName} branch · once per branch, paid in full. Separate from attendee costs.
                     </span>
                   </span>
-                  <span className="text-right">
-                    <span className="block font-bold tabular-nums">${(f.remainingCents / 100).toFixed(2)}</span>
-                    <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">left</span>
-                  </span>
-                </label>
-                {on && (
-                  <div className="mt-3 flex items-center gap-2 pl-7">
-                    <Label htmlFor={`fee-amt-${f.branchId}`} className="text-xs text-muted-foreground shrink-0">Paying now ($)</Label>
-                    <Input
-                      id={`fee-amt-${f.branchId}`}
-                      inputMode="decimal"
-                      value={feeAmount}
-                      onChange={(e) => changeFeeAmount(e.target.value)}
-                      className="h-8 rounded-lg max-w-[120px] tabular-nums"
-                    />
-                    <span className="text-xs text-muted-foreground">Part payments are fine.</span>
-                  </div>
-                )}
-              </div>
+                </span>
+                <span className="font-bold tabular-nums">${(f.amountCents / 100).toFixed(2)}</span>
+              </label>
             );
           })}
           {feeError && method && <p className="text-sm text-destructive font-medium">{feeError}</p>}

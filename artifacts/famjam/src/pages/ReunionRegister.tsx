@@ -1,11 +1,14 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, useUpdateRegistration, useGetRegistration, getGetRegistrationQueryKey, getListMyRegistrationsQueryKey, getGetReunionSummaryQueryKey } from "@workspace/api-client-react";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, useUpdateRegistration, useGetRegistration, getGetRegistrationQueryKey, getListMyRegistrationsQueryKey, getGetReunionSummaryQueryKey, useListBranchFeeOptions, getListBranchFeeOptionsQueryKey, useElectBranchFee, getListMyBranchFeeElectionsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ArrowLeft, Plus, Trash2, Users, Heart } from "lucide-react";
+import { BranchFeeQuestion, branchFeeOptionFor, type FeeChoice } from "../components/payments/BranchFeeQuestion";
+import { errorMessage } from "../components/payments/LedgerPanel";
+import { money } from "../components/payments/money";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
@@ -52,6 +55,17 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   const updateMutation = useUpdateRegistration();
 
   const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
+  // Branch special fee: asked right after the branch, before attendees.
+  const [feeChoice, setFeeChoice] = useState<FeeChoice>(null);
+  const [feeOnly, setFeeOnly] = useState(false);
+  // Visible inline error (toasts alone can go unseen). `hubLink` when a fee choice was saved.
+  const [flowError, setFlowError] = useState<{ title: string; detail: string; hubLink?: boolean } | null>(null);
+  const electedThisSession = useRef<string | null>(null);
+  const electFee = useElectBranchFee();
+  const reunionIdForFees = reunion?.id ?? 0;
+  const { data: feeOptionsData, refetch: refetchFeeOptions } = useListBranchFeeOptions(reunionIdForFees, {
+    query: { enabled: !!reunion, queryKey: getListBranchFeeOptionsQueryKey(reunionIdForFees) },
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -81,6 +95,22 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
     setSelectedFeeIds(existingReg.selectedFeeIds ?? []);
   }, [isEdit, existingReg, form]);
 
+  const watchBranch = form.watch("branchName");
+  const feeOption = branchFeeOptionFor(reunion?.branches ?? [], feeOptionsData?.options ?? [], watchBranch);
+  const asksFee = feeOption?.state === "available";
+  const electingFee = asksFee && feeChoice === "yes";
+  const feeOnlyMode = electingFee && feeOnly && !isEdit;
+  // Attendee details appear once the branch is chosen and any fee question is answered.
+  const showAttendees = !!watchBranch && (!asksFee || feeChoice !== null) && !feeOnlyMode;
+  const feeCents = electingFee ? feeOption!.amountCents : 0;
+  const changeBranch = (name: string) => {
+    // A different branch discards the stale fee answer and re-checks live status.
+    setFeeChoice(null);
+    setFeeOnly(false);
+    setFlowError(null);
+    void refetchFeeOptions();
+    return name;
+  };
   const watchAttendees = form.watch("attendees");
   const watchSponsorshipContribution = form.watch("sponsorshipContribution");
   const pricingReady = registrationPricingReady(watchAttendees, watchSponsorshipContribution);
@@ -119,7 +149,70 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
       checked ? [...new Set([...prev, feeId])] : prev.filter((id) => id !== feeId),
     );
 
+  const invalidateFees = () => {
+    if (!reunion) return;
+    queryClient.invalidateQueries({ queryKey: getListBranchFeeOptionsQueryKey(reunion.id) });
+    queryClient.invalidateQueries({ queryKey: getListMyBranchFeeElectionsQueryKey(reunion.id) });
+  };
+
+  /** Elect the full fee first; a race (already paid / claimed / amount changed) stops the flow. */
+  const electThen = (next: () => void) => {
+    setFlowError(null);
+    if (!reunion || !electingFee || !feeOption) return next();
+    const label = feeOption.label;
+    electFee.mutate(
+      { reunionId: reunion.id, data: { branchId: feeOption.branchId, expectedAmountCents: feeOption.amountCents } },
+      {
+        onSuccess: () => {
+          electedThisSession.current = label;
+          invalidateFees();
+          next();
+        },
+        onError: (err) => {
+          setFeeChoice(null);
+          setFeeOnly(false);
+          void refetchFeeOptions();
+          const detail = `${errorMessage(err)} Nothing was saved. Review the branch fee status above and choose again.`;
+          setFlowError({ title: `The ${label} wasn't added`, detail });
+          toast({ title: "Branch fee not added", description: detail, variant: "destructive" });
+        },
+      },
+    );
+  };
+
+  const submitFeeOnly = () => {
+    if (!reunion || !feeOnlyMode) return;
+    if (!form.getValues("branchName")) {
+      form.setError("branchName", { message: "Please select your family branch" });
+      return;
+    }
+    electThen(() => {
+      toast({ title: `${feeOption!.label} added`, description: "Report your payment from the reunion hub. No attendees were registered." });
+      setLocation(`${eventCodePath(reunion.code)}?branchFee=1`);
+    });
+  };
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (!reunion) return;
+    if (asksFee && feeChoice === null) {
+      setFlowError({ title: "One quick question", detail: `Let us know above if you'll pay the ${feeOption!.label}.` });
+      return;
+    }
+    electThen(() => submitRegistration(values));
+  };
+
+  // The fee choice and the registration are saved separately (not atomic):
+  // if the fee was chosen but the registration failed, say so plainly.
+  const registrationFailure = (title: string, detail: string) =>
+    electedThisSession.current
+      ? {
+          title,
+          detail: `${detail} Your choice to pay the ${electedThisSession.current} WAS saved and is waiting in the reunion hub. Fix the problem and submit again; it won't be charged twice.`,
+          hubLink: true,
+        }
+      : { title, detail: `${detail} Nothing was saved. Fix the problem and submit again.` };
+
+  const submitRegistration = (values: z.infer<typeof formSchema>) => {
     if (!reunion) return;
 
     if (isEdit && editId != null) {
@@ -142,7 +235,9 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
           setLocation(`/registrations/${editId}`);
         },
         onError: (err) => {
-          toast({ title: "Update failed", description: (err as any)?.error || "An error occurred", variant: "destructive" });
+          const detail = errorMessage(err);
+          setFlowError(registrationFailure("Changes not saved", detail));
+          toast({ title: "Update failed", description: detail, variant: "destructive" });
         }
       });
       return;
@@ -167,7 +262,9 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
         setLocation(`/registrations/${data.id}`);
       },
       onError: (err) => {
-        toast({ title: "Registration failed", description: (err as any)?.error || "An error occurred", variant: "destructive" });
+        const detail = errorMessage(err);
+        setFlowError(registrationFailure("Registration not saved", detail));
+        toast({ title: "Registration failed", description: detail, variant: "destructive" });
       }
     });
   };
@@ -238,14 +335,14 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
         <div className="bg-primary text-primary-foreground rounded-2xl shadow-xl px-5 py-3 flex items-center justify-between gap-4">
           <span className="flex items-center gap-2 text-sm font-medium">
             <Users className="w-4 h-4" />
-            {watchAttendees.length} {watchAttendees.length === 1 ? "attendee" : "attendees"}
+            {feeOnlyMode ? "Fee only · 0 attendees" : `${watchAttendees.length} ${watchAttendees.length === 1 ? "attendee" : "attendees"}`}
           </span>
           <span className="flex items-baseline gap-2">
             <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/70">Total</span>
-            <span className="font-serif text-2xl font-bold tabular-nums">{pricingReady ? `$${totalCost}` : "—"}</span>
+            <span className="font-serif text-2xl font-bold tabular-nums">{feeOnlyMode ? money(feeCents) : pricingReady ? (electingFee ? money(Math.round((totalCost ?? 0) * 100) + feeCents) : `$${totalCost}`) : "—"}</span>
           </span>
         </div>
-        {!pricingReady && <p className="text-sm text-muted-foreground mt-2">{pendingPriceMessage}</p>}
+        {!feeOnlyMode && !pricingReady && <p className="text-sm text-muted-foreground mt-2">{pendingPriceMessage}</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -259,7 +356,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-base font-bold">Which family branch are you in?</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(v) => { if (v !== field.value) field.onChange(changeBranch(v)); }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="rounded-xl h-14 bg-muted/50 border-transparent focus:border-primary">
                             <SelectValue placeholder="Select a branch..." />
@@ -275,8 +372,19 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                     </FormItem>
                   )}
                 />
+                {watchBranch && feeOption && (
+                  <BranchFeeQuestion
+                    option={feeOption}
+                    choice={feeChoice}
+                    onChoice={(c) => { setFeeChoice(c); if (c !== "yes") setFeeOnly(false); }}
+                    feeOnly={feeOnly}
+                    onFeeOnly={setFeeOnly}
+                    allowFeeOnly={!isEdit}
+                  />
+                )}
               </div>
 
+              {showAttendees && (<>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="font-serif text-2xl font-bold">Attendees</h2>
@@ -448,6 +556,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                 />
               </div>
               )}
+              </>)}
 
               <div className="lg:hidden">
                 {/* Mobile summary duplicate */}
@@ -455,10 +564,22 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   <h3 className="font-bold mb-4 pb-4 border-b border-primary-foreground/20">Summary</h3>
                   <div className="flex justify-between items-center mb-2">
                     <span>Attendees</span>
-                    <span>{watchAttendees.length}</span>
+                    <span>{feeOnlyMode ? 0 : watchAttendees.length}</span>
                   </div>
-                  {!pricingReady && <p className="text-sm mt-4">{pendingPriceMessage}</p>}
-                  {pricingReady && (
+                  {electingFee && (
+                    <div className="flex justify-between items-center text-sm mb-2" data-testid="summary-branch-fee-mobile">
+                      <span className="opacity-90">{feeOption!.label} · {feeOption!.branchName} (once per branch)</span>
+                      <span>{money(feeCents)}</span>
+                    </div>
+                  )}
+                  {feeOnlyMode && (
+                    <div className="flex justify-between items-center font-bold text-2xl mt-4">
+                      <span>Total</span>
+                      <span>{money(feeCents)}</span>
+                    </div>
+                  )}
+                  {!feeOnlyMode && !pricingReady && <p className="text-sm mt-4">{pendingPriceMessage}</p>}
+                  {!feeOnlyMode && pricingReady && (
                     <>
                       <div className="mb-4 pb-4 border-b border-primary-foreground/20 space-y-1">
                         {feeLines.map((line) => (
@@ -476,18 +597,35 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                       </div>
                       <div className="flex justify-between items-center font-bold text-2xl">
                         <span>Total</span>
-                        <span>${totalCost}</span>
+                        <span>{electingFee ? money(Math.round((totalCost ?? 0) * 100) + feeCents) : `$${totalCost}`}</span>
                       </div>
                     </>
                   )}
                 </div>
               </div>
 
-              <Button type="submit" disabled={registerMutation.isPending || updateMutation.isPending} className="w-full rounded-full py-7 text-lg font-bold shadow-lg hover:-translate-y-1 transition-all">
+              {flowError && (
+                <div role="alert" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4 text-sm" data-testid="register-flow-error">
+                  <p className="font-bold text-destructive">{flowError.title}</p>
+                  <p className="mt-1">{flowError.detail}</p>
+                  {flowError.hubLink && (
+                    <button type="button" className="mt-2 font-bold text-primary hover:underline" onClick={() => setLocation(eventCodePath(reunion.code))}>
+                      Go to the hub
+                    </button>
+                  )}
+                </div>
+              )}
+              {feeOnlyMode ? (
+                <Button type="button" onClick={submitFeeOnly} disabled={electFee.isPending} className="w-full rounded-full py-7 text-lg font-bold shadow-lg hover:-translate-y-1 transition-all">
+                  {electFee.isPending ? "Saving..." : `Pay the ${feeOption!.label} only (${money(feeCents)})`}
+                </Button>
+              ) : (
+              <Button type="submit" disabled={!showAttendees || registerMutation.isPending || updateMutation.isPending || electFee.isPending} className="w-full rounded-full py-7 text-lg font-bold shadow-lg hover:-translate-y-1 transition-all">
                 {isEdit
                   ? (updateMutation.isPending ? "Saving..." : "Save Changes")
-                  : (registerMutation.isPending ? "Submitting..." : "Complete Registration")}
+                  : (registerMutation.isPending || electFee.isPending ? "Submitting..." : "Complete Registration")}
               </Button>
+              )}
             </form>
           </Form>
         </div>
@@ -499,11 +637,28 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Attendees</span>
-                <span className="font-bold text-xl">{watchAttendees.length}</span>
+                <span className="font-bold text-xl">{feeOnlyMode ? 0 : watchAttendees.length}</span>
               </div>
-              
-              {!pricingReady && <p className="text-sm text-muted-foreground">{pendingPriceMessage}</p>}
-              {pricingReady && (
+              {electingFee && (
+                <div className="flex justify-between items-center rounded-xl bg-primary/5 border border-primary/20 px-3 py-2" data-testid="summary-branch-fee">
+                  <span className="text-sm">
+                    <span className="font-bold block">{feeOption!.label}</span>
+                    <span className="text-muted-foreground text-xs">{feeOption!.branchName} branch · once per branch, paid in full by you</span>
+                  </span>
+                  <span className="font-bold tabular-nums">{money(feeCents)}</span>
+                </div>
+              )}
+              {feeOnlyMode && (
+                <div className="pt-4 border-t border-dashed mt-4">
+                  <p className="text-sm text-muted-foreground mb-2">Fee only: no attendees, no registration or dinner cost.</p>
+                  <div className="flex justify-between items-end">
+                    <span className="text-muted-foreground font-medium">Total Cost</span>
+                    <span className="font-serif text-4xl font-bold text-primary">{money(feeCents)}</span>
+                  </div>
+                </div>
+              )}
+              {!feeOnlyMode && !pricingReady && <p className="text-sm text-muted-foreground">{pendingPriceMessage}</p>}
+              {!feeOnlyMode && pricingReady && (
                 <>
                   <div className="space-y-2 pt-2">
                     {feeLines.map((line) => (
@@ -523,7 +678,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   <div className="pt-4 border-t border-dashed mt-4">
                     <div className="flex justify-between items-end">
                       <span className="text-muted-foreground font-medium">Total Cost</span>
-                      <span className="font-serif text-4xl font-bold text-primary">${totalCost}</span>
+                      <span className="font-serif text-4xl font-bold text-primary">{electingFee ? money(Math.round((totalCost ?? 0) * 100) + feeCents) : `$${totalCost}`}</span>
                     </div>
                   </div>
                   

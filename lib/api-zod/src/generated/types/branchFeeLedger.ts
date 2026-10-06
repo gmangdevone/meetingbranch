@@ -5,7 +5,9 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { BranchFeeElectionSummary } from './branchFeeElectionSummary';
 import type { BranchFeeEntry } from './branchFeeEntry';
+import type { BranchFeeLedgerState } from './branchFeeLedgerState';
 
 export interface BranchFeeLedger {
   branchId: number;
@@ -13,14 +15,14 @@ export interface BranchFeeLedger {
   label: string;
   enabled: boolean;
   archived: boolean;
+  /** Configured full fee. */
   amountCents: number;
-  /** Confirmed receipts only. */
+  /** off: not collecting; open: nobody has elected; elected/reported: an unpaid election; paid: confirmed in full (by an election, or by legacy pooled money covering the full fee); legacy_review: partial legacy pooled money awaits organizer review, so new elections are blocked. */
+  state: BranchFeeLedgerState;
+  /** Confirmed full-fee payment (0 until paid). */
   paidCents: number;
-  remainingCents: number;
-  /** Confirmed money above the current amount (e.g. after a reduction) */
-  creditCents: number;
-  /** Self-reported */
-  pendingReportedCents: number;
-  settled: boolean;
+  /** Non-reversed pooled partial money from the earlier model */
+  legacyCents: number;
+  election?: BranchFeeElectionSummary | null;
   entries: BranchFeeEntry[];
 }

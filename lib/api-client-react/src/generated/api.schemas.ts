@@ -421,15 +421,15 @@ export interface PaymentSubmissionInput {
      * @exclusiveMinimum 0
      */
   amount: number;
-  /** All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report. */
+  /** All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. Must not be empty (use the branch fee endpoint for a fee-only report). */
   registrationIds?: number[];
   /** Standalone fund chip-ins (contribution ids with no registration) this payment also covers. */
   contributionIds?: number[];
   /**
-     * Portion (dollars and cents) for the path registration's branch special fee. Explicit opt-in only. Informational until confirmed.
+     * The member's own unpaid branch fee election to include IN FULL. Explicit opt-in only. Pending until confirmed.
      * @nullable
      */
-  branchFeeAmount?: number | null;
+  branchFeeElectionId?: number | null;
   /**
      * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
      * @nullable
@@ -472,6 +472,7 @@ export interface SubmissionChipIn {
 
 export interface SubmissionBranchFee {
   branchId: number;
+  electionId?: number | null;
   branchName?: string | null;
   label: string;
   amountCents: number;
@@ -804,11 +805,45 @@ export interface BranchFeeEntry {
   createdAt: string;
   reversed: boolean;
   reversalReason?: string | null;
-  /** Organizer view only (null for members; payers are private). */
-  payerRegistrationId?: number | null;
-  /** Organizer view only (null for members; payers are private). */
+  /** Pooled partial money from the earlier model. Kept for review; never marks the fee paid. */
+  legacy: boolean;
+  /** Organizer view only. */
   payerName?: string | null;
 }
+
+export type BranchFeeElectionSummaryStatus = typeof BranchFeeElectionSummaryStatus[keyof typeof BranchFeeElectionSummaryStatus];
+
+
+export const BranchFeeElectionSummaryStatus = {
+  unpaid: 'unpaid',
+  reported: 'reported',
+  paid: 'paid',
+} as const;
+
+export interface BranchFeeElectionSummary {
+  id: number;
+  status: BranchFeeElectionSummaryStatus;
+  amountCents: number;
+  createdAt: string;
+  userName?: string | null;
+  userEmail?: string | null;
+  pendingSubmissionId?: number | null;
+}
+
+/**
+ * off: not collecting; open: nobody has elected; elected/reported: an unpaid election; paid: confirmed in full (by an election, or by legacy pooled money covering the full fee); legacy_review: partial legacy pooled money awaits organizer review, so new elections are blocked.
+ */
+export type BranchFeeLedgerState = typeof BranchFeeLedgerState[keyof typeof BranchFeeLedgerState];
+
+
+export const BranchFeeLedgerState = {
+  off: 'off',
+  open: 'open',
+  elected: 'elected',
+  reported: 'reported',
+  paid: 'paid',
+  legacy_review: 'legacy_review',
+} as const;
 
 export interface BranchFeeLedger {
   branchId: number;
@@ -816,24 +851,122 @@ export interface BranchFeeLedger {
   label: string;
   enabled: boolean;
   archived: boolean;
+  /** Configured full fee. */
   amountCents: number;
-  /** Confirmed receipts only. */
+  /** off: not collecting; open: nobody has elected; elected/reported: an unpaid election; paid: confirmed in full (by an election, or by legacy pooled money covering the full fee); legacy_review: partial legacy pooled money awaits organizer review, so new elections are blocked. */
+  state: BranchFeeLedgerState;
+  /** Confirmed full-fee payment (0 until paid). */
   paidCents: number;
-  remainingCents: number;
-  /** Confirmed money above the current amount (e.g. after a reduction) */
-  creditCents: number;
-  /** Self-reported */
-  pendingReportedCents: number;
-  settled: boolean;
+  /** Non-reversed pooled partial money from the earlier model */
+  legacyCents: number;
+  election?: BranchFeeElectionSummary | null;
   entries: BranchFeeEntry[];
+}
+
+export interface BranchFeeOutstanding {
+  branchId: number;
+  branchName: string;
+  label: string;
+  amountCents: number;
+  elected: boolean;
+}
+
+export interface BranchFeeSummary {
+  paidCount: number;
+  paidCents: number;
+  outstandingCount: number;
+  outstandingCents: number;
+  outstanding: BranchFeeOutstanding[];
 }
 
 export interface BranchFeeLedgerList {
   branches: BranchFeeLedger[];
+  summary: BranchFeeSummary;
 }
 
-export interface RegistrationBranchFee {
-  branchFee: BranchFeeLedger | null;
+/**
+ * claimed: another member elected it (identity hidden).
+ */
+export type BranchFeeOptionState = typeof BranchFeeOptionState[keyof typeof BranchFeeOptionState];
+
+
+export const BranchFeeOptionState = {
+  available: 'available',
+  yours_unpaid: 'yours_unpaid',
+  yours_reported: 'yours_reported',
+  yours_paid: 'yours_paid',
+  paid: 'paid',
+  claimed: 'claimed',
+  under_review: 'under_review',
+  yours_disabled: 'yours_disabled',
+} as const;
+
+export interface BranchFeeOption {
+  branchId: number;
+  branchName: string;
+  label: string;
+  amountCents: number;
+  /** claimed: another member elected it (identity hidden). */
+  state: BranchFeeOptionState;
+  /** Only for the member's own election. */
+  electionId?: number | null;
+}
+
+export interface BranchFeeOptionList {
+  options: BranchFeeOption[];
+}
+
+export interface BranchFeeElectionInput {
+  branchId: number;
+  /** The full fee the member saw; a mismatch returns 409 so they can re-confirm. */
+  expectedAmountCents: number;
+}
+
+export type MyBranchFeeElectionStatus = typeof MyBranchFeeElectionStatus[keyof typeof MyBranchFeeElectionStatus];
+
+
+export const MyBranchFeeElectionStatus = {
+  unpaid: 'unpaid',
+  reported: 'reported',
+  paid: 'paid',
+} as const;
+
+export interface MyBranchFeeElection {
+  id: number;
+  /** False when the branch fee is turned off or the branch removed; unpaid elections then can't be paid. */
+  collecting: boolean;
+  reunionId: number;
+  branchId: number;
+  branchName: string;
+  label: string;
+  amountCents: number;
+  status: MyBranchFeeElectionStatus;
+  createdAt: string;
+  pendingSubmissionId?: number | null;
+  history: BranchFeeEntry[];
+}
+
+export interface MyBranchFeeElectionList {
+  elections: MyBranchFeeElection[];
+}
+
+export type BranchFeePaymentInputMethod = typeof BranchFeePaymentInputMethod[keyof typeof BranchFeePaymentInputMethod];
+
+
+export const BranchFeePaymentInputMethod = {
+  cashapp: 'cashapp',
+  zelle: 'zelle',
+  cash: 'cash',
+  check: 'check',
+} as const;
+
+export interface BranchFeePaymentInput {
+  method: BranchFeePaymentInputMethod;
+  /** @maxLength 200 */
+  reference?: string | null;
+  givenDate?: string | null;
+  /** @maxLength 1000 */
+  note?: string | null;
 }
 
 /**
@@ -1028,6 +1161,8 @@ export interface EventMembership {
   endDate: string;
   isOrganizer: boolean;
   isCoOrganizer: boolean;
+  /** Active branch fees this member chose to pay (fee-only members have no registration). Not headcount. */
+  activeBranchFeeElectionCount: number;
   activeRegistrationCount: number;
 }
 
@@ -1529,10 +1664,8 @@ export interface ReceiptAllocationInput {
   contributionId?: number | null;
   /** Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge. */
   standaloneContributionId?: number | null;
-  /** Branch special fee (shared once per branch). Never touches registration balances or the fund. */
+  /** Branch special fee. Pays the branch's active election IN FULL (amount must equal it); a branch can be marked paid only once. */
   branchId?: number | null;
-  /** Who paid the branch fee (private, organizer-only). Must be an active registration in that branch. */
-  payerRegistrationId?: number | null;
   amountCents: number;
 }
 

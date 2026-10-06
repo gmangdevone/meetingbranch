@@ -48,8 +48,10 @@ export const paymentSubmissionsTable = pgTable("payment_submissions", {
   // Exact reported cents (new submissions). Null on legacy rows = amount * 100.
   amountCents: integer("amount_cents"),
   // Self-reported portion for the branch special fee (never reduces balances).
-  branchFeeBranchId: integer("branch_fee_branch_id").references(() => reunionBranchesTable.id, { onDelete: "restrict" }),
+  branchFeeBranchId: integer("branch_fee_branch_id").references(() => reunionBranchesTable.id),
   branchFeeCents: integer("branch_fee_cents"),
+  // Full-fee election this report pays (new model). Pending until confirmed.
+  branchFeeElectionId: integer("branch_fee_election_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

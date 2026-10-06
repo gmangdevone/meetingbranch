@@ -14,6 +14,8 @@ function roleLabels(m: EventMembership): string[] {
   else if (m.isCoOrganizer) out.push("Co-organizer");
   if (m.activeRegistrationCount === 1) out.push("Registered");
   if (m.activeRegistrationCount > 1) out.push(`${m.activeRegistrationCount} registrations`);
+  // Fee-only payers have no registration but still need their way back to the hub.
+  if (m.activeBranchFeeElectionCount > 0) out.push("Paying branch fee");
   return out;
 }
 

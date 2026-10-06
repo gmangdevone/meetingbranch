@@ -27,17 +27,17 @@ export interface RecordPaymentPreset {
   replacesReceiptId?: number;
   /** Pending standalone fund chip-ins included in the reported payment (all-or-nothing). */
   standaloneChipIns?: { id: number; label: string; cents: number }[];
-  /** A branch's ONE shared special fee (separate from registration balances and the fund). */
+  /**
+   * A branch special fee elected by one member, confirmed IN FULL in one
+   * allocation (never split). Separate from registration balances and the fund.
+   */
   branchFee?: {
     branchId: number;
     branchName: string;
     label: string;
-    remainingCents: number;
-    /** Portion the member reported for the fee, allocated first. */
-    reportedCents?: number;
-    /** Organizer-only record of who paid. Omit when reconciling a report (the reporter is used). */
-    payerRegistrationId?: number | null;
-    payerOptions?: { id: number; label: string }[];
+    amountCents: number;
+    /** The electing member, shown to organizers. */
+    payerName?: string | null;
   };
 }
 
@@ -97,7 +97,7 @@ export function RecordPaymentDialog({
   const lines: Line[] = useMemo(() => {
     const out: Line[] = [];
     const bf = preset?.branchFee;
-    if (bf && bf.remainingCents > 0) out.push({ key: `b${bf.branchId}`, branchId: bf.branchId, label: `${bf.label} · ${bf.branchName} branch (shared, once per branch)`, maxCents: bf.remainingCents });
+    if (bf && bf.amountCents > 0) out.push({ key: `b${bf.branchId}`, branchId: bf.branchId, label: `${bf.label} · ${bf.branchName} branch (full fee${bf.payerName ? `, chosen by ${bf.payerName}` : ""})`, maxCents: bf.amountCents });
     for (const r of registrations) {
       if (!r.ledger.waived) out.push({ key: `r${r.id}`, registrationId: r.id, label: `${r.label} · fees`, maxCents: r.ledger.balanceCents });
       for (const c of r.ledger.contributions) {
@@ -111,14 +111,14 @@ export function RecordPaymentDialog({
     let budget = preset?.amountCents ?? Number.POSITIVE_INFINITY;
     const m: Record<string, string> = {};
     for (const l of lines) {
-      // The branch fee line takes only what the member said was for it.
-      const cap = l.branchId != null && preset?.branchFee?.reportedCents != null ? Math.min(l.maxCents, preset.branchFee.reportedCents) : l.maxCents;
+      // The branch fee line is first and always the full fee.
+      const cap = l.maxCents;
       const take = Math.max(0, Math.min(cap, budget));
       budget -= take;
       m[l.key] = centsToInput(take);
     }
     return m;
-  }, [lines, preset?.amountCents, preset?.branchFee?.reportedCents]);
+  }, [lines, preset?.amountCents]);
 
   const chipIns = useMemo(() => preset?.standaloneChipIns ?? [], [preset?.standaloneChipIns]);
   const [alloc, setAlloc] = useState<Record<string, string>>(initial);
@@ -142,7 +142,6 @@ export function RecordPaymentDialog({
   const [receivedDate, setReceivedDate] = useState(preset?.receivedDate ?? today());
   const [reference, setReference] = useState(preset?.reference ?? "");
   const [note, setNote] = useState("");
-  const [payerId, setPayerId] = useState<string>(preset?.branchFee?.payerRegistrationId ? String(preset.branchFee.payerRegistrationId) : "");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [doneCents, setDoneCents] = useState(0);
@@ -223,7 +222,7 @@ export function RecordPaymentDialog({
             .filter((l) => (allocCents(l.key) ?? 0) > 0)
             .map((l) =>
               l.branchId != null
-                ? { branchId: l.branchId, payerRegistrationId: payerId ? Number(payerId) : null, amountCents: allocCents(l.key)! }
+                ? { branchId: l.branchId, amountCents: allocCents(l.key)! }
                 : { registrationId: l.registrationId ?? null, contributionId: l.contributionId ?? null, amountCents: allocCents(l.key)! },
             )
             .concat(chipIns.filter((c) => includeChip[c.id]).map((c) => ({ registrationId: null, contributionId: null, standaloneContributionId: c.id, amountCents: c.cents }))),
@@ -239,7 +238,7 @@ export function RecordPaymentDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[92dvh] overflow-y-auto">
+      <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[92dvh] overflow-y-auto grid-cols-1 [&>*]:min-w-0">
         {done ? (
           <div className="py-6 text-center">
             <CheckCircle2 className="w-12 h-12 mx-auto text-green-600 mb-3" />
@@ -256,7 +255,7 @@ export function RecordPaymentDialog({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
               <div className="space-y-1.5">
                 <Label htmlFor="rp-amount">Amount received ($)</Label>
                 <Input
@@ -348,16 +347,8 @@ export function RecordPaymentDialog({
                   ))}
                 </div>
               )}
-              {preset?.branchFee?.payerOptions && preset.branchFee.payerOptions.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <Label>Who paid the {preset.branchFee.label}? (organizers only)</Label>
-                  <Select value={payerId} onValueChange={setPayerId} disabled={locked}>
-                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Not recorded" /></SelectTrigger>
-                    <SelectContent>
-                      {preset.branchFee.payerOptions.map((o) => <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {preset?.branchFee && (
+                <p className="text-xs text-muted-foreground">The {preset.branchFee.label} is confirmed in full ({money(preset.branchFee.amountCents)}) or not at all.</p>
               )}
               {mismatch && (
                 <p className="text-xs text-destructive">

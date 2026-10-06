@@ -121,22 +121,22 @@ describe("RecordPaymentDialog branch special fee", () => {
       </QueryClientProvider>,
     );
 
-  it("a single $20 branch fee auto-allocates $20 and records a branch allocation with the chosen payer", () => {
-    renderFee({ method: "cash", branchFee: { branchId: 11, branchName: "Lacey", label: "Sibling Fee", remainingCents: 2000, payerRegistrationId: 4, payerOptions: [{ id: 4, label: "Amy" }] } });
-    expect(screen.getByText(/shared, once per branch/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/Amount received/), { target: { value: "20" } });
+  it("standalone fee-only: records the FULL fee as one branch allocation with no registration line", () => {
+    renderFee({ submissionId: 2, amountCents: 2000, method: "cash", receivedDate: "2026-06-01", branchFee: { branchId: 11, branchName: "Lacey", label: "Sibling Fee", amountCents: 2000, payerName: "Amy Lacey" } });
+    expect(screen.getByText(/full fee, chosen by Amy Lacey/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Record \$20\.00/ }));
-    expect(h.mutate.mock.calls[0][0].data).toMatchObject({ amountCents: 2000, allocations: [{ branchId: 11, payerRegistrationId: 4, amountCents: 2000 }] });
+    expect(h.mutate.mock.calls[0][0].data).toMatchObject({ amountCents: 2000, submissionId: 2, allocations: [{ branchId: 11, amountCents: 2000 }] });
+    expect(h.mutate.mock.calls[0][0].data.allocations[0].payerRegistrationId).toBeUndefined();
   });
 
-  it("mixed report splits exactly: branch fee takes the reported portion, the rest goes to dues", () => {
+  it("combined report splits exactly: the full fee first, the rest goes to dues", () => {
     renderFee(
-      { submissionId: 3, amountCents: 8800, method: "cash", receivedDate: "2026-06-01", branchFee: { branchId: 11, branchName: "Lacey", label: "Sibling Fee", remainingCents: 2000, reportedCents: 800 } },
+      { submissionId: 3, amountCents: 10000, method: "cash", receivedDate: "2026-06-01", branchFee: { branchId: 11, branchName: "Lacey", label: "Sibling Fee", amountCents: 2000 } },
       [{ id: 1, label: "#1 Goudy", ledger }],
     );
-    fireEvent.click(screen.getByRole("button", { name: /Record \$88\.00/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Record \$100\.00/ }));
     expect(h.mutate.mock.calls[0][0].data.allocations).toEqual([
-      { branchId: 11, payerRegistrationId: null, amountCents: 800 },
+      { branchId: 11, amountCents: 2000 },
       { registrationId: 1, contributionId: null, amountCents: 8000 },
     ]);
   });

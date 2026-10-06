@@ -14,6 +14,7 @@ import { eventCodePath } from "../lib/eventCode";
 import { PaymentInstructions } from "../components/payments/PaymentInstructions";
 import { LedgerHistory, LEDGER_STATUS_LABEL } from "../components/payments/LedgerPanel";
 import { invalidateMoney } from "../components/payments/money";
+import { ElectedBranchFeesNote } from "../components/payments/ElectedBranchFeesNote";
 
 export function RegistrationDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
@@ -269,6 +270,8 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
           </div>
           <LedgerHistory registrationId={reg.id} />
         </section>
+
+        <ElectedBranchFeesNote reunionId={reg.reunionId} hubPath={reg.reunionCode ? eventCodePath(reg.reunionCode) : "/dashboard"} />
 
         {!isPaid && !isCancelled && (
           <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-3xl p-8 flex flex-col items-center text-center animate-in slide-in-from-bottom-4">

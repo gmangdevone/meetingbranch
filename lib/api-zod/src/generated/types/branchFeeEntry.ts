@@ -15,8 +15,8 @@ export interface BranchFeeEntry {
   createdAt: Date;
   reversed: boolean;
   reversalReason?: string | null;
-  /** Organizer view only (null for members; payers are private). */
-  payerRegistrationId?: number | null;
-  /** Organizer view only (null for members; payers are private). */
+  /** Pooled partial money from the earlier model. Kept for review; never marks the fee paid. */
+  legacy: boolean;
+  /** Organizer view only. */
   payerName?: string | null;
 }

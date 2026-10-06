@@ -581,6 +581,7 @@ export const ListMyEventMembershipsResponseItem = zod.object({
   "endDate": zod.string(),
   "isOrganizer": zod.boolean(),
   "isCoOrganizer": zod.boolean(),
+  "activeBranchFeeElectionCount": zod.number().describe('Active branch fees this member chose to pay (fee-only members have no registration). Not headcount.'),
   "activeRegistrationCount": zod.number()
 })
 export const ListMyEventMembershipsResponse = zod.array(ListMyEventMembershipsResponseItem)
@@ -1540,7 +1541,7 @@ export const GetRegistrationLedgerResponse = zod.object({
 
 
 /**
- * @summary Configure a branch's one shared special fee (power users)
+ * @summary Configure a branch's once-per-branch special fee (power users). Unpaid elections follow the new amount.
  */
 export const UpdateBranchSpecialFeeParams = zod.object({
   "reunionId": zod.coerce.number(),
@@ -1566,12 +1567,19 @@ export const UpdateBranchSpecialFeeResponse = zod.object({
   "label": zod.string(),
   "enabled": zod.boolean(),
   "archived": zod.boolean(),
+  "amountCents": zod.number().describe('Configured full fee.'),
+  "state": zod.enum(['off', 'open', 'elected', 'reported', 'paid', 'legacy_review']).describe('off: not collecting; open: nobody has elected; elected\/reported: an unpaid election; paid: confirmed in full (by an election, or by legacy pooled money covering the full fee); legacy_review: partial legacy pooled money awaits organizer review, so new elections are blocked.'),
+  "paidCents": zod.number().describe('Confirmed full-fee payment (0 until paid).'),
+  "legacyCents": zod.number().describe('Non-reversed pooled partial money from the earlier model'),
+  "election": zod.union([zod.object({
+  "id": zod.number(),
+  "status": zod.enum(['unpaid', 'reported', 'paid']),
   "amountCents": zod.number(),
-  "paidCents": zod.number().describe('Confirmed receipts only.'),
-  "remainingCents": zod.number(),
-  "creditCents": zod.number().describe('Confirmed money above the current amount (e.g. after a reduction)'),
-  "pendingReportedCents": zod.number().describe('Self-reported'),
-  "settled": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "userName": zod.string().nullish(),
+  "userEmail": zod.string().nullish(),
+  "pendingSubmissionId": zod.number().nullish()
+}),zod.null()]).optional(),
   "entries": zod.array(zod.object({
   "receiptId": zod.number(),
   "kind": zod.string(),
@@ -1581,14 +1589,14 @@ export const UpdateBranchSpecialFeeResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "reversed": zod.boolean(),
   "reversalReason": zod.string().nullish(),
-  "payerRegistrationId": zod.number().nullish().describe('Organizer view only (null for members; payers are private).'),
-  "payerName": zod.string().nullish().describe('Organizer view only (null for members; payers are private).')
+  "legacy": zod.boolean().describe('Pooled partial money from the earlier model. Kept for review; never marks the fee paid.'),
+  "payerName": zod.string().nullish().describe('Organizer view only.')
 }))
 })
 
 
 /**
- * @summary Shared branch fee balances and confirmed history (power users and registration managers)
+ * @summary Branch fee status, elected payer, confirmed history and report totals (power users, registration managers, reports)
  */
 export const ListBranchFeesParams = zod.object({
   "reunionId": zod.coerce.number()
@@ -1601,12 +1609,19 @@ export const ListBranchFeesResponse = zod.object({
   "label": zod.string(),
   "enabled": zod.boolean(),
   "archived": zod.boolean(),
+  "amountCents": zod.number().describe('Configured full fee.'),
+  "state": zod.enum(['off', 'open', 'elected', 'reported', 'paid', 'legacy_review']).describe('off: not collecting; open: nobody has elected; elected\/reported: an unpaid election; paid: confirmed in full (by an election, or by legacy pooled money covering the full fee); legacy_review: partial legacy pooled money awaits organizer review, so new elections are blocked.'),
+  "paidCents": zod.number().describe('Confirmed full-fee payment (0 until paid).'),
+  "legacyCents": zod.number().describe('Non-reversed pooled partial money from the earlier model'),
+  "election": zod.union([zod.object({
+  "id": zod.number(),
+  "status": zod.enum(['unpaid', 'reported', 'paid']),
   "amountCents": zod.number(),
-  "paidCents": zod.number().describe('Confirmed receipts only.'),
-  "remainingCents": zod.number(),
-  "creditCents": zod.number().describe('Confirmed money above the current amount (e.g. after a reduction)'),
-  "pendingReportedCents": zod.number().describe('Self-reported'),
-  "settled": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "userName": zod.string().nullish(),
+  "userEmail": zod.string().nullish(),
+  "pendingSubmissionId": zod.number().nullish()
+}),zod.null()]).optional(),
   "entries": zod.array(zod.object({
   "receiptId": zod.number(),
   "kind": zod.string(),
@@ -1616,46 +1631,180 @@ export const ListBranchFeesResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "reversed": zod.boolean(),
   "reversalReason": zod.string().nullish(),
-  "payerRegistrationId": zod.number().nullish().describe('Organizer view only (null for members; payers are private).'),
-  "payerName": zod.string().nullish().describe('Organizer view only (null for members; payers are private).')
+  "legacy": zod.boolean().describe('Pooled partial money from the earlier model. Kept for review; never marks the fee paid.'),
+  "payerName": zod.string().nullish().describe('Organizer view only.')
+}))
+})),
+  "summary": zod.object({
+  "paidCount": zod.number(),
+  "paidCents": zod.number(),
+  "outstandingCount": zod.number(),
+  "outstandingCents": zod.number(),
+  "outstanding": zod.array(zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "amountCents": zod.number(),
+  "elected": zod.boolean()
+}))
+})
+})
+
+
+/**
+ * @summary Each active branch's special fee and whether the signed-in member can elect it (no other payer identities)
+ */
+export const ListBranchFeeOptionsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListBranchFeeOptionsResponse = zod.object({
+  "options": zod.array(zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "amountCents": zod.number(),
+  "state": zod.enum(['available', 'yours_unpaid', 'yours_reported', 'yours_paid', 'paid', 'claimed', 'under_review', 'yours_disabled']).describe('claimed: another member elected it (identity hidden).'),
+  "electionId": zod.number().nullish().describe('Only for the member\'s own election.')
+}))
+})
+
+
+/**
+ * @summary Elect to pay a branch's special fee in full (once per branch). Idempotent for the same member.
+ */
+export const ElectBranchFeeParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ElectBranchFeeBody = zod.object({
+  "branchId": zod.number(),
+  "expectedAmountCents": zod.number().describe('The full fee the member saw; a mismatch returns 409 so they can re-confirm.')
+})
+
+export const ElectBranchFeeResponse = zod.object({
+  "id": zod.number(),
+  "collecting": zod.boolean().describe('False when the branch fee is turned off or the branch removed; unpaid elections then can\'t be paid.'),
+  "reunionId": zod.number(),
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "amountCents": zod.number(),
+  "status": zod.enum(['unpaid', 'reported', 'paid']),
+  "createdAt": zod.coerce.date(),
+  "pendingSubmissionId": zod.number().nullish(),
+  "history": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "kind": zod.string(),
+  "cents": zod.number(),
+  "method": zod.string().nullish(),
+  "receivedDate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reversed": zod.boolean(),
+  "reversalReason": zod.string().nullish(),
+  "legacy": zod.boolean().describe('Pooled partial money from the earlier model. Kept for review; never marks the fee paid.'),
+  "payerName": zod.string().nullish().describe('Organizer view only.')
+}))
+})
+
+
+/**
+ * @summary The signed-in member's branch fee elections with status and confirmed history
+ */
+export const ListMyBranchFeeElectionsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListMyBranchFeeElectionsResponse = zod.object({
+  "elections": zod.array(zod.object({
+  "id": zod.number(),
+  "collecting": zod.boolean().describe('False when the branch fee is turned off or the branch removed; unpaid elections then can\'t be paid.'),
+  "reunionId": zod.number(),
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "amountCents": zod.number(),
+  "status": zod.enum(['unpaid', 'reported', 'paid']),
+  "createdAt": zod.coerce.date(),
+  "pendingSubmissionId": zod.number().nullish(),
+  "history": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "kind": zod.string(),
+  "cents": zod.number(),
+  "method": zod.string().nullish(),
+  "receivedDate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reversed": zod.boolean(),
+  "reversalReason": zod.string().nullish(),
+  "legacy": zod.boolean().describe('Pooled partial money from the earlier model. Kept for review; never marks the fee paid.'),
+  "payerName": zod.string().nullish().describe('Organizer view only.')
 }))
 }))
 })
 
 
 /**
- * @summary The shared special fee for this registration's branch (registrant or registration manager; payers hidden)
+ * @summary Release an unpaid election (its owner, or a registration manager / power user) so the branch can be elected again
  */
-export const GetRegistrationBranchFeeParams = zod.object({
-  "id": zod.coerce.number()
+export const ReleaseBranchFeeElectionParams = zod.object({
+  "electionId": zod.coerce.number()
 })
 
-export const GetRegistrationBranchFeeResponse = zod.object({
+export const ReleaseBranchFeeElectionResponse = zod.void()
+
+
+/**
+ * @summary Report a full branch fee payment on its own (no attendee registration). Pending until an organizer confirms.
+ */
+export const CreateBranchFeePaymentSubmissionParams = zod.object({
+  "electionId": zod.coerce.number()
+})
+
+export const createBranchFeePaymentSubmissionBodyReferenceMax = 200;
+
+export const createBranchFeePaymentSubmissionBodyNoteMax = 1000;
+
+
+
+export const CreateBranchFeePaymentSubmissionBody = zod.object({
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "reference": zod.string().max(createBranchFeePaymentSubmissionBodyReferenceMax).nullish(),
+  "givenDate": zod.string().nullish(),
+  "note": zod.string().max(createBranchFeePaymentSubmissionBodyNoteMax).nullish()
+})
+
+export const CreateBranchFeePaymentSubmissionResponse = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "registrationId": zod.number().nullable().describe('Null for contribution-only submissions (standalone chip-in payments).'),
+  "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
+  "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
+  "contributions": zod.array(zod.object({
+  "standalone": zod.boolean().optional().describe('True for a direct (unattached) fund chip-in, settled all-or-nothing.'),
+  "id": zod.number(),
+  "contributorName": zod.string().nullish(),
+  "amount": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid', 'waived']),
+  "createdAt": zod.coerce.date()
+}).describe('Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.')).describe('Resolved chip-in details for each id in contributionIds — contributor, amount, status, date.'),
+  "submittedBy": zod.string().nullish(),
+  "submittedByName": zod.string().nullish().describe('Resolved display name (first + last) of the user who submitted this payment note.'),
+  "submittedByEmail": zod.string().nullish().describe('Resolved email of the user who submitted this payment note.'),
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
+  "amount": zod.number(),
+  "reference": zod.string().nullish(),
+  "givenDate": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "amountCents": zod.number().optional().describe('Exact reported cents.'),
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
   "branchFee": zod.union([zod.object({
   "branchId": zod.number(),
-  "branchName": zod.string(),
+  "electionId": zod.number().nullish(),
+  "branchName": zod.string().nullish(),
   "label": zod.string(),
-  "enabled": zod.boolean(),
-  "archived": zod.boolean(),
-  "amountCents": zod.number(),
-  "paidCents": zod.number().describe('Confirmed receipts only.'),
-  "remainingCents": zod.number(),
-  "creditCents": zod.number().describe('Confirmed money above the current amount (e.g. after a reduction)'),
-  "pendingReportedCents": zod.number().describe('Self-reported'),
-  "settled": zod.boolean(),
-  "entries": zod.array(zod.object({
-  "receiptId": zod.number(),
-  "kind": zod.string(),
-  "cents": zod.number(),
-  "method": zod.string().nullish(),
-  "receivedDate": zod.string().nullish(),
-  "createdAt": zod.coerce.date(),
-  "reversed": zod.boolean(),
-  "reversalReason": zod.string().nullish(),
-  "payerRegistrationId": zod.number().nullish().describe('Organizer view only (null for members; payers are private).'),
-  "payerName": zod.string().nullish().describe('Organizer view only (null for members; payers are private).')
-}))
-}),zod.null()])
+  "amountCents": zod.number()
+}),zod.null()]).optional()
 })
 
 
@@ -1676,8 +1825,7 @@ export const RecordReceiptBody = zod.object({
   "registrationId": zod.number().nullish(),
   "contributionId": zod.number().nullish(),
   "standaloneContributionId": zod.number().nullish().describe('Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge.'),
-  "branchId": zod.number().nullish().describe('Branch special fee (shared once per branch). Never touches registration balances or the fund.'),
-  "payerRegistrationId": zod.number().nullish().describe('Who paid the branch fee (private, organizer-only). Must be an active registration in that branch.'),
+  "branchId": zod.number().nullish().describe('Branch special fee. Pays the branch\'s active election IN FULL (amount must equal it); a branch can be marked paid only once.'),
   "amountCents": zod.number()
 })),
   "submissionId": zod.number().nullish(),
@@ -2528,9 +2676,9 @@ export const createContributionPaymentSubmissionBodyAmountExclusiveMin = 0;
 export const CreateContributionPaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number().gt(createContributionPaymentSubmissionBodyAmountExclusiveMin).describe('Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.'),
-  "registrationIds": zod.array(zod.number()).optional().describe('All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report.'),
+  "registrationIds": zod.array(zod.number()).optional().describe('All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. Must not be empty (use the branch fee endpoint for a fee-only report).'),
   "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
-  "branchFeeAmount": zod.number().nullish().describe('Portion (dollars and cents) for the path registration\'s branch special fee. Explicit opt-in only. Informational until confirmed.'),
+  "branchFeeElectionId": zod.number().nullish().describe('The member\'s own unpaid branch fee election to include IN FULL. Explicit opt-in only. Pending until confirmed.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
   "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
   "note": zod.string().nullish().describe('Free-form note from the registrant.')
@@ -2563,6 +2711,7 @@ export const CreateContributionPaymentSubmissionResponse = zod.object({
   "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
   "branchFee": zod.union([zod.object({
   "branchId": zod.number(),
+  "electionId": zod.number().nullish(),
   "branchName": zod.string().nullish(),
   "label": zod.string(),
   "amountCents": zod.number()
@@ -3049,9 +3198,9 @@ export const createPaymentSubmissionBodyAmountExclusiveMin = 0;
 export const CreatePaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number().gt(createPaymentSubmissionBodyAmountExclusiveMin).describe('Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.'),
-  "registrationIds": zod.array(zod.number()).optional().describe('All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report.'),
+  "registrationIds": zod.array(zod.number()).optional().describe('All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. Must not be empty (use the branch fee endpoint for a fee-only report).'),
   "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
-  "branchFeeAmount": zod.number().nullish().describe('Portion (dollars and cents) for the path registration\'s branch special fee. Explicit opt-in only. Informational until confirmed.'),
+  "branchFeeElectionId": zod.number().nullish().describe('The member\'s own unpaid branch fee election to include IN FULL. Explicit opt-in only. Pending until confirmed.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
   "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
   "note": zod.string().nullish().describe('Free-form note from the registrant.')
@@ -3084,6 +3233,7 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
   "branchFee": zod.union([zod.object({
   "branchId": zod.number(),
+  "electionId": zod.number().nullish(),
   "branchName": zod.string().nullish(),
   "label": zod.string(),
   "amountCents": zod.number()
@@ -3126,6 +3276,7 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
   "branchFee": zod.union([zod.object({
   "branchId": zod.number(),
+  "electionId": zod.number().nullish(),
   "branchName": zod.string().nullish(),
   "label": zod.string(),
   "amountCents": zod.number()

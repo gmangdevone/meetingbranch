@@ -56,7 +56,7 @@ import {
   CreateContributionPaymentSubmissionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
-import { loadBranchFeeLedgers } from "../lib/branchFees";
+import { loadBranchFeeLedgers, summarizeBranchFees } from "../lib/branchFees";
 import { type Exec, ensureLedgerInitialized, ensureReunionLedgersInitialized, fundBalanceCents, loadLedger, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { attachAuth } from "../middlewares/requireAdmin";
 import {
@@ -552,7 +552,8 @@ router.delete("/reunions/:reunionId/branches/:branchId", ...manage, requireReuni
     if (!b) return false;
     const r = (await tx.execute(sql`SELECT
       EXISTS (SELECT 1 FROM payment_receipt_allocations WHERE branch_id = ${branchId}) OR
-      EXISTS (SELECT 1 FROM payment_submissions WHERE branch_fee_branch_id = ${branchId}) AS has_history`)) as unknown as { rows: { has_history: boolean }[] };
+      EXISTS (SELECT 1 FROM payment_submissions WHERE branch_fee_branch_id = ${branchId}) OR
+      EXISTS (SELECT 1 FROM branch_fee_elections WHERE branch_id = ${branchId}) AS has_history`)) as unknown as { rows: { has_history: boolean }[] };
     if (r.rows[0]?.has_history) {
       await tx.update(reunionBranchesTable).set({ archivedAt: new Date(), specialFeeEnabled: false }).where(eq(reunionBranchesTable.id, branchId));
     } else {
@@ -589,15 +590,28 @@ router.put("/reunions/:reunionId/branches/:branchId/special-fee", ...manage, req
   // (shown as credit for review); turning it off stops new money only.
   const ledger = await db.transaction(async (tx) => {
     await lockReunionRow(tx, reunionId);
+    const [current] = await loadBranchFeeLedgers(tx, reunionId, { branchIds: [branchId], includePayers: true });
+    if (current?.election?.status === "reported" && current.election.amountCents !== body.data.amountCents) {
+      return "reported" as const;
+    }
     const [updated] = await tx.update(reunionBranchesTable)
       .set({ specialFeeEnabled: body.data.enabled, specialFeeLabel: label, specialFeeCents: body.data.amountCents })
       .where(and(eq(reunionBranchesTable.id, branchId), eq(reunionBranchesTable.reunionId, reunionId), isNull(reunionBranchesTable.archivedAt)))
       .returning();
     if (!updated) return null;
+    // An unpaid election follows the configured full fee; paid ones keep the
+    // amount actually confirmed (history is never rewritten).
+    if (body.data.amountCents > 0 && current?.election?.status === "unpaid") {
+      await tx.execute(sql`UPDATE branch_fee_elections SET amount_cents = ${body.data.amountCents} WHERE id = ${current.election.id}`);
+    }
     return (await loadBranchFeeLedgers(tx, reunionId, { branchIds: [branchId], includePayers: true }))[0];
   });
   if (!ledger) {
     res.status(404).json({ error: "Branch not found" });
+    return;
+  }
+  if (ledger === "reported") {
+    res.status(409).json({ error: "A payment report for this fee is awaiting confirmation. Confirm or resolve it before changing the amount." });
     return;
   }
   res.json(ledger);
@@ -605,12 +619,12 @@ router.put("/reunions/:reunionId/branches/:branchId/special-fee", ...manage, req
 
 router.get("/reunions/:reunionId/branch-fees", ...manage, async (req, res): Promise<void> => {
   const access = req.reunionAccess!;
-  if (!(access.isOwner || access.isAdmin || access.roles.includes("power_user") || access.roles.includes("registration"))) {
+  if (!(access.isOwner || access.isAdmin || access.roles.includes("power_user") || access.roles.includes("registration") || access.roles.includes("reports"))) {
     res.status(403).json({ error: "You don't have permission to manage this area." });
     return;
   }
   const branches = await loadBranchFeeLedgers(db, req.managedReunion!.id, { includePayers: true });
-  res.json({ branches });
+  res.json({ branches, summary: summarizeBranchFees(branches) });
 });
 
 // ── Fees & dues (manage) ──────────────────────────────────────────────────────
@@ -1130,11 +1144,11 @@ router.get(
       const submitter = s.submittedBy ? submitterMap.get(s.submittedBy) : undefined;
       const cents = s.amountCents ?? s.amount * 100;
       const fb = s.branchFeeBranchId != null && (s.branchFeeCents ?? 0) > 0 ? feeBranches.find((b) => b.id === s.branchFeeBranchId) : undefined;
-      const { branchFeeBranchId: _bid, branchFeeCents: _bc, ...rest } = s;
+      const { branchFeeBranchId: _bid, branchFeeCents: _bc, branchFeeElectionId: _eid, ...rest } = s;
       void _bid; void _bc;
       return {
         ...rest,
-        branchFee: fb ? { branchId: fb.id, branchName: fb.name, label: fb.specialFeeLabel?.trim() || "Branch fee", amountCents: s.branchFeeCents! } : null,
+        branchFee: fb ? { branchId: fb.id, electionId: s.branchFeeElectionId ?? null, branchName: fb.name, label: fb.specialFeeLabel?.trim() || "Branch fee", amountCents: s.branchFeeCents! } : null,
         amount: cents / 100,
         amountCents: cents,
         confirmedReceiptId: confirmedMap.get(s.id) ?? null,

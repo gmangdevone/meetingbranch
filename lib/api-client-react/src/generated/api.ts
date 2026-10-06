@@ -39,8 +39,11 @@ import type {
   Announcement,
   AnnouncementInput,
   Attendee,
+  BranchFeeElectionInput,
   BranchFeeLedger,
   BranchFeeLedgerList,
+  BranchFeeOptionList,
+  BranchFeePaymentInput,
   BranchInput,
   BranchSpecialFeeInput,
   CancelRegistrationInput,
@@ -60,6 +63,8 @@ import type {
   MemberPollList,
   MemberProfile,
   MemberProfileInput,
+  MyBranchFeeElection,
+  MyBranchFeeElectionList,
   MyContributionsResponse,
   OwnerRecipientAuditEntry,
   OwnerRecipientDetail,
@@ -81,7 +86,6 @@ import type {
   ReceiptResult,
   ReceiptReversalInput,
   Registration,
-  RegistrationBranchFee,
   RegistrationInput,
   RegistrationLedgerResponse,
   RegistrationSummary,
@@ -3217,7 +3221,7 @@ export const getUpdateBranchSpecialFeeUrl = (reunionId: number,
 }
 
 /**
- * @summary Configure a branch's one shared special fee (power users)
+ * @summary Configure a branch's once-per-branch special fee (power users). Unpaid elections follow the new amount.
  */
 export const updateBranchSpecialFee = async (reunionId: number,
     branchId: number,
@@ -3268,7 +3272,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateBranchSpecialFeeMutationError = ErrorType<ErrorResponse | void>
 
     /**
- * @summary Configure a branch's one shared special fee (power users)
+ * @summary Configure a branch's once-per-branch special fee (power users). Unpaid elections follow the new amount.
  */
 export const useUpdateBranchSpecialFee = <TError = ErrorType<ErrorResponse | void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBranchSpecialFee>>, TError,{reunionId: number;branchId: number;data: BodyType<BranchSpecialFeeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -3290,7 +3294,7 @@ export const getListBranchFeesUrl = (reunionId: number,) => {
 }
 
 /**
- * @summary Shared branch fee balances and confirmed history (power users and registration managers)
+ * @summary Branch fee status, elected payer, confirmed history and report totals (power users, registration managers, reports)
  */
 export const listBranchFees = async (reunionId: number, options?: RequestInit): Promise<BranchFeeLedgerList> => {
 
@@ -3337,7 +3341,7 @@ export type ListBranchFeesQueryError = ErrorType<void>
 
 
 /**
- * @summary Shared branch fee balances and confirmed history (power users and registration managers)
+ * @summary Branch fee status, elected payer, confirmed history and report totals (power users, registration managers, reports)
  */
 
 export function useListBranchFees<TData = Awaited<ReturnType<typeof listBranchFees>>, TError = ErrorType<void>>(
@@ -3358,20 +3362,20 @@ export function useListBranchFees<TData = Awaited<ReturnType<typeof listBranchFe
 
 
 
-export const getGetRegistrationBranchFeeUrl = (id: number,) => {
+export const getListBranchFeeOptionsUrl = (reunionId: number,) => {
 
 
 
 
-  return `/api/registrations/${id}/branch-fee`
+  return `/api/reunions/${reunionId}/branch-fee-options`
 }
 
 /**
- * @summary The shared special fee for this registration's branch (registrant or registration manager; payers hidden)
+ * @summary Each active branch's special fee and whether the signed-in member can elect it (no other payer identities)
  */
-export const getRegistrationBranchFee = async (id: number, options?: RequestInit): Promise<RegistrationBranchFee> => {
+export const listBranchFeeOptions = async (reunionId: number, options?: RequestInit): Promise<BranchFeeOptionList> => {
 
-  return customFetch<RegistrationBranchFee>(getGetRegistrationBranchFeeUrl(id),
+  return customFetch<BranchFeeOptionList>(getListBranchFeeOptionsUrl(reunionId),
   {
     ...options,
     method: 'GET'
@@ -3384,45 +3388,45 @@ export const getRegistrationBranchFee = async (id: number, options?: RequestInit
 
 
 
-export const getGetRegistrationBranchFeeQueryKey = (id: number,) => {
+export const getListBranchFeeOptionsQueryKey = (reunionId: number,) => {
     return [
-    `/api/registrations/${id}/branch-fee`
+    `/api/reunions/${reunionId}/branch-fee-options`
     ] as const;
     }
 
 
-export const getGetRegistrationBranchFeeQueryOptions = <TData = Awaited<ReturnType<typeof getRegistrationBranchFee>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRegistrationBranchFee>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListBranchFeeOptionsQueryOptions = <TData = Awaited<ReturnType<typeof listBranchFeeOptions>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBranchFeeOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetRegistrationBranchFeeQueryKey(id);
+  const queryKey =  queryOptions?.queryKey ?? getListBranchFeeOptionsQueryKey(reunionId);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRegistrationBranchFee>>> = ({ signal }) => getRegistrationBranchFee(id, { signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBranchFeeOptions>>> = ({ signal }) => listBranchFeeOptions(reunionId, { signal, ...requestOptions });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRegistrationBranchFee>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchFeeOptions>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetRegistrationBranchFeeQueryResult = NonNullable<Awaited<ReturnType<typeof getRegistrationBranchFee>>>
-export type GetRegistrationBranchFeeQueryError = ErrorType<void>
+export type ListBranchFeeOptionsQueryResult = NonNullable<Awaited<ReturnType<typeof listBranchFeeOptions>>>
+export type ListBranchFeeOptionsQueryError = ErrorType<void>
 
 
 /**
- * @summary The shared special fee for this registration's branch (registrant or registration manager; payers hidden)
+ * @summary Each active branch's special fee and whether the signed-in member can elect it (no other payer identities)
  */
 
-export function useGetRegistrationBranchFee<TData = Awaited<ReturnType<typeof getRegistrationBranchFee>>, TError = ErrorType<void>>(
- id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRegistrationBranchFee>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export function useListBranchFeeOptions<TData = Awaited<ReturnType<typeof listBranchFeeOptions>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBranchFeeOptions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetRegistrationBranchFeeQueryOptions(id,options)
+  const queryOptions = getListBranchFeeOptionsQueryOptions(reunionId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -3434,6 +3438,298 @@ export function useGetRegistrationBranchFee<TData = Awaited<ReturnType<typeof ge
 
 
 
+
+export const getElectBranchFeeUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/branch-fee-elections`
+}
+
+/**
+ * @summary Elect to pay a branch's special fee in full (once per branch). Idempotent for the same member.
+ */
+export const electBranchFee = async (reunionId: number,
+    branchFeeElectionInput: BranchFeeElectionInput, options?: RequestInit): Promise<MyBranchFeeElection> => {
+
+  return customFetch<MyBranchFeeElection>(getElectBranchFeeUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(branchFeeElectionInput)
+  }
+);}
+
+
+
+
+
+export const getElectBranchFeeMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof electBranchFee>>, TError,{reunionId: number;data: BodyType<BranchFeeElectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof electBranchFee>>, TError,{reunionId: number;data: BodyType<BranchFeeElectionInput>}, TContext> => {
+
+const mutationKey = ['electBranchFee'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof electBranchFee>>, {reunionId: number;data: BodyType<BranchFeeElectionInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  electBranchFee(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ElectBranchFeeMutationResult = NonNullable<Awaited<ReturnType<typeof electBranchFee>>>
+    export type ElectBranchFeeMutationBody = BodyType<BranchFeeElectionInput>
+    export type ElectBranchFeeMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Elect to pay a branch's special fee in full (once per branch). Idempotent for the same member.
+ */
+export const useElectBranchFee = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof electBranchFee>>, TError,{reunionId: number;data: BodyType<BranchFeeElectionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof electBranchFee>>,
+        TError,
+        {reunionId: number;data: BodyType<BranchFeeElectionInput>},
+        TContext
+      > => {
+      return useMutation(getElectBranchFeeMutationOptions(options));
+    }
+
+export const getListMyBranchFeeElectionsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/branch-fee-elections/mine`
+}
+
+/**
+ * @summary The signed-in member's branch fee elections with status and confirmed history
+ */
+export const listMyBranchFeeElections = async (reunionId: number, options?: RequestInit): Promise<MyBranchFeeElectionList> => {
+
+  return customFetch<MyBranchFeeElectionList>(getListMyBranchFeeElectionsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMyBranchFeeElectionsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/branch-fee-elections/mine`
+    ] as const;
+    }
+
+
+export const getListMyBranchFeeElectionsQueryOptions = <TData = Awaited<ReturnType<typeof listMyBranchFeeElections>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBranchFeeElections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMyBranchFeeElectionsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyBranchFeeElections>>> = ({ signal }) => listMyBranchFeeElections(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyBranchFeeElections>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMyBranchFeeElectionsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyBranchFeeElections>>>
+export type ListMyBranchFeeElectionsQueryError = ErrorType<void>
+
+
+/**
+ * @summary The signed-in member's branch fee elections with status and confirmed history
+ */
+
+export function useListMyBranchFeeElections<TData = Awaited<ReturnType<typeof listMyBranchFeeElections>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyBranchFeeElections>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMyBranchFeeElectionsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReleaseBranchFeeElectionUrl = (electionId: number,) => {
+
+
+
+
+  return `/api/branch-fee-elections/${electionId}`
+}
+
+/**
+ * @summary Release an unpaid election (its owner, or a registration manager / power user) so the branch can be elected again
+ */
+export const releaseBranchFeeElection = async (electionId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getReleaseBranchFeeElectionUrl(electionId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getReleaseBranchFeeElectionMutationOptions = <TError = ErrorType<void | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releaseBranchFeeElection>>, TError,{electionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof releaseBranchFeeElection>>, TError,{electionId: number}, TContext> => {
+
+const mutationKey = ['releaseBranchFeeElection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof releaseBranchFeeElection>>, {electionId: number}> = (props) => {
+          const {electionId} = props ?? {};
+
+          return  releaseBranchFeeElection(electionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReleaseBranchFeeElectionMutationResult = NonNullable<Awaited<ReturnType<typeof releaseBranchFeeElection>>>
+
+    export type ReleaseBranchFeeElectionMutationError = ErrorType<void | ErrorResponse>
+
+    /**
+ * @summary Release an unpaid election (its owner, or a registration manager / power user) so the branch can be elected again
+ */
+export const useReleaseBranchFeeElection = <TError = ErrorType<void | ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releaseBranchFeeElection>>, TError,{electionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof releaseBranchFeeElection>>,
+        TError,
+        {electionId: number},
+        TContext
+      > => {
+      return useMutation(getReleaseBranchFeeElectionMutationOptions(options));
+    }
+
+export const getCreateBranchFeePaymentSubmissionUrl = (electionId: number,) => {
+
+
+
+
+  return `/api/branch-fee-elections/${electionId}/payment-submissions`
+}
+
+/**
+ * @summary Report a full branch fee payment on its own (no attendee registration). Pending until an organizer confirms.
+ */
+export const createBranchFeePaymentSubmission = async (electionId: number,
+    branchFeePaymentInput: BranchFeePaymentInput, options?: RequestInit): Promise<PaymentSubmission> => {
+
+  return customFetch<PaymentSubmission>(getCreateBranchFeePaymentSubmissionUrl(electionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(branchFeePaymentInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBranchFeePaymentSubmissionMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBranchFeePaymentSubmission>>, TError,{electionId: number;data: BodyType<BranchFeePaymentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBranchFeePaymentSubmission>>, TError,{electionId: number;data: BodyType<BranchFeePaymentInput>}, TContext> => {
+
+const mutationKey = ['createBranchFeePaymentSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBranchFeePaymentSubmission>>, {electionId: number;data: BodyType<BranchFeePaymentInput>}> = (props) => {
+          const {electionId,data} = props ?? {};
+
+          return  createBranchFeePaymentSubmission(electionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBranchFeePaymentSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof createBranchFeePaymentSubmission>>>
+    export type CreateBranchFeePaymentSubmissionMutationBody = BodyType<BranchFeePaymentInput>
+    export type CreateBranchFeePaymentSubmissionMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Report a full branch fee payment on its own (no attendee registration). Pending until an organizer confirms.
+ */
+export const useCreateBranchFeePaymentSubmission = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBranchFeePaymentSubmission>>, TError,{electionId: number;data: BodyType<BranchFeePaymentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBranchFeePaymentSubmission>>,
+        TError,
+        {electionId: number;data: BodyType<BranchFeePaymentInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBranchFeePaymentSubmissionMutationOptions(options));
+    }
 
 export const getRecordReceiptUrl = (reunionId: number,) => {
 

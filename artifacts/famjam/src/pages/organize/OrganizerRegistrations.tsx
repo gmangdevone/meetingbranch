@@ -738,8 +738,8 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                                   branchId: s.branchFee.branchId,
                                   branchName: live?.branchName ?? s.branchFee.branchName ?? "Branch",
                                   label: live?.label ?? s.branchFee.label,
-                                  remainingCents: live?.remainingCents ?? 0,
-                                  reportedCents: s.branchFee.amountCents,
+                                  amountCents: s.branchFee.amountCents,
+                                  payerName: live?.election?.userName ?? null,
                                 };
                               })()
                             : undefined,

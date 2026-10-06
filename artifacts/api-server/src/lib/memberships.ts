@@ -3,6 +3,7 @@
  *  - reunions.organizer_id = user          (organizer)
  *  - reunion_organizers.user_id = user     (co-organizer)
  *  - registrations.user_id = user with status 'active' (registrant)
+ *  - branch_fee_elections.user_id = user with status 'active' (fee payer, no headcount)
  * Cancelled-only registrations do not count. Admin visibility never counts.
  * Entries are deduplicated by the immutable reunion id.
  */
@@ -22,18 +23,21 @@ export interface EventMembership {
   isOrganizer: boolean;
   isCoOrganizer: boolean;
   activeRegistrationCount: number;
+  /** Active branch fee elections (fee-only payers have no registration). Not headcount. */
+  activeBranchFeeElectionCount: number;
 }
 
 export function mergeMemberships(input: {
   owned: MembershipReunion[];
   coOrganized: MembershipReunion[];
   registrations: { status: string; reunion: MembershipReunion }[];
+  branchFeeElections?: MembershipReunion[];
 }): EventMembership[] {
   const byId = new Map<number, EventMembership>();
   const entry = (r: MembershipReunion) => {
     let e = byId.get(r.id);
     if (!e) {
-      e = { reunionId: r.id, code: r.code, name: r.name, startDate: String(r.startDate), endDate: String(r.endDate), isOrganizer: false, isCoOrganizer: false, activeRegistrationCount: 0 };
+      e = { reunionId: r.id, code: r.code, name: r.name, startDate: String(r.startDate), endDate: String(r.endDate), isOrganizer: false, isCoOrganizer: false, activeRegistrationCount: 0, activeBranchFeeElectionCount: 0 };
       byId.set(r.id, e);
     }
     return e;
@@ -44,6 +48,7 @@ export function mergeMemberships(input: {
     if (reg.status !== "active") continue;
     entry(reg.reunion).activeRegistrationCount += 1;
   }
+  for (const r of input.branchFeeElections ?? []) entry(r).activeBranchFeeElectionCount += 1;
   return [...byId.values()].sort(
     (a, b) => a.startDate.localeCompare(b.startDate) || a.reunionId - b.reunionId,
   );

@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useState } from "react";
-import { useQueryClient, useQueries } from "@tanstack/react-query";
-import { getGetRegistrationBranchFeeQueryOptions, getGetRegistrationBranchFeeQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useListMyBranchFeeElections, getListMyBranchFeeElectionsQueryKey } from "@workspace/api-client-react";
 import { BranchFeeCard } from "../components/payments/BranchFeeCard";
 import { useUser } from "@clerk/react";
 import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
@@ -134,32 +134,29 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const remainingFor = (r: (typeof myActiveRegistrations)[number]) => myBalance.remainingCentsFor(r) / 100;
   const myUnpaidRegistrations = myBalance.unpaid;
   const myPendingChipIns = myBalance.pendingChipIns;
-  // Branch special fees: one shared fee per branch. One lookup per distinct
-  // branch among my registrations whose branch has the fee turned on.
-  const feeBranchNames = new Set((reunion?.branches ?? []).filter((b) => b.specialFeeEnabled).map((b) => b.name));
-  const myFeeRegs = [...new Map(myActiveRegistrations.filter((r) => feeBranchNames.has(r.branchName)).map((r) => [r.branchName, r] as const)).values()];
-  const branchFeeResults = useQueries({
-    queries: myFeeRegs.map((r) => getGetRegistrationBranchFeeQueryOptions(r.id, { query: { enabled: isSignedIn, queryKey: getGetRegistrationBranchFeeQueryKey(r.id) } })),
+  // Branch special fees I chose to pay (full fee, once per branch). Independent
+  // of registrations: a fee-only member has no attendees but still pays here.
+  const myElectionsQ = useListMyBranchFeeElections(reunion?.id ?? 0, {
+    query: { enabled: isSignedIn && !!reunion, queryKey: getListMyBranchFeeElectionsQueryKey(reunion?.id ?? 0) },
   });
-  const myBranchFees = branchFeeResults
-    .map((q, i) => (q.data?.branchFee ? { fee: q.data.branchFee, registrationId: myFeeRegs[i].id } : null))
-    .filter((x): x is NonNullable<typeof x> => !!x);
-  const payableBranchFees = myBranchFees
-    .filter(({ fee }) => fee.enabled && !fee.archived && fee.remainingCents > 0)
-    .map(({ fee, registrationId }) => ({ registrationId, branchId: fee.branchId, branchName: fee.branchName, label: fee.label, remainingCents: fee.remainingCents }));
+  const myElections = myElectionsQ.data?.elections ?? [];
+  const payableBranchFees = myElections
+    .filter((e) => e.status === "unpaid" && e.collecting)
+    .map((e) => ({ electionId: e.id, branchId: e.branchId, branchName: e.branchName, label: e.label, amountCents: e.amountCents }));
   const myPendingChipInsTotal = myBalance.pendingChipInsCents / 100;
   const myPaymentStatus = myBalance.status;
   const myOutstandingCents = myBalance.outstandingCents;
   const myOutstandingTotal = myOutstandingCents / 100;
   const myFirstUnpaidRegistration = myUnpaidRegistrations[0];
   // Members who owe money should land on the payment form, not a collapsed panel.
+  const owesBranchFee = payableBranchFees.length > 0;
   const autoOpenedPayments = useRef(false);
   useEffect(() => {
-    if (!autoOpenedPayments.current && isSignedIn && myOutstandingCents > 0) {
+    if (!autoOpenedPayments.current && isSignedIn && (myOutstandingCents > 0 || owesBranchFee)) {
       autoOpenedPayments.current = true;
       setShowPayments(true);
     }
-  }, [isSignedIn, myOutstandingCents]);
+  }, [isSignedIn, myOutstandingCents, owesBranchFee]);
 
   // Remember the last successfully visited reunion so the Home nav can return here;
   // forget it if the code turns out to be invalid.
@@ -543,7 +540,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       )}
                       {/* Payment handle — shown whenever the member owes anything
                           (has fees to pay or has pending standalone chip-ins). */}
-                      {(reunion.fees.length > 0 || myPendingChipIns.length > 0) && (
+                      {(reunion.fees.length > 0 || myPendingChipIns.length > 0 || payableBranchFees.length > 0) && (
                         <>
                           {reunion.paymentRecipient?.status === "approved" ? (
                             <>
@@ -582,11 +579,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   )}
                 </div>
 
-                {isSignedIn && myBranchFees.map(({ fee }) => <BranchFeeCard key={fee.branchId} fee={fee} />)}
+                {isSignedIn && myElections.map((e) => <BranchFeeCard key={e.id} election={e} reunionId={reunion.id} />)}
 
                 {isSignedIn && (myBalance.canSubmitPayment || payableBranchFees.length > 0) && (
                   <SubmitPayment
-                    key={payableBranchFees.map((f) => `${f.branchId}:${f.remainingCents}`).join(",")}
+                    key={payableBranchFees.map((f) => `${f.electionId}:${f.amountCents}`).join(",")}
                     reunionId={reunion.id}
                     branchFees={payableBranchFees}
                     registrations={myUnpaidRegistrations.map((r) => ({

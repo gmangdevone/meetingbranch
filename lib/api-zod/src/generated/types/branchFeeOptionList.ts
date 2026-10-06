@@ -5,11 +5,8 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { BranchFeeOption } from './branchFeeOption';
 
-export interface SubmissionBranchFee {
-  branchId: number;
-  electionId?: number | null;
-  branchName?: string | null;
-  label: string;
-  amountCents: number;
+export interface BranchFeeOptionList {
+  options: BranchFeeOption[];
 }

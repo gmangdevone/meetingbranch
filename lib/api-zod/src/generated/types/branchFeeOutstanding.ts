@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface SubmissionBranchFee {
+export interface BranchFeeOutstanding {
   branchId: number;
-  electionId?: number | null;
-  branchName?: string | null;
+  branchName: string;
   label: string;
   amountCents: number;
+  elected: boolean;
 }

@@ -4,6 +4,7 @@ import { reunionsTable, reunionBranchesTable } from "./reunions";
 import { registrationsTable } from "./registrations";
 import { paymentSubmissionsTable } from "./payments";
 import { sponsorshipContributionsTable } from "./sponsorships";
+import { branchFeeElectionsTable } from "./branchFeeElections";
 
 /**
  * Confirmed-money ledger. All amounts are exact integer cents.
@@ -54,8 +55,10 @@ export const paymentReceiptAllocationsTable = pgTable(
     registrationId: integer("registration_id").references(() => registrationsTable.id, { onDelete: "cascade" }),
     contributionId: integer("contribution_id").references(() => sponsorshipContributionsTable.id, { onDelete: "set null" }),
     amountCents: integer("amount_cents").notNull(),
-    branchId: integer("branch_id").references(() => reunionBranchesTable.id, { onDelete: "restrict" }),
+    branchId: integer("branch_id").references(() => reunionBranchesTable.id),
     payerRegistrationId: integer("payer_registration_id").references(() => registrationsTable.id, { onDelete: "set null" }),
+    // New-model branch fee money: the full fee paid by the electing member.
+    branchFeeElectionId: integer("branch_fee_election_id").references(() => branchFeeElectionsTable.id),
   },
   (t) => [
     index("payment_receipt_alloc_branch_idx").on(t.branchId),

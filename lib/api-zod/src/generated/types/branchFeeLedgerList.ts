@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BranchFeeLedger } from './branchFeeLedger';
+import type { BranchFeeSummary } from './branchFeeSummary';
 
 export interface BranchFeeLedgerList {
   branches: BranchFeeLedger[];
+  summary: BranchFeeSummary;
 }

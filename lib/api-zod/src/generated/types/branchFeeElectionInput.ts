@@ -6,10 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface SubmissionBranchFee {
+export interface BranchFeeElectionInput {
   branchId: number;
-  electionId?: number | null;
-  branchName?: string | null;
-  label: string;
-  amountCents: number;
+  /** The full fee the member saw; a mismatch returns 409 so they can re-confirm. */
+  expectedAmountCents: number;
 }

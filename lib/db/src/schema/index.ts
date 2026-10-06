@@ -11,4 +11,5 @@ export * from "./activityChoices";
 export * from "./vendors";
 export * from "./images";
 export * from "./paymentRecipients";
+export * from "./branchFeeElections";
 export * from "./ledger";

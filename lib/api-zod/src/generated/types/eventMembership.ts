@@ -14,5 +14,7 @@ export interface EventMembership {
   endDate: string;
   isOrganizer: boolean;
   isCoOrganizer: boolean;
+  /** Active branch fees this member chose to pay (fee-only members have no registration). Not headcount. */
+  activeBranchFeeElectionCount: number;
   activeRegistrationCount: number;
 }

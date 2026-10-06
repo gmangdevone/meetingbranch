@@ -1,70 +1,84 @@
 import { format } from "date-fns";
-import type { BranchFeeLedger } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useReleaseBranchFeeElection,
+  getListMyBranchFeeElectionsQueryKey,
+  getListBranchFeeOptionsQueryKey,
+  type MyBranchFeeElection,
+} from "@workspace/api-client-react";
 import { money } from "./money";
+import { errorMessage } from "./LedgerPanel";
+import { Button } from "../ui/button";
 import { Users } from "lucide-react";
+import { useToast } from "../../hooks/use-toast";
+
+const STATUS: Record<MyBranchFeeElection["status"], { text: string; tone: string }> = {
+  unpaid: { text: "Not paid yet", tone: "bg-amber-100 text-amber-900" },
+  reported: { text: "Awaiting confirmation", tone: "bg-sky-100 text-sky-900" },
+  paid: { text: "Paid", tone: "bg-emerald-100 text-emerald-900" },
+};
 
 /**
- * Member view of a branch's ONE shared special fee. Shows the shared balance
- * and dated confirmed amounts only — never who paid.
+ * A branch special fee this member chose to pay IN FULL (once per branch).
+ * Separate from attendees: it never adds headcount. Unpaid choices can be
+ * released so someone else in the branch can take it.
  */
-export function BranchFeeCard({ fee }: { fee: BranchFeeLedger }) {
-  const live = fee.entries.filter((e) => !e.reversed);
-  const pct = fee.amountCents > 0 ? Math.min(100, (fee.paidCents / fee.amountCents) * 100) : 0;
+export function BranchFeeCard({ election, reunionId }: { election: MyBranchFeeElection; reunionId: number }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const release = useReleaseBranchFeeElection();
+  const st = STATUS[election.status];
+  const live = election.history.filter((e) => !e.reversed);
+  const onRelease = () => {
+    if (!window.confirm(`Stop paying the ${election.label}? Someone else in ${election.branchName} can then choose it.`)) return;
+    release.mutate(
+      { electionId: election.id },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListMyBranchFeeElectionsQueryKey(reunionId) });
+          qc.invalidateQueries({ queryKey: getListBranchFeeOptionsQueryKey(reunionId) });
+          toast({ title: "Branch fee released" });
+        },
+        onError: (err) => toast({ title: "Couldn't release", description: errorMessage(err), variant: "destructive" }),
+      },
+    );
+  };
   return (
-    <div className="bg-card border shadow-sm rounded-3xl p-6" data-testid={`branch-fee-${fee.branchId}`}>
+    <div className="bg-card border shadow-sm rounded-3xl p-6" data-testid={`branch-fee-${election.branchId}`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" /> {fee.branchName} branch
+            <Users className="w-3.5 h-3.5" /> {election.branchName} branch
           </p>
-          <h3 className="font-serif text-xl font-bold mt-1">{fee.label}</h3>
+          <h3 className="font-serif text-xl font-bold mt-1">{election.label}</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            One shared fee for the whole {fee.branchName} branch, paid once — not per registration. Optional; add it to a
-            payment only if you're covering some of it.
+            You chose to pay this once-per-branch fee in full. It's separate from attendee costs.
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-bold text-2xl tabular-nums">{money(fee.amountCents)}</div>
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">once per branch</div>
+          <div className="font-bold text-2xl tabular-nums">{money(election.amountCents)}</div>
+          <span className={`inline-block mt-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${st.tone}`}>{st.text}</span>
         </div>
       </div>
-
-      <div className="mt-5 h-2 rounded-full bg-muted overflow-hidden" aria-hidden>
-        <div className="h-full bg-primary rounded-full transition-transform origin-left" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="mt-2 flex flex-wrap justify-between gap-2 text-sm">
-        <span>
-          <span className="font-bold tabular-nums">{money(fee.paidCents)}</span>{" "}
-          <span className="text-muted-foreground">confirmed</span>
-        </span>
-        {fee.settled ? (
-          <span className="font-bold text-primary">Paid in full — nothing more is owed.</span>
-        ) : !fee.enabled ? (
-          <span className="text-muted-foreground">Not being collected right now.</span>
-        ) : (
-          <span>
-            <span className="font-bold tabular-nums">{money(fee.remainingCents)}</span>{" "}
-            <span className="text-muted-foreground">left for the branch</span>
-          </span>
-        )}
-      </div>
-      {fee.pendingReportedCents > 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {money(fee.pendingReportedCents)} reported and awaiting organizer confirmation (not counted yet).
-        </p>
-      )}
-
       {live.length > 0 && (
-        <ul className="mt-4 divide-y border-t">
+        <ul className="mt-4 space-y-1 text-sm">
           {live.map((e) => (
-            <li key={e.receiptId} className="flex justify-between py-2 text-sm">
-              <span className="text-muted-foreground">
-                {e.receivedDate ? format(new Date(`${e.receivedDate}T12:00:00`), "MMM d, yyyy") : format(new Date(e.createdAt), "MMM d, yyyy")}
-              </span>
-              <span className="font-medium tabular-nums">{money(e.cents)}</span>
+            <li key={e.receiptId} className="flex justify-between">
+              <span className="text-muted-foreground">Confirmed {format(new Date(e.receivedDate ?? e.createdAt), "MMM d, yyyy")}</span>
+              <span className="tabular-nums font-medium">{money(e.cents)}</span>
             </li>
           ))}
         </ul>
+      )}
+      {election.status === "unpaid" && !election.collecting && (
+        <p className="mt-3 text-sm text-muted-foreground" data-testid="branch-fee-not-collecting">
+          This branch isn't collecting the fee right now. Nothing to pay unless organizers turn it back on.
+        </p>
+      )}
+      {election.status === "unpaid" && (
+        <Button variant="ghost" size="sm" className="mt-3 -ml-2 text-muted-foreground" onClick={onRelease} disabled={release.isPending}>
+          I can't pay this after all
+        </Button>
       )}
     </div>
   );
