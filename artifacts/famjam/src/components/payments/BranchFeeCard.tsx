@@ -76,8 +76,8 @@ export function BranchFeeCard({ election, reunionId }: { election: MyBranchFeeEl
         </p>
       )}
       {election.status === "unpaid" && (
-        <Button variant="ghost" size="sm" className="mt-3 -ml-2 text-muted-foreground" onClick={onRelease} disabled={release.isPending}>
-          I can't pay this after all
+        <Button variant="ghost" size="sm" className="mt-3 -ml-2 font-bold text-blue-700 underline underline-offset-4 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer" onClick={onRelease} disabled={release.isPending}>
+          Can't pay this afterall?
         </Button>
       )}
     </div>
