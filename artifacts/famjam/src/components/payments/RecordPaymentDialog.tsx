@@ -49,7 +49,9 @@ const today = () => {
  */
 export function isDefiniteRejection(err: unknown): boolean {
   const status = (err as { status?: unknown })?.status;
-  const hasBody = (err as { data?: unknown })?.data != null;
+  const data = (err as { data?: { code?: unknown } | null })?.data;
+  const hasBody = data != null;
+  if (data?.code === "already_recorded") return false;
   return typeof status === "number" && hasBody && [400, 401, 403, 404, 409, 422].includes(status);
 }
 
@@ -132,8 +134,11 @@ export function RecordPaymentDialog({
   // if it had committed); the form is locked so nothing can change under that key.
   const frozen = useRef<ReceiptInput | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
-  const locked = ambiguous || record.isPending;
+  // Server says this money may already be on the books: stay locked, never rotate the key.
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
+  const locked = ambiguous || alreadyRecorded || record.isPending;
 
+  const soleLine = lines.length === 1 && chipIns.length === 0 ? lines[0] : null;
   const amountCents = parseCents(amount);
   const displayedAmount = amountTouched ? amountCents : allocTotal || null;
   const lineErrors = lines.map((l) => {
@@ -160,7 +165,11 @@ export function RecordPaymentDialog({
           setDone(true);
         },
         onError: (err) => {
-          if (isDefiniteRejection(err)) {
+          if ((err as { data?: { code?: unknown } | null })?.data?.code === "already_recorded") {
+            setAmbiguous(false);
+            setAlreadyRecorded(true);
+            setError(errorMessage(err));
+          } else if (isDefiniteRejection(err)) {
             // Rejected before anything was written: unlock, and the next
             // (possibly edited) attempt is a new operation with a new key.
             frozen.current = null;
@@ -181,6 +190,7 @@ export function RecordPaymentDialog({
   };
 
   const save = () => {
+    if (alreadyRecorded) return;
     if (ambiguous) return retrySame();
     if (!canSave || displayedAmount == null) return;
     frozen.current = {
@@ -237,6 +247,12 @@ export function RecordPaymentDialog({
                     if (locked) return;
                     setAmountTouched(true);
                     setAmount(e.target.value);
+                    // One place for the money to go: the split follows the amount
+                    // (a $20 partial on $120 just works). Multiple lines stay explicit.
+                    if (soleLine) {
+                      const c = parseCents(e.target.value);
+                      setAlloc((m) => ({ ...m, [soleLine.key]: c == null ? e.target.value : centsToInput(c) }));
+                    }
                   }}
                   disabled={locked}
                   className="rounded-xl tabular-nums"
@@ -330,8 +346,8 @@ export function RecordPaymentDialog({
             )}
 
             <DialogFooter>
-              <Button variant="ghost" onClick={onClose}>{ambiguous ? "Close and check history" : "Cancel"}</Button>
-              {ambiguous ? (
+              <Button variant="ghost" onClick={onClose}>{ambiguous || alreadyRecorded ? "Close and check history" : "Cancel"}</Button>
+              {alreadyRecorded ? null : ambiguous ? (
                 <Button disabled={record.isPending} onClick={retrySame} className="rounded-xl">
                   {record.isPending ? "Checking..." : `Retry the same ${money(frozen.current?.amountCents ?? 0)} payment`}
                 </Button>

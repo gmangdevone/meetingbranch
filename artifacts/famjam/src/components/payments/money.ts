@@ -40,3 +40,8 @@ export function invalidateMoney(qc: QueryClient, reunionId: number, registration
   qc.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunionId) });
   qc.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
 }
+
+/** Registrations whose balances a transfer changes: always the source; the target too for payment transfers. */
+export function transferMoneyIds(sourceId: number, kind: "registration" | "payment", targetId: number | null | undefined): number[] {
+  return kind === "payment" && Number.isInteger(targetId) ? [sourceId, targetId as number] : [sourceId];
+}

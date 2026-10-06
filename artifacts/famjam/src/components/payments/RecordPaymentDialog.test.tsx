@@ -28,7 +28,7 @@ const renderDialog = () =>
 
 const apiError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status, data: { error: "Rejected by server" } });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => { vi.clearAllMocks(); h.mutate.mockReset(); });
 afterEach(cleanup);
 
 describe("RecordPaymentDialog idempotency", () => {
@@ -82,5 +82,33 @@ describe("RecordPaymentDialog idempotency", () => {
     const third = h.mutate.mock.calls[2][0];
     expect(third.data.amountCents).toBe(2000);
     expect(third.data.idempotencyKey).not.toBe(h.mutate.mock.calls[0][0].data.idempotencyKey);
+  });
+
+  it("single fee line: typing $20 against $120 updates the sole allocation; no split editing needed", () => {
+    h.mutate.mockImplementationOnce(() => undefined);
+    const l120 = { ...(ledger as object), chargeCents: 12000, balanceCents: 12000, pendingReportedCents: 0 } as never;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RecordPaymentDialog reunionId={5} registrations={[{ id: 1, label: "#1 Goudy", ledger: l120 }]} preset={{ method: "cash", receivedDate: "2026-06-01" } as never} onClose={() => undefined} />
+      </QueryClientProvider>,
+    );
+    fireEvent.change(screen.getByLabelText(/Amount received/), { target: { value: "20" } });
+    expect((screen.getByLabelText(/Amount for #1 Goudy/) as HTMLInputElement).value).toBe("20.00");
+    fireEvent.click(screen.getByRole("button", { name: /Record \$20\.00/ }));
+    expect(h.mutate.mock.calls[0][0].data).toMatchObject({ amountCents: 2000, allocations: [{ registrationId: 1, contributionId: null, amountCents: 2000 }] });
+  });
+
+  it("'already recorded' conflict keeps the form locked and never rotates the key", () => {
+    h.mutate.mockImplementationOnce((_v, cb) => cb.onError(new TypeError("Failed to fetch")));
+    renderDialog();
+    fireEvent.click(screen.getByRole("button", { name: /Record \$30\.00/ }));
+    const conflict = Object.assign(new Error("HTTP 409"), { status: 409, data: { error: "This payment was already recorded.", code: "already_recorded" } });
+    expect(isDefiniteRejection(conflict)).toBe(false);
+    h.mutate.mockImplementationOnce((_v, cb) => cb.onError(conflict));
+    fireEvent.click(screen.getByRole("button", { name: /Retry the same/ }));
+    expect(screen.getByText("This payment was already recorded.")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Amount received/)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Record|Retry/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Close and check history/ })).toBeInTheDocument();
   });
 });

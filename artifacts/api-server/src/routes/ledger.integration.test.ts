@@ -461,6 +461,47 @@ describe.skipIf(!hasDb)("partial payment ledger (real DB)", () => {
     expect((await ledger(a)).ledger.confirmedCents).toBe(3000);
   });
 
+  it("simple partial: $120 charge, record $20, $100 remains", async () => {
+    const [opt] = await db.insert(reunionFeesTable).values({ reunionId: R, label: "T-shirt + banquet", chargeType: "flat", amount: 40, isOptional: true }).returning();
+    const a = await newReg();
+    await db.execute(sql`INSERT INTO registration_fees (registration_id, fee_id) VALUES (${a}, ${opt.id})`);
+    expect((await ledger(a)).ledger).toMatchObject({ chargeCents: 12000, balanceCents: 12000 });
+    expect((await one(a, 2000)).status).toBe(201);
+    expect((await ledger(a)).ledger).toMatchObject({ confirmedCents: 2000, balanceCents: 10000, status: "partial" });
+    await db.execute(sql`DELETE FROM registration_fees WHERE fee_id = ${opt.id}`);
+    await db.delete(reunionFeesTable).where(eq(reunionFeesTable.id, opt.id));
+  });
+
+  it("concurrent identical requests under one key: exactly one receipt, both succeed", async () => {
+    const a = await newReg();
+    const body = { method: "cash", receivedDate: "2026-06-01", idempotencyKey: key(), amountCents: 2000, allocations: [{ registrationId: a, amountCents: 2000 }] };
+    const send = () => as(ORG).post(`/api/reunions/${R}/receipts`).send(body).then((r) => r);
+    const results = await Promise.all([send(), send(), send()]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 200, 201]);
+    expect(new Set(results.map((r) => r.body.receiptId)).size).toBe(1);
+    const n = await db.execute(sql`SELECT count(*)::int AS n FROM payment_receipts WHERE idempotency_key = ${body.idempotencyKey}`);
+    expect((n as unknown as { rows: { n: number }[] }).rows[0].n).toBe(1);
+    expect((await ledger(a)).ledger.confirmedCents).toBe(2000);
+    const changed = await as(ORG).post(`/api/reunions/${R}/receipts`).send({ ...body, amountCents: 1500, allocations: [{ registrationId: a, amountCents: 1500 }] });
+    expect(changed.status).toBe(409);
+    expect(changed.body.code).toBe("already_recorded");
+  });
+
+  it("fund pending counts only the unpaid part of attached chip-ins; standalone stays all-or-nothing", async () => {
+    const pendingNow = async () => (await as(ORG).get(`/api/reunions/${R}/sponsorship`)).body.totalPending as number;
+    const base = await pendingNow();
+    const a = await newReg();
+    const [c] = await db.insert(sponsorshipContributionsTable).values({ reunionId: R, registrationId: a, contributorUserId: MEMBER, amount: 25, source: "registration", paymentStatus: "pending" }).returning();
+    expect(await pendingNow()).toBeCloseTo(base + 25, 2);
+    expect((await pay({ amountCents: 1000, allocations: [{ contributionId: c.id, amountCents: 1000 }] })).status).toBe(201);
+    expect(await pendingNow()).toBeCloseTo(base + 15, 2);
+    const [sa] = await db.insert(sponsorshipContributionsTable).values({ reunionId: R, contributorUserId: MEMBER, amount: 12, source: "direct", paymentStatus: "pending" }).returning();
+    expect(await pendingNow()).toBeCloseTo(base + 27, 2);
+    await db.update(sponsorshipContributionsTable).set({ paymentStatus: "waived" }).where(eq(sponsorshipContributionsTable.id, c.id));
+    expect(await pendingNow()).toBeCloseTo(base + 12, 2);
+    await db.delete(sponsorshipContributionsTable).where(eq(sponsorshipContributionsTable.id, sa.id));
+  });
+
   it("reports, export and receipt CSV agree on ledger totals", async () => {
     const rep = await as(ORG).get(`/api/reunions/${R}/reports`);
     expect(rep.status).toBe(200);

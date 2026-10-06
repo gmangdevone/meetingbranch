@@ -22,7 +22,8 @@ import { computeTotal } from "./fees";
 export type Exec = { execute: (q: any) => Promise<any> };
 
 export class LedgerError extends Error {
-  constructor(public status: number, message: string) {
+  /** `code: "already_recorded"` tells clients this money may already be on the books: never retry under a new key. */
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
   }
 }
@@ -264,8 +265,21 @@ export async function fundBalanceCents(ex: Exec, reunionId: number) {
         WHERE a.reunion_id = ${reunionId} AND c.source = 'registration'
           AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = a.receipt_id)) AS contributed,
       (SELECT coalesce(sum(amount), 0) * 100 FROM sponsorship_allocations WHERE reunion_id = ${reunionId} AND funded_from = 'fund') AS allocated,
+      -- Pending: standalone/cancellation pledges are all-or-nothing (whole
+      -- pledge while pending). Attached chip-ins owe pledge minus live receipt
+      -- allocations; waived owe nothing; legacy paid (pre-ledger) owe nothing.
       (SELECT coalesce(sum(coalesce(c.amount_cents, c.amount * 100)), 0) FROM sponsorship_contributions c
-        WHERE c.reunion_id = ${reunionId} AND c.payment_status = 'pending') AS pending`);
+        WHERE c.reunion_id = ${reunionId} AND c.payment_status = 'pending'
+          AND NOT (c.source = 'registration' AND c.registration_id IS NOT NULL))
+      +
+      (SELECT coalesce(sum(greatest(0, coalesce(c.amount_cents, c.amount * 100) - coalesce((
+          SELECT sum(a.amount_cents) FROM payment_receipt_allocations a
+          WHERE a.contribution_id = c.id
+            AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = a.receipt_id)), 0))), 0)
+        FROM sponsorship_contributions c JOIN registrations g ON g.id = c.registration_id
+        WHERE c.reunion_id = ${reunionId} AND c.source = 'registration' AND g.status = 'active'
+          AND c.payment_status <> 'waived'
+          AND NOT (g.ledger_initialized_at IS NULL AND c.payment_status = 'paid')) AS pending`);
   const contributed = Number(r.contributed);
   const allocated = Number(r.allocated);
   return { contributedCents: contributed, allocatedCents: allocated, balanceCents: contributed - allocated, pendingCents: Number(r.pending) };

@@ -41,7 +41,7 @@ import { computeTotal } from "../../lib/fees";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { LedgerHistory, LedgerStatusBadge } from "../../components/payments/LedgerPanel";
 import { RecordPaymentDialog, type PayableRegistration, type RecordPaymentPreset } from "../../components/payments/RecordPaymentDialog";
-import { money, parseCents } from "../../components/payments/money";
+import { invalidateMoney, money, parseCents, transferMoneyIds } from "../../components/payments/money";
 import { Wallet, FileSpreadsheet } from "lucide-react";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
@@ -258,10 +258,8 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       data: { paymentStatus: status }
     }, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
+        // Includes the open ledger panel's query for this registration.
+        invalidateMoney(queryClient, reunionId, [registrationId]);
         toast({ title: status === "waived" ? "Remaining fees waived" : "Waiver removed" });
       },
       onError: (err: any) => toast({ title: err?.error || "Could not update", variant: "destructive" }),
@@ -315,10 +313,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       }
     }, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
+        invalidateMoney(queryClient, reunionId, [cancelReg.id]);
         toast({ title: "Registration cancelled" });
         setCancelReg(null);
       }
@@ -327,6 +322,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
 
   const handleTransfer = () => {
     if (!transferReg) return;
+    const movedIds = transferMoneyIds(transferReg.id, transferMode, parseInt(targetRegistrationId, 10));
     transferMutation.mutate({
       id: transferReg.id,
       data: {
@@ -337,8 +333,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       }
     }, {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
-        queryClient.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
+        invalidateMoney(queryClient, reunionId, movedIds);
         setTransferAmount("");
         toast({ title: "Registration transferred" });
         setTransferReg(null);

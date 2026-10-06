@@ -182,15 +182,24 @@ function parseReceiptBody(b: Record<string, unknown>) {
 
 function sendErr(res: Response, err: unknown) {
   if (err instanceof LedgerError) {
-    res.status(err.status).json({ error: err.message });
+    res.status(err.status).json(err.code ? { error: err.message, code: err.code } : { error: err.message });
     return true;
   }
   const code = (err as { code?: string; cause?: { code?: string } })?.code ?? (err as { cause?: { code?: string } })?.cause?.code;
   if (code === "23505") {
-    res.status(409).json({ error: "This payment was already recorded. Refresh to see the latest history." });
+    res.status(409).json({ error: "This payment was already recorded. Refresh to see the latest history.", code: "already_recorded" });
     return true;
   }
   return false;
+}
+
+/** Receipt id already recorded under this key, or null. Same key + different payment is a hard conflict. */
+async function findPriorReceipt(ex: Exec, reunionId: number, input: { idempotencyKey: string; amountCents: number; method: string; receivedDate: string; submissionId: number | null }) {
+  const [prior] = await rows<{ id: number; amount_cents: number; method: string | null; received_date: string | null; submission_id: number | null }>(ex, sql`SELECT id, amount_cents, method, received_date::text AS received_date, submission_id FROM payment_receipts WHERE reunion_id = ${reunionId} AND idempotency_key = ${input.idempotencyKey}`);
+  if (!prior) return null;
+  if (prior.amount_cents !== input.amountCents || prior.method !== input.method || prior.received_date !== input.receivedDate || (prior.submission_id ?? null) !== (input.submissionId ?? null))
+    throw new LedgerError(409, "This request key was already used for a different payment. Check the payment history before recording again.", "already_recorded");
+  return prior.id;
 }
 
 async function affectedLedgers(regIds: number[]) {
@@ -204,17 +213,19 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
   const actor = req.userId!;
   try {
     const input = parseReceiptBody((req.body ?? {}) as Record<string, unknown>);
-    // Idempotent retry: same key returns the original receipt.
-    const [prior] = await rows<{ id: number; amount_cents: number; method: string | null; received_date: string | null; submission_id: number | null }>(db, sql`SELECT id, amount_cents, method, received_date::text AS received_date, submission_id FROM payment_receipts WHERE reunion_id = ${reunionId} AND idempotency_key = ${input.idempotencyKey}`);
-    if (prior) {
-      if (prior.amount_cents !== input.amountCents || prior.method !== input.method || prior.received_date !== input.receivedDate || (prior.submission_id ?? null) !== (input.submissionId ?? null))
-        throw new LedgerError(409, "This request key was already used for a different payment.");
-      const regs = await rows<{ registration_id: number }>(db, sql`SELECT DISTINCT registration_id FROM payment_receipt_allocations WHERE receipt_id = ${prior.id} AND registration_id IS NOT NULL`);
-      res.status(200).json({ receiptId: prior.id, duplicate: true, ledgers: await affectedLedgers(regs.map((r) => r.registration_id)) });
-      return;
-    }
+    // Idempotent retry: same key + same payment returns the original receipt.
+    // Checked again under the reunion lock so concurrent identical requests
+    // serialize: exactly one inserts, the rest return it as a duplicate.
+    const sendDuplicate = async (priorId: number) => {
+      const regs = await rows<{ registration_id: number }>(db, sql`SELECT DISTINCT registration_id FROM payment_receipt_allocations WHERE receipt_id = ${priorId} AND registration_id IS NOT NULL`);
+      res.status(200).json({ receiptId: priorId, duplicate: true, ledgers: await affectedLedgers(regs.map((r) => r.registration_id)) });
+    };
+    const fast = await findPriorReceipt(db, reunionId, input);
+    if (fast != null) return void (await sendDuplicate(fast));
     const regIds = await db.transaction(async (tx) => {
       await lockReunionRow(tx, reunionId);
+      const prior = await findPriorReceipt(tx, reunionId, input);
+      if (prior != null) return { ids: [] as number[], receiptId: prior, duplicate: true };
       // Resolve contribution targets to their registrations.
       const contribIds = input.allocations.filter((a) => a.contributionId != null).map((a) => a.contributionId!);
       const contribRows = contribIds.length
@@ -253,7 +264,7 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
         const [s] = await rows<{ id: number; reunion_id: number; registration_ids: number[]; contribution_ids: number[] | null }>(tx, sql`SELECT id, reunion_id, registration_ids, contribution_ids FROM payment_submissions WHERE id = ${input.submissionId} FOR UPDATE`);
         if (!s || s.reunion_id !== reunionId) throw new LedgerError(404, "Reported payment not found.");
         const [live] = await rows<{ id: number }>(tx, sql`SELECT r.id FROM payment_receipts r WHERE r.submission_id = ${s.id} AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = r.id)`);
-        if (live) throw new LedgerError(409, "This reported payment was already confirmed. Reverse that receipt first to re-confirm it.");
+        if (live) throw new LedgerError(409, "This reported payment was already confirmed. Reverse that receipt first to re-confirm it.", "already_recorded");
         if (ids.some((id) => !s.registration_ids.includes(id))) throw new LedgerError(400, "Allocate only to registrations covered by the reported payment.");
         if (standaloneAllocs.some((a) => !(s.contribution_ids ?? []).includes(a.contributionId!)))
           throw new LedgerError(400, "Allocate only to chip-ins included in the reported payment.");
@@ -296,8 +307,9 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
         if (a.standalone) await tx.execute(sql`UPDATE sponsorship_contributions SET payment_status = 'paid' WHERE id = ${a.contributionId}`);
       }
       for (const id of ids) await syncLedgerStatus(tx, id);
-      return { ids, receiptId: receipt.id };
+      return { ids, receiptId: receipt.id, duplicate: false };
     });
+    if (regIds.duplicate) return void (await sendDuplicate(regIds.receiptId));
     res.status(201).json({ receiptId: regIds.receiptId, duplicate: false, ledgers: await affectedLedgers(regIds.ids) });
   } catch (err) {
     if (!sendErr(res, err)) throw err;
