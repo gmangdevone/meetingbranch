@@ -11,6 +11,8 @@ import type { SubmissionChipInPaymentStatus } from './submissionChipInPaymentSta
  * Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.
  */
 export interface SubmissionChipIn {
+  /** True for a direct (unattached) fund chip-in, settled all-or-nothing. */
+  standalone?: boolean;
   id: number;
   /** @nullable */
   contributorName?: string | null;

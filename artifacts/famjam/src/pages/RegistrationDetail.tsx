@@ -12,6 +12,8 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { eventCodePath } from "../lib/eventCode";
 import { PaymentInstructions } from "../components/payments/PaymentInstructions";
+import { LedgerHistory, LEDGER_STATUS_LABEL } from "../components/payments/LedgerPanel";
+import { invalidateMoney } from "../components/payments/money";
 
 export function RegistrationDetail({ params }: { params: { id: string } }) {
   const [, setLocation] = useLocation();
@@ -58,7 +60,9 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
     );
   }
 
-  const isPaid = reg.paymentStatus === 'paid' || reg.paymentStatus === 'waived';
+  const ledgerStatus = reg.ledger?.status ?? (reg.paymentStatus === 'pending' ? 'unpaid' : reg.paymentStatus);
+  const isPaid = ledgerStatus === 'paid' || ledgerStatus === 'waived';
+  const transferable = reg.ledger ? reg.ledger.confirmedCents + reg.ledger.legacyCreditCents : 0;
   const isCancelled = reg.status === 'cancelled';
 
   const handleTransfer = () => {
@@ -73,6 +77,7 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetRegistrationQueryKey(id) });
+        invalidateMoney(queryClient, reg.reunionId, [reg.id, parseInt(targetRegistrationId, 10)].filter((n) => !Number.isNaN(n)));
         setIsTransferDialogOpen(false);
         setTargetEmail("");
         setTargetRegistrationId("");
@@ -114,11 +119,12 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
                 </div>
               ) : (
                 <div className={`px-4 py-1.5 rounded-full text-sm font-bold uppercase tracking-wider ${
-                  reg.paymentStatus === 'paid' ? 'bg-white text-green-700' :
-                  reg.paymentStatus === 'waived' ? 'bg-white/20 text-white' :
+                  ledgerStatus === 'paid' ? 'bg-white text-green-700' :
+                  ledgerStatus === 'waived' ? 'bg-white/20 text-white' :
+                  ledgerStatus === 'partial' ? 'bg-sky-200 text-sky-950' :
                   'bg-amber-400 text-amber-950'
                 }`}>
-                  {reg.paymentStatus}
+                  {LEDGER_STATUS_LABEL[ledgerStatus] ?? ledgerStatus}
                 </div>
               )}
             </div>
@@ -197,7 +203,7 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
                     <Tabs value={transferMode} onValueChange={(v) => setTransferMode(v as "registration" | "payment")} className="mt-4">
                       <TabsList className="grid grid-cols-2 w-full mb-6">
                         <TabsTrigger value="registration">Registration</TabsTrigger>
-                        <TabsTrigger value="payment" disabled={reg.paymentStatus !== "paid"}>Payment Only</TabsTrigger>
+                        <TabsTrigger value="payment" disabled={transferable <= 0}>Payment Only</TabsTrigger>
                       </TabsList>
                       
                       <TabsContent value="registration" className="space-y-4">
@@ -256,6 +262,14 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
 
+        <section className="bg-card border shadow-md rounded-3xl p-6 sm:p-8">
+          <div className="flex items-center gap-2 mb-4">
+            <CreditCard className="w-5 h-5 text-primary" />
+            <h3 className="font-serif text-2xl font-bold">Balance</h3>
+          </div>
+          <LedgerHistory registrationId={reg.id} />
+        </section>
+
         {!isPaid && !isCancelled && (
           <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-3xl p-8 flex flex-col items-center text-center animate-in slide-in-from-bottom-4">
             <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
@@ -263,7 +277,7 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             </div>
             <h3 className="font-bold text-xl mb-2 text-amber-900 dark:text-amber-500">Payment Pending</h3>
             <p className="text-amber-700 dark:text-amber-600/80 mb-6 max-w-md">
-              Your registration is saved, but you still need to pay the organizer to complete it. They will update your status once payment is received.
+              Your registration is saved, but you still need to pay the organizer to complete it. You can pay in parts. Your balance updates when an organizer confirms each payment.
             </p>
             
             <div id="payment-instructions" tabIndex={-1} className="scroll-mt-6 bg-white dark:bg-background border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 w-full text-left">

@@ -1263,6 +1263,26 @@ export const ListReunionRegistrationsParams = zod.object({
 })
 
 export const ListReunionRegistrationsResponseItem = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "userId": zod.string(),
@@ -1318,6 +1338,26 @@ export const CreateManagedRegistrationBody = zod.object({
 })
 
 export const CreateManagedRegistrationResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "userId": zod.string(),
@@ -1366,6 +1406,26 @@ export const UpdateRegistrationPaymentBody = zod.object({
 })
 
 export const UpdateRegistrationPaymentResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "userId": zod.string(),
@@ -1392,6 +1452,159 @@ export const UpdateRegistrationPaymentResponse = zod.object({
 
 
 /**
+ * @summary Balance and confirmed payment history (registrant or registration manager)
+ */
+export const GetRegistrationLedgerParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetRegistrationLedgerResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
+  "entries": zod.array(zod.object({
+  "id": zod.number(),
+  "kind": zod.enum(['payment', 'legacy_credit', 'transfer']),
+  "totalCents": zod.number(),
+  "registrationCents": zod.number(),
+  "contributionCents": zod.number(),
+  "method": zod.string().nullish(),
+  "receivedDate": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "submissionId": zod.number().nullish(),
+  "replacesReceiptId": zod.number().nullish(),
+  "recordedByName": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reversed": zod.object({
+  "at": zod.coerce.date(),
+  "reason": zod.string().nullish(),
+  "byName": zod.string().nullish()
+}).nullish()
+})),
+  "pendingSubmissions": zod.array(zod.object({
+  "id": zod.number(),
+  "method": zod.string(),
+  "amountCents": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "reference": zod.string().nullish(),
+  "registrationIds": zod.array(zod.number())
+})),
+  "canManage": zod.boolean()
+})
+
+
+/**
+ * @summary Record confirmed money with explicit allocations (registration managers)
+ */
+export const RecordReceiptParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const RecordReceiptBody = zod.object({
+  "amountCents": zod.number(),
+  "method": zod.enum(['cashapp', 'zelle', 'cash', 'check', 'other']),
+  "receivedDate": zod.string().describe('YYYY-MM-DD'),
+  "reference": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "allocations": zod.array(zod.object({
+  "registrationId": zod.number().nullish(),
+  "contributionId": zod.number().nullish(),
+  "standaloneContributionId": zod.number().nullish().describe('Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge.'),
+  "amountCents": zod.number()
+})),
+  "submissionId": zod.number().nullish(),
+  "replacesReceiptId": zod.number().nullish(),
+  "idempotencyKey": zod.string()
+})
+
+export const RecordReceiptResponse = zod.object({
+  "receiptId": zod.number(),
+  "duplicate": zod.boolean().optional(),
+  "ledgers": zod.array(zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'))
+})
+
+
+/**
+ * @summary Reverse a receipt with a required reason (history is kept)
+ */
+export const ReverseReceiptParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "receiptId": zod.coerce.number()
+})
+
+export const reverseReceiptBodyReasonMin = 3;
+export const reverseReceiptBodyReasonMax = 500;
+
+
+
+export const ReverseReceiptBody = zod.object({
+  "reason": zod.string().min(reverseReceiptBodyReasonMin).max(reverseReceiptBodyReasonMax)
+})
+
+export const ReverseReceiptResponse = zod.object({
+  "receiptId": zod.number(),
+  "duplicate": zod.boolean().optional(),
+  "ledgers": zod.array(zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'))
+})
+
+
+/**
  * @summary Cancel a registration (organizer with registration role)
  */
 export const CancelRegistrationParams = zod.object({
@@ -1404,6 +1617,26 @@ export const CancelRegistrationBody = zod.object({
 })
 
 export const CancelRegistrationResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "userId": zod.string(),
@@ -2138,13 +2371,14 @@ export const CreateContributionPaymentSubmissionParams = zod.object({
   "reunionId": zod.coerce.number()
 })
 
+export const createContributionPaymentSubmissionBodyAmountExclusiveMin = 0;
 
 
 
 
 export const CreateContributionPaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
-  "amount": zod.number().min(1).describe('Whole-dollar amount the registrant says they are paying.'),
+  "amount": zod.number().gt(createContributionPaymentSubmissionBodyAmountExclusiveMin).describe('Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.'),
   "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
   "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
@@ -2159,6 +2393,7 @@ export const CreateContributionPaymentSubmissionResponse = zod.object({
   "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
   "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
   "contributions": zod.array(zod.object({
+  "standalone": zod.boolean().optional().describe('True for a direct (unattached) fund chip-in, settled all-or-nothing.'),
   "id": zod.number(),
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
@@ -2173,7 +2408,9 @@ export const CreateContributionPaymentSubmissionResponse = zod.object({
   "reference": zod.string().nullish(),
   "givenDate": zod.string().nullish(),
   "note": zod.string().nullish(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "amountCents": zod.number().optional().describe('Exact reported cents.'),
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.')
 })
 
 
@@ -2308,6 +2545,18 @@ export const GetReunionReportsResponse = zod.object({
   "paidCount": zod.number(),
   "pendingCount": zod.number(),
   "waivedCount": zod.number(),
+  "unpaidCount": zod.number().optional(),
+  "partialCount": zod.number().optional(),
+  "finance": zod.object({
+  "chargesCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "waivedCents": zod.number(),
+  "outstandingCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number()
+}).optional(),
   "dietaryCount": zod.number(),
   "byGroup": zod.array(zod.object({
   "branchName": zod.string(),
@@ -2350,6 +2599,26 @@ export const CreateRegistrationBody = zod.object({
 })
 
 export const CreateRegistrationResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "reunionName": zod.string().nullish(),
@@ -2378,6 +2647,26 @@ export const CreateRegistrationResponse = zod.object({
  * @summary List the current user's registrations
  */
 export const ListMyRegistrationsResponseItem = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "reunionName": zod.string().nullish(),
@@ -2411,6 +2700,26 @@ export const GetRegistrationParams = zod.object({
 })
 
 export const GetRegistrationResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "reunionName": zod.string().nullish(),
@@ -2462,6 +2771,26 @@ export const UpdateRegistrationBody = zod.object({
 })
 
 export const UpdateRegistrationResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "reunionName": zod.string().nullish(),
@@ -2497,13 +2826,35 @@ export const transferRegistrationBodyTargetEmailMin = 3;
 
 
 
+
 export const TransferRegistrationBody = zod.object({
   "kind": zod.enum(['registration', 'payment']),
   "targetEmail": zod.string().min(transferRegistrationBodyTargetEmailMin).optional().describe('kind=registration: email of the account taking over this registration.'),
-  "targetRegistrationId": zod.number().optional().describe('kind=payment: registration (same reunion) that receives the paid status.')
+  "targetRegistrationId": zod.number().optional().describe('kind=payment: registration (same reunion) that receives confirmed money.'),
+  "amountCents": zod.number().min(1).optional().describe('kind=payment: cents to move. Defaults to min(source confirmed money, target remaining balance).')
 })
 
 export const TransferRegistrationResponse = zod.object({
+  "ledger": zod.object({
+  "registrationId": zod.number(),
+  "chargeCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "waived": zod.boolean(),
+  "waivedCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "pendingReportedCents": zod.number(),
+  "status": zod.enum(['unpaid', 'partial', 'paid', 'waived']),
+  "legacyPending": zod.boolean(),
+  "contributions": zod.array(zod.object({
+  "id": zod.number(),
+  "pledgedCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "outstandingCents": zod.number()
+}))
+}).optional().describe('Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.'),
   "id": zod.number(),
   "reunionId": zod.number(),
   "reunionName": zod.string().nullish(),
@@ -2535,13 +2886,14 @@ export const CreatePaymentSubmissionParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const createPaymentSubmissionBodyAmountExclusiveMin = 0;
 
 
 
 
 export const CreatePaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
-  "amount": zod.number().min(1).describe('Whole-dollar amount the registrant says they are paying.'),
+  "amount": zod.number().gt(createPaymentSubmissionBodyAmountExclusiveMin).describe('Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.'),
   "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
   "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
@@ -2556,6 +2908,7 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
   "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
   "contributions": zod.array(zod.object({
+  "standalone": zod.boolean().optional().describe('True for a direct (unattached) fund chip-in, settled all-or-nothing.'),
   "id": zod.number(),
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
@@ -2570,7 +2923,9 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "reference": zod.string().nullish(),
   "givenDate": zod.string().nullish(),
   "note": zod.string().nullish(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "amountCents": zod.number().optional().describe('Exact reported cents.'),
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.')
 })
 
 
@@ -2589,6 +2944,7 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "registrationIds": zod.array(zod.number()).describe('All registrations this payment covers (includes registrationId when set; empty for contribution-only submissions).'),
   "contributionIds": zod.array(zod.number()).describe('Standalone fund chip-ins this payment covers.'),
   "contributions": zod.array(zod.object({
+  "standalone": zod.boolean().optional().describe('True for a direct (unattached) fund chip-in, settled all-or-nothing.'),
   "id": zod.number(),
   "contributorName": zod.string().nullish(),
   "amount": zod.number(),
@@ -2603,7 +2959,9 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "reference": zod.string().nullish(),
   "givenDate": zod.string().nullish(),
   "note": zod.string().nullish(),
-  "createdAt": zod.coerce.date()
+  "createdAt": zod.coerce.date(),
+  "amountCents": zod.number().optional().describe('Exact reported cents.'),
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.')
 }))
 })
 

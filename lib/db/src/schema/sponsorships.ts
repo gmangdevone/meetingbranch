@@ -40,6 +40,9 @@ export const sponsorshipContributionsTable = pgTable("sponsorship_contributions"
   contributorUserId: text("contributor_user_id"),
   contributorName: text("contributor_name"),
   amount: integer("amount").notNull(),
+  // Exact cents when the contribution is not a whole-dollar amount (e.g. a
+  // cancellation donation of confirmed money). Null = amount * 100.
+  amountCents: integer("amount_cents"),
   source: contributionSourceEnum("source").notNull(),
   // Pledged money is "pending" until an organizer confirms it arrived.
   // Registration-source chip-ins are settled together with their registration;

@@ -74,8 +74,12 @@ import type {
   PollOption,
   PollOptionInput,
   PollUpdateInput,
+  ReceiptInput,
+  ReceiptResult,
+  ReceiptReversalInput,
   Registration,
   RegistrationInput,
+  RegistrationLedgerResponse,
   RegistrationSummary,
   Reunion,
   ReunionBranch,
@@ -3120,6 +3124,229 @@ export const useUpdateRegistrationPayment = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUpdateRegistrationPaymentMutationOptions(options));
+    }
+
+export const getGetRegistrationLedgerUrl = (id: number,) => {
+
+
+
+
+  return `/api/registrations/${id}/ledger`
+}
+
+/**
+ * @summary Balance and confirmed payment history (registrant or registration manager)
+ */
+export const getRegistrationLedger = async (id: number, options?: RequestInit): Promise<RegistrationLedgerResponse> => {
+
+  return customFetch<RegistrationLedgerResponse>(getGetRegistrationLedgerUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRegistrationLedgerQueryKey = (id: number,) => {
+    return [
+    `/api/registrations/${id}/ledger`
+    ] as const;
+    }
+
+
+export const getGetRegistrationLedgerQueryOptions = <TData = Awaited<ReturnType<typeof getRegistrationLedger>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRegistrationLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRegistrationLedgerQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRegistrationLedger>>> = ({ signal }) => getRegistrationLedger(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRegistrationLedger>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRegistrationLedgerQueryResult = NonNullable<Awaited<ReturnType<typeof getRegistrationLedger>>>
+export type GetRegistrationLedgerQueryError = ErrorType<void>
+
+
+/**
+ * @summary Balance and confirmed payment history (registrant or registration manager)
+ */
+
+export function useGetRegistrationLedger<TData = Awaited<ReturnType<typeof getRegistrationLedger>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRegistrationLedger>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRegistrationLedgerQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordReceiptUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/receipts`
+}
+
+/**
+ * @summary Record confirmed money with explicit allocations (registration managers)
+ */
+export const recordReceipt = async (reunionId: number,
+    receiptInput: ReceiptInput, options?: RequestInit): Promise<ReceiptResult> => {
+
+  return customFetch<ReceiptResult>(getRecordReceiptUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(receiptInput)
+  }
+);}
+
+
+
+
+
+export const getRecordReceiptMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordReceipt>>, TError,{reunionId: number;data: BodyType<ReceiptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordReceipt>>, TError,{reunionId: number;data: BodyType<ReceiptInput>}, TContext> => {
+
+const mutationKey = ['recordReceipt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordReceipt>>, {reunionId: number;data: BodyType<ReceiptInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  recordReceipt(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof recordReceipt>>>
+    export type RecordReceiptMutationBody = BodyType<ReceiptInput>
+    export type RecordReceiptMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Record confirmed money with explicit allocations (registration managers)
+ */
+export const useRecordReceipt = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordReceipt>>, TError,{reunionId: number;data: BodyType<ReceiptInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordReceipt>>,
+        TError,
+        {reunionId: number;data: BodyType<ReceiptInput>},
+        TContext
+      > => {
+      return useMutation(getRecordReceiptMutationOptions(options));
+    }
+
+export const getReverseReceiptUrl = (reunionId: number,
+    receiptId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/receipts/${receiptId}/reversal`
+}
+
+/**
+ * @summary Reverse a receipt with a required reason (history is kept)
+ */
+export const reverseReceipt = async (reunionId: number,
+    receiptId: number,
+    receiptReversalInput: ReceiptReversalInput, options?: RequestInit): Promise<ReceiptResult> => {
+
+  return customFetch<ReceiptResult>(getReverseReceiptUrl(reunionId,receiptId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(receiptReversalInput)
+  }
+);}
+
+
+
+
+
+export const getReverseReceiptMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseReceipt>>, TError,{reunionId: number;receiptId: number;data: BodyType<ReceiptReversalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reverseReceipt>>, TError,{reunionId: number;receiptId: number;data: BodyType<ReceiptReversalInput>}, TContext> => {
+
+const mutationKey = ['reverseReceipt'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reverseReceipt>>, {reunionId: number;receiptId: number;data: BodyType<ReceiptReversalInput>}> = (props) => {
+          const {reunionId,receiptId,data} = props ?? {};
+
+          return  reverseReceipt(reunionId,receiptId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReverseReceiptMutationResult = NonNullable<Awaited<ReturnType<typeof reverseReceipt>>>
+    export type ReverseReceiptMutationBody = BodyType<ReceiptReversalInput>
+    export type ReverseReceiptMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Reverse a receipt with a required reason (history is kept)
+ */
+export const useReverseReceipt = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseReceipt>>, TError,{reunionId: number;receiptId: number;data: BodyType<ReceiptReversalInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reverseReceipt>>,
+        TError,
+        {reunionId: number;receiptId: number;data: BodyType<ReceiptReversalInput>},
+        TContext
+      > => {
+      return useMutation(getReverseReceiptMutationOptions(options));
     }
 
 export const getCancelRegistrationUrl = (reunionId: number,

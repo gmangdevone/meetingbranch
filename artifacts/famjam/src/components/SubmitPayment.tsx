@@ -3,7 +3,10 @@ import {
   getReunionPaymentRecipient,
   useCreatePaymentSubmission,
   useCreateContributionPaymentSubmission,
+  getGetMyContributionsQueryKey,
 } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateMoney } from "./payments/money";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -68,13 +71,13 @@ export function SubmitPayment({
     registrations.filter((r) => regIds.includes(r.id)).reduce((sum, r) => sum + r.amount, 0) +
     chipIns.filter((c) => chipInIds.includes(c.id)).reduce((sum, c) => sum + c.amount, 0);
   const selectedTotal = computeSelectedTotal(selectedIds, selectedChipInIds);
-  const [amount, setAmount] = useState(String(selectedTotal > 0 ? selectedTotal : ""));
+  const [amount, setAmount] = useState(selectedTotal > 0 ? selectedTotal.toFixed(2) : "");
 
   const toggleRegistration = (id: number) => {
     setSelectedIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       const nextTotal = computeSelectedTotal(next, selectedChipInIds);
-      setAmount(String(nextTotal > 0 ? nextTotal : ""));
+      setAmount(nextTotal > 0 ? nextTotal.toFixed(2) : "");
       return next;
     });
   };
@@ -82,7 +85,7 @@ export function SubmitPayment({
     setSelectedChipInIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       const nextTotal = computeSelectedTotal(selectedIds, next);
-      setAmount(String(nextTotal > 0 ? nextTotal : ""));
+      setAmount(nextTotal > 0 ? nextTotal.toFixed(2) : "");
       return next;
     });
   };
@@ -97,6 +100,7 @@ export function SubmitPayment({
   // Zelle destination re-resolved from the server after the submission is saved.
   const [freshZelle, setFreshZelle] = useState<{ name: string; contact: string } | null>(null);
 
+  const queryClient = useQueryClient();
   const createSubmission = useCreatePaymentSubmission();
   const createChipInSubmission = useCreateContributionPaymentSubmission();
   const isSaving = createSubmission.isPending || createChipInSubmission.isPending;
@@ -116,8 +120,11 @@ export function SubmitPayment({
     setGivenDate("");
   };
 
-  const amountNum = Math.floor(Number(amount));
-  const validAmount = Number.isFinite(amountNum) && amountNum >= 1;
+  // Exact dollars and cents; never more than 2 decimals.
+  const amountMatch = /^\$?(\d{1,7})(?:\.(\d{1,2}))?$/.exec(amount.trim().replace(/,/g, ""));
+  const amountCents = amountMatch ? Number(amountMatch[1]) * 100 + Number((amountMatch[2] ?? "").padEnd(2, "0")) : 0;
+  const amountNum = amountCents / 100;
+  const validAmount = amountCents > 0;
   const referenceRequired = method === "cashapp" || method === "zelle" || method === "cash";
   const canSubmit =
     !!method &&
@@ -132,6 +139,10 @@ export function SubmitPayment({
     setError(null);
     const callbacks = {
       onSuccess: () => {
+        // Reported amounts show as "awaiting confirmation" right away; the
+        // balance itself only changes when an organizer confirms receipt.
+        invalidateMoney(queryClient, reunionId, selectedIds);
+        queryClient.invalidateQueries({ queryKey: getGetMyContributionsQueryKey(reunionId) });
         setSubmitted(method);
         setHandoffUrl(null);
         setHandoffError(null);
@@ -309,7 +320,7 @@ export function SubmitPayment({
                 />
                 <span className="font-medium">{r.label}</span>
               </span>
-              <span className="font-bold tabular-nums">${r.amount}</span>
+              <span className="font-bold tabular-nums">${r.amount.toFixed(2)}</span>
             </label>
           ))}
           {chipIns.map((c) => (
@@ -326,7 +337,7 @@ export function SubmitPayment({
                 />
                 <span className="font-medium">{c.label}</span>
               </span>
-              <span className="font-bold tabular-nums">${c.amount}</span>
+              <span className="font-bold tabular-nums">${c.amount.toFixed(2)}</span>
             </label>
           ))}
           {selectedIds.length + selectedChipInIds.length === 0 && (
@@ -388,8 +399,8 @@ export function SubmitPayment({
               <Label htmlFor="pay-amount">Amount ($)</Label>
               <Input
                 id="pay-amount"
-                type="number"
-                min="1"
+                inputMode="decimal"
+                placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="rounded-xl bg-background"

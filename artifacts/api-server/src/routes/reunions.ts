@@ -55,6 +55,7 @@ import {
   CreateContributionPaymentSubmissionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { type Exec, ensureLedgerInitialized, ensureReunionLedgersInitialized, fundBalanceCents, loadLedger, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { attachAuth } from "../middlewares/requireAdmin";
 import {
   requireReunionManager,
@@ -552,13 +553,13 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
     res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
     return;
   }
-  const [created] = await db
+  const [created] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
     .insert(reunionFeesTable)
     .values({
       reunionId: req.managedReunion!.id,
       ...normalized,
     })
-    .returning();
+    .returning());
   res.status(201).json(created);
 });
 
@@ -574,7 +575,7 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
     res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
     return;
   }
-  const [updated] = await db
+  const [updated] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
     .update(reunionFeesTable)
     .set(normalizedUpdate)
     .where(
@@ -583,7 +584,7 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
         eq(reunionFeesTable.reunionId, req.managedReunion!.id),
       ),
     )
-    .returning();
+    .returning());
   if (!updated) {
     res.status(404).json({ error: "Fee not found" });
     return;
@@ -597,7 +598,7 @@ router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermi
     res.status(400).json({ error: "Invalid fee id" });
     return;
   }
-  const [deleted] = await db
+  const [deleted] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
     .delete(reunionFeesTable)
     .where(
       and(
@@ -605,7 +606,7 @@ router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermi
         eq(reunionFeesTable.reunionId, req.managedReunion!.id),
       ),
     )
-    .returning();
+    .returning());
   if (!deleted) {
     res.status(404).json({ error: "Fee not found" });
     return;
@@ -801,7 +802,8 @@ router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermis
     }),
   );
 
-  res.json(ListReunionRegistrationsResponse.parse(withAttendees));
+  const ledgers = await loadLedgers(db, withAttendees.map((r) => r.id));
+  res.json(ListReunionRegistrationsResponse.parse(withAttendees.map((r) => ({ ...r, ledger: ledgers.get(r.id) }))));
 });
 
 // POST /reunions/:reunionId/registrations — organizer registers a family
@@ -937,10 +939,13 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
 
   const escape = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
   const csvLines: string[] = [
-    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions",
+    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Charges,Sponsored,Confirmed Paid,Legacy Opening Credit,Waived,Balance Due,Credit For Review,Pending Reported,Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions",
   ];
+  const exportLedgers = await loadLedgers(db, rows.map((r) => r.id));
+  const d = (c: number | undefined) => ((c ?? 0) / 100).toFixed(2);
   for (const r of rows) {
     const attendees = attendeeMap.get(r.id) ?? [];
+    const l = exportLedgers.get(r.id);
     csvLines.push(
       [
         r.id,
@@ -949,7 +954,15 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
         escape(r.firstName),
         escape(r.lastName),
         r.attendeeCount,
-        r.paymentStatus,
+        l?.status ?? r.paymentStatus,
+        d(l?.chargeCents),
+        d(l?.sponsoredCents),
+        d(l?.confirmedCents),
+        d(l?.legacyCreditCents),
+        d(l?.waivedCents),
+        d(l?.balanceCents),
+        d(l?.creditCents),
+        d(l?.pendingReportedCents),
         r.status,
         new Date(r.createdAt).toISOString(),
         escape(attendees.map((a) => a.name).join("; ")),
@@ -998,9 +1011,12 @@ router.get(
           amount: sponsorshipContributionsTable.amount,
           paymentStatus: sponsorshipContributionsTable.paymentStatus,
           createdAt: sponsorshipContributionsTable.createdAt,
+          source: sponsorshipContributionsTable.source,
+          registrationId: sponsorshipContributionsTable.registrationId,
         })
         .from(sponsorshipContributionsTable)
-        .where(inArray(sponsorshipContributionsTable.id, allContribIds));
+        .where(inArray(sponsorshipContributionsTable.id, allContribIds))
+        .then((rs) => rs.map(({ source, registrationId, ...c }) => ({ ...c, standalone: source === "direct" && registrationId == null })));
       for (const row of rows) contribMap.set(row.id, row);
     }
 
@@ -1026,10 +1042,22 @@ router.get(
       }
     }
 
+    const confirmedMap = new Map<number, number>();
+    if (submissions.length) {
+      const live = (await db.execute(sql`
+        SELECT r.submission_id, r.id FROM payment_receipts r
+        WHERE r.reunion_id = ${req.managedReunion!.id} AND r.submission_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = r.id)`)) as unknown as { rows?: { submission_id: number; id: number }[] };
+      for (const r of live.rows ?? []) confirmedMap.set(r.submission_id, r.id);
+    }
     const withContribs = submissions.map((s) => {
       const submitter = s.submittedBy ? submitterMap.get(s.submittedBy) : undefined;
+      const cents = s.amountCents ?? s.amount * 100;
       return {
         ...s,
+        amount: cents / 100,
+        amountCents: cents,
+        confirmedReceiptId: confirmedMap.get(s.id) ?? null,
         submittedByName: submitter?.name ?? null,
         submittedByEmail: submitter?.email ?? null,
         contributions: s.contributionIds
@@ -1053,44 +1081,37 @@ router.patch(
       res.status(400).json({ error: "Invalid input" });
       return;
     }
-    // Registration-source chip-ins are settled together with their
-    // registration, so their status follows it in the same transaction. If
-    // reversing a paid status would leave the fund owing more than it has
-    // received (money already allocated), the whole change is rejected.
+    // Money status is derived from the receipt ledger. This setter may only
+    // waive fees or remove a waiver; it can never mark money received or
+    // un-receive it (record or reverse a receipt instead).
+    const target = body.data.paymentStatus;
+    if (target === "paid") {
+      res.status(400).json({ error: "Record a payment with the amount received to mark a registration paid." });
+      return;
+    }
     let updated;
     try {
       updated = await db.transaction(async (tx) => {
-        await lockReunion(tx, req.managedReunion!.id);
-        const [reg] = await tx
-          .update(registrationsTable)
-          .set({ paymentStatus: body.data.paymentStatus })
-          .where(
-            and(
-              eq(registrationsTable.id, registrationId),
-              eq(registrationsTable.reunionId, req.managedReunion!.id),
-            ),
-          )
-          .returning();
-        if (reg) {
-          await tx
-            .update(sponsorshipContributionsTable)
-            .set({ paymentStatus: body.data.paymentStatus })
-            .where(
-              and(
-                eq(sponsorshipContributionsTable.registrationId, reg.id),
-                eq(sponsorshipContributionsTable.source, "registration"),
-              ),
-            );
-          await assertFundNotOverdrawn(tx, req.managedReunion!.id);
+        await lockReunionRow(tx, req.managedReunion!.id);
+        const [current] = await tx
+          .select()
+          .from(registrationsTable)
+          .where(and(eq(registrationsTable.id, registrationId), eq(registrationsTable.reunionId, req.managedReunion!.id)))
+          .for("update");
+        if (!current) return undefined;
+        await ensureLedgerInitialized(tx, current.id, req.userId!);
+        if (target === "pending" && current.paymentStatus !== "waived") {
+          const l = await loadLedger(tx, current.id);
+          if (l && l.confirmedCents + l.legacyCreditCents > 0) throw new LedgerError(409, "This registration has confirmed money. Reverse the receipt with a reason instead.");
         }
+        await tx.update(registrationsTable).set({ paymentStatus: target }).where(eq(registrationsTable.id, current.id));
+        if (target === "pending") await syncLedgerStatus(tx, current.id);
+        const [reg] = await tx.select().from(registrationsTable).where(eq(registrationsTable.id, current.id));
         return reg;
       });
     } catch (err) {
-      if (err instanceof FundBalanceError) {
-        res.status(400).json({
-          error:
-            "This change can't be saved: the fund chip-in tied to this registration was already spent from the sponsorship fund.",
-        });
+      if (err instanceof LedgerError) {
+        res.status(err.status).json({ error: err.message });
         return;
       }
       throw err;
@@ -1185,7 +1206,9 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
         .orderBy(asc(sql`date(${registrationsTable.createdAt} AT TIME ZONE 'UTC')`)),
     ]);
 
-  const payMap = Object.fromEntries(paymentCounts.map((p) => [p.paymentStatus, p.count]));
+  void paymentCounts;
+  const fin = await reunionFinance(reunionId);
+  const payMap = { paid: fin.counts.paid, pending: fin.counts.unpaid + fin.counts.partial, waived: fin.counts.waived };
   res.json(
     GetReunionReportsResponse.parse({
       totalRegistrations: totals[0]?.totalRegistrations ?? 0,
@@ -1193,6 +1216,9 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
       paidCount: payMap["paid"] ?? 0,
       pendingCount: payMap["pending"] ?? 0,
       waivedCount: payMap["waived"] ?? 0,
+      unpaidCount: fin.counts.unpaid,
+      partialCount: fin.counts.partial,
+      finance: fin.finance,
       dietaryCount: dietaryCount[0]?.count ?? 0,
       byGroup,
       byShirtSize,
@@ -1558,90 +1584,106 @@ router.post(
       return;
     }
 
-    const wasPaid = reg.paymentStatus === "paid";
-    if (wasPaid && !body.data.resolution) {
-      res.status(400).json({
-        error: "This registration is paid — choose whether to refund or donate the payment.",
-      });
-      return;
-    }
-    const resolution = wasPaid ? body.data.resolution! : "no_payment";
-
-    if (resolution === "donated_to_fund") {
-      const [fees, attendees, selectedFees] = await Promise.all([
-        db
-          .select()
-          .from(reunionFeesTable)
-          .where(eq(reunionFeesTable.reunionId, reg.reunionId)),
-        db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, reg.id)),
-        db
-          .select({ feeId: registrationFeesTable.feeId })
-          .from(registrationFeesTable)
-          .where(eq(registrationFeesTable.registrationId, reg.id)),
-      ]);
-      const paidAmount = computeTotal(
-        fees,
-        attendees,
-        selectedFees.map((f) => f.feeId),
-      );
-      // Donation + cancellation must land together.
+    // Resolutions account for money actually confirmed (receipts and any
+    // legacy opening credit), never an assumed full fee.
+    try {
       const updated = await db.transaction(async (tx) => {
-        if (paidAmount > 0) {
+        await lockReunionRow(tx, reg.reunionId);
+        await ensureLedgerInitialized(tx, reg.id, req.userId!);
+        const ledger = await loadLedger(tx, reg.id);
+        const paidCents = (ledger?.confirmedCents ?? 0) + (ledger?.legacyCreditCents ?? 0);
+        if (paidCents > 0 && !body.data.resolution) {
+          throw new LedgerError(400, `This registration has ${fmtCents(paidCents)} in confirmed payments. Choose whether that money was refunded or donated to the fund.`);
+        }
+        const resolution = paidCents > 0 ? body.data.resolution! : "no_payment";
+        if (resolution === "donated_to_fund") {
           await tx.insert(sponsorshipContributionsTable).values({
             reunionId: reg.reunionId,
             registrationId: reg.id,
             contributorUserId: reg.userId,
-            amount: paidAmount,
+            amount: Math.floor(paidCents / 100),
+            amountCents: paidCents,
             source: "cancellation",
-            // The registration was already paid, so this donation is money
-            // the fund has actually received.
+            // Only confirmed money is donated, so the fund has received it.
             paymentStatus: "paid",
           });
         }
         const [row] = await tx
           .update(registrationsTable)
-          .set({
-            status: "cancelled",
-            cancelledAt: new Date(),
-            cancellationResolution: resolution,
-          })
-          .where(
-            and(
-              eq(registrationsTable.id, reg.id),
-              eq(registrationsTable.status, "active"),
-            ),
-          )
+          .set({ status: "cancelled", cancelledAt: new Date(), cancellationResolution: resolution })
+          .where(and(eq(registrationsTable.id, reg.id), eq(registrationsTable.status, "active")))
           .returning();
-        if (!row) throw new Error("Registration was already cancelled");
+        if (!row) throw new LedgerError(400, "This registration is already cancelled.");
         return row;
       });
       res.json(await adminRegistrationShape(updated));
-      return;
+    } catch (err) {
+      if (err instanceof LedgerError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      throw err;
     }
-
-    const [updated] = await db
-      .update(registrationsTable)
-      .set({
-        status: "cancelled",
-        cancelledAt: new Date(),
-        cancellationResolution: resolution,
-      })
-      .where(
-        and(eq(registrationsTable.id, reg.id), eq(registrationsTable.status, "active")),
-      )
-      .returning();
-    if (!updated) {
-      res.status(400).json({ error: "This registration is already cancelled." });
-      return;
-    }
-
-    res.json(await adminRegistrationShape(updated));
   },
 );
+
+// Ledger-based totals over ACTIVE registrations (cancelled are excluded from
+// aggregates). Shared by reports so every view agrees on the same balances.
+async function reunionFinance(reunionId: number) {
+  const regs = await db.select({ id: registrationsTable.id }).from(registrationsTable).where(activeInReunion(reunionId));
+  const ledgers = [...(await loadLedgers(db, regs.map((r) => r.id))).values()];
+  const sum = (k: "chargeCents" | "confirmedCents" | "legacyCreditCents" | "sponsoredCents" | "waivedCents" | "balanceCents" | "creditCents" | "pendingReportedCents") =>
+    ledgers.reduce((s, l) => s + l[k], 0);
+  const counts = { unpaid: 0, partial: 0, paid: 0, waived: 0 };
+  for (const l of ledgers) counts[l.status]++;
+  return {
+    counts,
+    finance: {
+      chargesCents: sum("chargeCents"),
+      confirmedCents: sum("confirmedCents"),
+      legacyCreditCents: sum("legacyCreditCents"),
+      sponsoredCents: sum("sponsoredCents"),
+      waivedCents: sum("waivedCents"),
+      outstandingCents: sum("balanceCents"),
+      creditCents: sum("creditCents"),
+      // Each reported submission counted once even if it spans registrations.
+      pendingReportedCents: regs.length
+        ? Number(((await db.execute(sql`
+            SELECT coalesce(sum(coalesce(s.amount_cents, s.amount * 100)), 0) AS c FROM payment_submissions s
+            WHERE s.registration_ids && ARRAY[${sql.join(regs.map((r) => sql`${r.id}`), sql`, `)}]::int[]
+              AND NOT EXISTS (SELECT 1 FROM payment_receipts r WHERE r.submission_id = s.id
+                AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = r.id))`)) as unknown as { rows: { c: string }[] }).rows[0].c)
+        : 0,
+    },
+  };
+}
+
+// Fee changes recalculate charges for every registration. In ONE transaction:
+// freeze any legacy paid status into an explicit opening credit (so confirmed
+// money is retained), apply the change, then re-sync status columns -- all
+// committed before the response is sent.
+async function withChargeChange<T>(reunionId: number, actor: string, fn: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0]) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    await lockReunionRow(tx, reunionId);
+    await ensureReunionLedgersInitialized(tx, reunionId, actor);
+    const out = await fn(tx);
+    const regs = await tx.select({ id: registrationsTable.id }).from(registrationsTable).where(eq(registrationsTable.reunionId, reunionId));
+    for (const r of regs) await syncLedgerStatus(tx, r.id);
+    return out;
+  });
+}
 
 class FundBalanceError extends Error {
   constructor(public balance: number) {
     super("Insufficient sponsorship fund balance");
+  }
+}
+
+class CancelledSponsorTargetError extends Error {}
+
+class ReceiptSettledError extends Error {
+  constructor(public receiptId: number) {
+    super("Contribution settled by a receipt");
   }
 }
 
@@ -1663,36 +1705,9 @@ async function lockReunion(
 
 // Inside a transaction that changes contribution payment statuses: reject the
 // change if it would leave the fund having spent more than it has received.
-async function assertFundNotOverdrawn(
-  tx: Pick<typeof db, "select">,
-  reunionId: number,
-) {
-  const [{ contributed }] = await tx
-    .select({
-      contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
-    })
-    .from(sponsorshipContributionsTable)
-    .where(
-      and(
-        eq(sponsorshipContributionsTable.reunionId, reunionId),
-        eq(sponsorshipContributionsTable.paymentStatus, "paid"),
-      ),
-    );
-  const [{ allocated }] = await tx
-    .select({
-      allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
-    })
-    .from(sponsorshipAllocationsTable)
-    .where(
-      and(
-        eq(sponsorshipAllocationsTable.reunionId, reunionId),
-        eq(sponsorshipAllocationsTable.fundedFrom, "fund"),
-      ),
-    );
-  const balance = contributed - allocated;
-  if (balance < 0) {
-    throw new FundBalanceError(balance);
-  }
+async function assertFundNotOverdrawn(tx: Exec, reunionId: number) {
+  const f = await fundBalanceCents(tx, reunionId);
+  if (f.balanceCents < 0) throw new FundBalanceError(f.balanceCents / 100);
 }
 
 async function buildSponsorshipFund(reunionId: number) {
@@ -1728,22 +1743,17 @@ async function buildSponsorshipFund(reunionId: number) {
 
   // Only money actually received (paid) counts toward the fund; pending
   // pledges are surfaced separately so organizers can't allocate them.
-  const totalContributed = contributions
-    .filter((c) => c.paymentStatus === "paid")
-    .reduce((s, c) => s + c.amount, 0);
-  const totalPending = contributions
-    .filter((c) => c.paymentStatus === "pending")
-    .reduce((s, c) => s + c.amount, 0);
-  const totalAllocated = allocations
-    .filter((a) => a.fundedFrom === "fund")
-    .reduce((s, a) => s + a.amount, 0);
-
+  const fund = await fundBalanceCents(db, reunionId);
+  const totalContributed = fund.contributedCents / 100;
+  const totalPending = fund.pendingCents / 100;
+  const totalAllocated = fund.allocatedCents / 100;
+  const contributionsOut = contributions.map((c) => ({ ...c, amount: (c.amountCents ?? c.amount * 100) / 100 }));
   return {
     balance: totalContributed - totalAllocated,
     totalContributed,
     totalPending,
     totalAllocated,
-    contributions,
+    contributions: contributionsOut,
     allocations: allocations.map((a) => ({
       id: a.id,
       registrationId: a.registrationId,
@@ -1813,33 +1823,15 @@ router.post(
     const reunionId = req.managedReunion!.id;
     try {
       await db.transaction(async (tx) => {
+        // Sponsorship changes a registration's balance: lock, freeze any legacy
+        // paid status into an opening credit BEFORE the allocation exists (so
+        // the credit reflects the money actually received), then re-sync.
+        await lockReunionRow(tx, reunionId);
+        const [locked] = await tx.select({ status: registrationsTable.status }).from(registrationsTable).where(eq(registrationsTable.id, registrationId)).for("update");
+        if (!locked || locked.status !== "active") throw new CancelledSponsorTargetError();
+        await ensureLedgerInitialized(tx, registrationId, req.userId!);
         if (fundedFrom === "fund") {
-          await tx.execute(
-            sql`SELECT id FROM reunions WHERE id = ${reunionId} FOR UPDATE`,
-          );
-          const [{ contributed }] = await tx
-            .select({
-              contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
-            })
-            .from(sponsorshipContributionsTable)
-            .where(
-              and(
-                eq(sponsorshipContributionsTable.reunionId, reunionId),
-                eq(sponsorshipContributionsTable.paymentStatus, "paid"),
-              ),
-            );
-          const [{ allocated }] = await tx
-            .select({
-              allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
-            })
-            .from(sponsorshipAllocationsTable)
-            .where(
-              and(
-                eq(sponsorshipAllocationsTable.reunionId, reunionId),
-                eq(sponsorshipAllocationsTable.fundedFrom, "fund"),
-              ),
-            );
-          const balance = contributed - allocated;
+          const balance = (await fundBalanceCents(tx, reunionId)).balanceCents / 100;
           if (amount > balance) {
             throw new FundBalanceError(balance);
           }
@@ -1853,8 +1845,13 @@ router.post(
           note: note ?? null,
           createdBy: req.userId!,
         });
+        await syncLedgerStatus(tx, registrationId);
       });
     } catch (err) {
+      if (err instanceof CancelledSponsorTargetError) {
+        res.status(409).json({ error: "Cannot sponsor a cancelled registration." });
+        return;
+      }
       if (err instanceof FundBalanceError) {
         res.status(400).json({
           error: `Only ${err.balance} is available in the sponsorship fund.`,
@@ -1973,6 +1970,11 @@ router.patch(
         if (existing.source !== "direct" || existing.registrationId !== null) {
           throw new LinkedContributionError();
         }
+        // Settled by a live receipt (mixed reported payment): change it by
+        // reversing that receipt so history and fund stay consistent.
+        const live = (await tx.execute(sql`SELECT a.receipt_id FROM payment_receipt_allocations a
+          WHERE a.contribution_id = ${contributionId} AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = a.receipt_id) LIMIT 1`)) as unknown as { rows?: { receipt_id: number }[] };
+        if (live.rows?.length) throw new ReceiptSettledError(live.rows[0].receipt_id);
         const [row] = await tx
           .update(sponsorshipContributionsTable)
           .set({ paymentStatus: body.data.paymentStatus })
@@ -1991,6 +1993,10 @@ router.patch(
           error:
             "This chip-in was already spent from the sponsorship fund, so it can't be moved back to pending or waived.",
         });
+        return;
+      }
+      if (err instanceof ReceiptSettledError) {
+        res.status(409).json({ error: `This chip-in was confirmed with receipt #${err.receiptId}. Reverse that receipt to change it.` });
         return;
       }
       if (err instanceof LinkedContributionError) {
@@ -2118,9 +2124,12 @@ router.post(
               amount: sponsorshipContributionsTable.amount,
               paymentStatus: sponsorshipContributionsTable.paymentStatus,
               createdAt: sponsorshipContributionsTable.createdAt,
+              source: sponsorshipContributionsTable.source,
+              registrationId: sponsorshipContributionsTable.registrationId,
             })
             .from(sponsorshipContributionsTable)
             .where(inArray(sponsorshipContributionsTable.id, contributionIds))
+            .then((rs) => rs.map(({ source, registrationId, ...c }) => ({ ...c, standalone: source === "direct" && registrationId == null })))
         : [];
     res.status(201).json(CreateContributionPaymentSubmissionResponse.parse({ ...created, contributions }));
   },

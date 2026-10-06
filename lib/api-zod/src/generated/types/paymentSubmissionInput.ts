@@ -10,8 +10,8 @@ import type { PaymentMethod } from './paymentMethod';
 export interface PaymentSubmissionInput {
   method: PaymentMethod;
   /**
-     * Whole-dollar amount the registrant says they are paying.
-     * @minimum 1
+     * Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.
+     * @exclusiveMinimum 0
      */
   amount: number;
   /**

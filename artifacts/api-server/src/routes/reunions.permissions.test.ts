@@ -27,6 +27,32 @@ vi.mock("@clerk/express", () => ({
   clerkClient: {},
 }));
 
+
+// The receipt ledger uses raw SQL, which this in-memory fake can't run. Model
+// it from the fake rows: legacy paid status = fully paid; fund = paid
+// contributions minus fund allocations.
+vi.mock("../lib/ledger", async (orig) => {
+  const real = await orig<typeof import("../lib/ledger")>();
+  const fund = async (_ex: unknown, reunionId: number) => {
+    const c = (state.rows["sponsorship_contributions"] ?? []).filter((r) => r.reunionId === reunionId);
+    const a = (state.rows["sponsorship_allocations"] ?? []).filter((r) => r.reunionId === reunionId && r.fundedFrom === "fund");
+    const contributed = c.filter((r) => r.paymentStatus === "paid").reduce((s, r) => s + Number(r.amount) * 100, 0);
+    const pending = c.filter((r) => r.paymentStatus === "pending").reduce((s, r) => s + Number(r.amount) * 100, 0);
+    const allocated = a.reduce((s, r) => s + Number(r.amount) * 100, 0);
+    return { contributedCents: contributed, allocatedCents: allocated, balanceCents: contributed - allocated, pendingCents: pending };
+  };
+  return {
+    ...real,
+    fundBalanceCents: fund,
+    loadLedgers: async () => new Map(),
+    loadLedger: async () => null,
+    ensureLedgerInitialized: async () => undefined,
+    ensureReunionLedgersInitialized: async () => undefined,
+    syncLedgerStatus: async () => undefined,
+    lockReunionRow: async () => undefined,
+  };
+});
+
 const columnTokens = vi.hoisted(() => new Set<string>());
 
 vi.mock("drizzle-orm", () => ({

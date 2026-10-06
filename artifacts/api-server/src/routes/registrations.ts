@@ -31,6 +31,7 @@ import {
   CreatePaymentSubmissionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { ensureLedgerInitialized, rows, isValidCents, isValidIsoDate, parseDollarsToCents, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { sendRegistrationConfirmation } from "../lib/email";
 import { upsertUserFromClerk } from "../lib/users";
 
@@ -67,7 +68,8 @@ async function getFullRegistration(id: number) {
       .where(eq(registrationFeesTable.registrationId, id)),
   ]);
 
-  return { ...row, attendees, selectedFeeIds: selectedFees.map((f) => f.feeId) };
+  const ledger = (await loadLedgers(db, [row.id])).get(row.id);
+  return { ...row, attendees, selectedFeeIds: selectedFees.map((f) => f.feeId), ledger };
 }
 
 // POST /registrations
@@ -224,7 +226,7 @@ router.get("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
 
 // Can this user manage registrations for the reunion? (owner, platform
 // admin, or co-organizer holding the "registration" role)
-async function canManageRegistrations(userId: string, reunionId: number): Promise<boolean> {
+export async function canManageRegistrations(userId: string, reunionId: number): Promise<boolean> {
   const [[reunion], [userRecord], [organizer]] = await Promise.all([
     db
       .select({ organizerId: reunionsTable.organizerId })
@@ -329,6 +331,9 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
   }
 
   await db.transaction(async (tx) => {
+    // Attendee/fee edits recalculate charges: freeze legacy paid money first,
+    // and re-sync the status columns in the same transaction.
+    await ensureLedgerInitialized(tx, registration.id, userId);
     await tx
       .update(registrationsTable)
       .set({ branchName, attendeeCount: attendees.length })
@@ -369,6 +374,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
         chosenFeeIds.map((feeId) => ({ registrationId: registration.id, feeId })),
       );
     }
+    await syncLedgerStatus(tx, registration.id);
   });
 
   const full = await getFullRegistration(registration.id);
@@ -437,10 +443,6 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
       res.status(400).json({ error: "Choose the registration that should receive the payment." });
       return;
     }
-    if (reg.paymentStatus !== "paid") {
-      res.status(400).json({ error: "Only a paid registration's payment can be transferred." });
-      return;
-    }
     const [target] = await db
       .select()
       .from(registrationsTable)
@@ -450,107 +452,52 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
       return;
     }
     if (target.status === "cancelled") {
-      res.status(400).json({ error: "The receiving registration has been cancelled." });
+      res.status(400).json({ error: "Payments can only move between active registrations." });
       return;
     }
-    if (target.paymentStatus === "paid") {
-      res.status(400).json({ error: "The receiving registration is already paid." });
+    const requested = (req.body as { amountCents?: unknown })?.amountCents;
+    if (requested !== undefined && requested !== null && !isValidCents(requested)) {
+      res.status(400).json({ error: "Enter a transfer amount greater than $0.00." });
       return;
     }
-    // Both sides of the payment move must land together, and the guards are
-    // re-checked inside the transaction so a race cannot double-move a payment.
+    // Moves actual confirmed money (receipts + legacy opening credit) as a
+    // signed transfer entry; both sides are re-checked under row locks.
     try {
       await db.transaction(async (tx) => {
-        // Serialize with fund allocations and other status changes so the
-        // solvency check below can't validate against stale balances.
-        await tx.execute(
-          sql`SELECT id FROM reunions WHERE id = ${reg.reunionId} FOR UPDATE`,
-        );
-        const [source] = await tx
-          .update(registrationsTable)
-          .set({ paymentStatus: "pending" })
-          .where(
-            and(
-              eq(registrationsTable.id, reg.id),
-              eq(registrationsTable.paymentStatus, "paid"),
-              eq(registrationsTable.status, "active"),
-            ),
-          )
-          .returning();
-        const [received] = await tx
-          .update(registrationsTable)
-          .set({ paymentStatus: "paid" })
-          .where(
-            and(
-              eq(registrationsTable.id, target.id),
-              eq(registrationsTable.paymentStatus, "pending"),
-              eq(registrationsTable.status, "active"),
-            ),
-          )
-          .returning();
-        if (!source || !received) {
-          throw new Error("PAYMENT_TRANSFER_CONFLICT");
-        }
-        // Registration-source chip-ins are settled together with their
-        // registration, so they must follow the payment move.
-        await tx
-          .update(sponsorshipContributionsTable)
-          .set({ paymentStatus: "pending" })
-          .where(
-            and(
-              eq(sponsorshipContributionsTable.registrationId, reg.id),
-              eq(sponsorshipContributionsTable.source, "registration"),
-            ),
-          );
-        await tx
-          .update(sponsorshipContributionsTable)
-          .set({ paymentStatus: "paid" })
-          .where(
-            and(
-              eq(sponsorshipContributionsTable.registrationId, target.id),
-              eq(sponsorshipContributionsTable.source, "registration"),
-            ),
-          );
-        // Moving the source's chip-in back to pending must not leave the
-        // fund having spent more than it has received.
-        const [{ contributed }] = await tx
-          .select({
-            contributed: sql<number>`cast(coalesce(sum(${sponsorshipContributionsTable.amount}), 0) as int)`,
-          })
-          .from(sponsorshipContributionsTable)
-          .where(
-            and(
-              eq(sponsorshipContributionsTable.reunionId, reg.reunionId),
-              eq(sponsorshipContributionsTable.paymentStatus, "paid"),
-            ),
-          );
-        const [{ allocated }] = await tx
-          .select({
-            allocated: sql<number>`cast(coalesce(sum(${sponsorshipAllocationsTable.amount}), 0) as int)`,
-          })
-          .from(sponsorshipAllocationsTable)
-          .where(
-            and(
-              eq(sponsorshipAllocationsTable.reunionId, reg.reunionId),
-              eq(sponsorshipAllocationsTable.fundedFrom, "fund"),
-            ),
-          );
-        if (contributed - allocated < 0) {
-          throw new Error("FUND_OVERDRAWN");
-        }
+        await lockReunionRow(tx, reg.reunionId);
+        const [a, b] = reg.id < target.id ? [reg.id, target.id] : [target.id, reg.id];
+        // Re-read both statuses under row locks (after the reunion lock, which
+        // cancellation also takes) BEFORE any money write: a cancellation that
+        // committed after the preflight check must stop the transfer.
+        const live = await rows<{ id: number; status: string; reunion_id: number }>(tx, sql`
+          SELECT id, status, reunion_id FROM registrations WHERE id IN (${a}, ${b}) ORDER BY id FOR UPDATE`);
+        if (live.length !== 2 || live.some((g) => g.status !== "active" || g.reunion_id !== reg.reunionId))
+          throw new LedgerError(409, "One of these registrations was cancelled just now, so its money was already resolved. Refresh and try again.");
+        await ensureLedgerInitialized(tx, a, userId);
+        await ensureLedgerInitialized(tx, b, userId);
+        const ledgers = await loadLedgers(tx, [reg.id, target.id]);
+        const src = ledgers.get(reg.id)!;
+        const dst = ledgers.get(target.id)!;
+        const available = src.confirmedCents + src.legacyCreditCents;
+        if (available <= 0) throw new LedgerError(400, "This registration has no confirmed payment to transfer.");
+        if (dst.waived) throw new LedgerError(400, "The receiving registration's fees are waived.");
+        if (dst.balanceCents <= 0) throw new LedgerError(400, "The receiving registration has no remaining balance.");
+        const amount = typeof requested === "number" ? requested : Math.min(available, dst.balanceCents);
+        if (amount > available) throw new LedgerError(400, `Only ${fmtCents(available)} of confirmed money can be transferred.`);
+        if (amount > dst.balanceCents) throw new LedgerError(400, `The receiving registration only owes ${fmtCents(dst.balanceCents)}. Transfer that amount or less.`);
+        const r = (await tx.execute(sql`
+          INSERT INTO payment_receipts (reunion_id, kind, amount_cents, note, recorded_by)
+          VALUES (${reg.reunionId}, 'transfer', ${amount}, ${`Transferred from registration #${reg.id} to #${target.id}`}, ${userId})
+          RETURNING id`)) as unknown as { rows: { id: number }[] };
+        const rid = r.rows[0].id;
+        await tx.execute(sql`INSERT INTO payment_receipt_allocations (receipt_id, reunion_id, registration_id, amount_cents)
+          VALUES (${rid}, ${reg.reunionId}, ${reg.id}, ${-amount}), (${rid}, ${reg.reunionId}, ${target.id}, ${amount})`);
+        await syncLedgerStatus(tx, reg.id);
+        await syncLedgerStatus(tx, target.id);
       });
     } catch (err) {
-      if (err instanceof Error && err.message === "PAYMENT_TRANSFER_CONFLICT") {
-        res.status(409).json({
-          error: "The payment could not be transferred — one of the registrations changed. Refresh and try again.",
-        });
-        return;
-      }
-      if (err instanceof Error && err.message === "FUND_OVERDRAWN") {
-        res.status(400).json({
-          error:
-            "This payment can't be transferred: its fund chip-in was already spent from the sponsorship fund.",
-        });
+      if (err instanceof LedgerError) {
+        res.status(err.status).json({ error: err.message });
         return;
       }
       throw err;
@@ -695,9 +642,11 @@ router.post(
 
     const { method, amount, reference, givenDate, note } = body.data;
     // Method-specific validation the OpenAPI shape can't express:
-    // whole-dollar amounts only, and each method's reconciliation key.
-    if (!Number.isInteger(amount)) {
-      res.status(400).json({ error: "Amount must be a whole-dollar number." });
+    // exact dollars-and-cents amounts, and each method's reconciliation key.
+    // Reported amounts are informational; they never reduce the balance.
+    const amountCents = parseDollarsToCents(amount);
+    if (amountCents === null) {
+      res.status(400).json({ error: "Enter an amount greater than $0.00 with at most two decimal places." });
       return;
     }
     if ((method === "cashapp" || method === "zelle" || method === "cash") && !reference?.trim()) {
@@ -706,7 +655,7 @@ router.post(
       res.status(400).json({ error: `Please include ${label}.` });
       return;
     }
-    if (method === "cash" && !/^\d{4}-\d{2}-\d{2}$/.test(givenDate ?? "")) {
+    if (method === "cash" && !isValidIsoDate(givenDate ?? "")) {
       res.status(400).json({ error: "Please include the date the cash was given (YYYY-MM-DD)." });
       return;
     }
@@ -719,7 +668,8 @@ router.post(
         contributionIds,
         submittedBy: userId,
         method,
-        amount,
+        amount: Math.floor(amountCents / 100),
+        amountCents,
         reference: reference || null,
         givenDate: givenDate || null,
         note: note || null,
@@ -735,11 +685,14 @@ router.post(
               amount: sponsorshipContributionsTable.amount,
               paymentStatus: sponsorshipContributionsTable.paymentStatus,
               createdAt: sponsorshipContributionsTable.createdAt,
+              source: sponsorshipContributionsTable.source,
+              registrationId: sponsorshipContributionsTable.registrationId,
             })
             .from(sponsorshipContributionsTable)
             .where(inArray(sponsorshipContributionsTable.id, contributionIds))
+            .then((rs) => rs.map(({ source, registrationId, ...c }) => ({ ...c, standalone: source === "direct" && registrationId == null })))
         : [];
-    res.status(201).json(CreatePaymentSubmissionResponse.parse({ ...created, contributions }));
+    res.status(201).json(CreatePaymentSubmissionResponse.parse({ ...created, amount: amountCents / 100, amountCents, confirmedReceiptId: null, contributions }));
   },
 );
 

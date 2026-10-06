@@ -18,7 +18,9 @@ import { Greeting } from "../components/Greeting";
 import { ZelleRecipientCard } from "../components/payments/ZelleRecipientCard";
 import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 import { SubmitPayment } from "../components/SubmitPayment";
-import { useEffect } from "react";
+import { memberBalance } from "../lib/memberBalance";
+import { useEffect, useRef } from "react";
+import { money } from "../components/payments/money";
 
 /**
  * Cross-fading hero background slideshow. With a single image it renders it
@@ -113,7 +115,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   );
   const myRegistration = myActiveRegistrations[0];
   const myAccountTotal = myActiveRegistrations.reduce(
-    (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
+    (sum, r) => sum + (r.ledger ? r.ledger.chargeCents / 100 : computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? [])),
     0,
   );
   const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
@@ -126,48 +128,23 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     (sum, c) => sum + c.amount,
     0,
   );
-  const myTotalDue = myAccountTotal + myContributionsTotal;
-  // Registrations that still owe — these are the ones a payment can cover.
-  const myUnpaidRegistrations = myActiveRegistrations.filter(
-    (r) => r.paymentStatus !== "paid" && r.paymentStatus !== "waived",
-  );
-  const myUnpaidRegistrationIds = new Set(myUnpaidRegistrations.map((r) => r.id));
-  // Standalone chip-ins (no registration) behave like registrations: they are
-  // due while pending and organizers mark them paid on the sponsorship page.
-  const myPendingChipIns = (myContributionsData?.contributions ?? []).filter(
-    (c) => c.registrationId == null && c.paymentStatus === "pending",
-  );
-  const myPendingChipInsTotal = myPendingChipIns.reduce((sum, c) => sum + c.amount, 0);
-  // Account-level payment status: pending while any registration OR standalone
-  // chip-in is still owed; otherwise "waived" only when EVERY registration was
-  // waived, else "paid".
-  const allSettled = myUnpaidRegistrations.length === 0 && myPendingChipIns.length === 0;
-  const mySettledObligations = [
-    ...myActiveRegistrations.map((r) => r.paymentStatus),
-    ...(myContributionsData?.contributions ?? [])
-      .filter((c) => c.registrationId == null)
-      .map((c) => c.paymentStatus),
-  ];
-  const myPaymentStatus = !allSettled
-    ? "pending"
-    : mySettledObligations.length > 0 && mySettledObligations.every((s) => s === "waived")
-      ? "waived"
-      : "paid";
-  // Outstanding amount: unpaid registrations, plus fund chip-ins pledged with
-  // those SAME registrations (a chip-in attached to an already-paid
-  // registration was settled with that payment), plus pending standalone
-  // chip-ins.
-  const myOutstandingRegistrationsTotal = myUnpaidRegistrations.reduce(
-    (sum, r) => sum + computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? []),
-    0,
-  );
-  const myOutstandingContributionsTotal = (myContributionsData?.contributions ?? [])
-    .filter((c) => c.registrationId != null && myUnpaidRegistrationIds.has(c.registrationId))
-    .reduce((sum, c) => sum + c.amount, 0);
-  const myOutstandingTotal = allSettled
-    ? 0
-    : myOutstandingRegistrationsTotal + myOutstandingContributionsTotal + myPendingChipInsTotal;
+  const myBalance = memberBalance(myActiveRegistrations, myContributionsData?.contributions ?? [], reunion?.fees ?? []);
+  const remainingFor = (r: (typeof myActiveRegistrations)[number]) => myBalance.remainingCentsFor(r) / 100;
+  const myUnpaidRegistrations = myBalance.unpaid;
+  const myPendingChipIns = myBalance.pendingChipIns;
+  const myPendingChipInsTotal = myBalance.pendingChipInsCents / 100;
+  const myPaymentStatus = myBalance.status;
+  const myOutstandingCents = myBalance.outstandingCents;
+  const myOutstandingTotal = myOutstandingCents / 100;
   const myFirstUnpaidRegistration = myUnpaidRegistrations[0];
+  // Members who owe money should land on the payment form, not a collapsed panel.
+  const autoOpenedPayments = useRef(false);
+  useEffect(() => {
+    if (!autoOpenedPayments.current && isSignedIn && myOutstandingCents > 0) {
+      autoOpenedPayments.current = true;
+      setShowPayments(true);
+    }
+  }, [isSignedIn, myOutstandingCents]);
 
   // Remember the last successfully visited reunion so the Home nav can return here;
   // forget it if the code turns out to be invalid.
@@ -267,7 +244,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <p className="text-sm font-bold uppercase tracking-widest text-white/70">
                 Your Total Due
                 <span className="font-serif text-2xl font-bold text-white normal-case tracking-normal ml-3">
-                  ${myPaymentStatus === "pending" ? myOutstandingTotal : 0}
+                  {money(myPaymentStatus === "pending" ? myOutstandingCents : 0)}
                 </span>
               </p>
               <span className={`inline-block mt-2 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
@@ -402,7 +379,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                </div>
                               <div className="flex justify-between items-baseline gap-3">
                                 <span className="font-bold">Chip-in amount</span>
-                                 <span className="font-bold tabular-nums text-red-600 dark:text-red-400">${c.amount}</span>
+                                 <span className="font-bold tabular-nums text-red-600 dark:text-red-400">{money(Math.round((c.amount) * 100))}</span>
                               </div>
                             </div>
                           ))}
@@ -411,7 +388,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                           {myActiveRegistrations.length === 0 && (
                             <div className="flex justify-between items-baseline gap-3 pb-4 border-b">
                               <span className="font-bold">Total due</span>
-                              <span className="font-serif text-xl font-bold tabular-nums">${myPendingChipInsTotal}</span>
+                              <span className="font-serif text-xl font-bold tabular-nums">{money(Math.round((myPendingChipInsTotal) * 100))}</span>
                             </div>
                           )}
                         </>
@@ -460,7 +437,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                   {perPersonFees.map((fee) => (
                                     <div key={fee.id} className="flex justify-between items-baseline gap-3 pl-4 text-sm text-muted-foreground">
                                       <span>{fee.label}</span>
-                                      <span className="tabular-nums">${computeFeeAmount(fee, [attendee])}</span>
+                                      <span className="tabular-nums">{money(Math.round((computeFeeAmount(fee, [attendee])) * 100))}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -468,7 +445,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                               {flatFees.map((fee) => (
                                 <div key={fee.id} className="flex justify-between items-baseline gap-3">
                                   <span className="text-foreground">{fee.label} <span className="text-xs text-muted-foreground">flat</span></span>
-                                  <span className="font-bold tabular-nums">${fee.amount}</span>
+                                  <span className="font-bold tabular-nums">{money(Math.round(fee.amount * 100))}</span>
                                 </div>
                               ))}
                               <div className="flex justify-between items-baseline gap-3 pt-2 border-t">
@@ -482,7 +459,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                          : "text-muted-foreground"
                                    }`}
                                  >
-                                  ${computeTotal(reunion.fees, reg.attendees, reg.selectedFeeIds ?? [])}
+                                  {money(reg.ledger ? reg.ledger.chargeCents : Math.round(computeTotal(reunion.fees, reg.attendees, reg.selectedFeeIds ?? []) * 100))}
                                 </span>
                               </div>
                             </div>
@@ -495,11 +472,11 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                             <>
                               <div className="flex justify-between items-baseline gap-3">
                                 <span className="font-medium text-muted-foreground">Registrations</span>
-                                <span className="font-bold tabular-nums">${myAccountTotal}</span>
+                                <span className="font-bold tabular-nums">{money(Math.round((myAccountTotal) * 100))}</span>
                               </div>
                               <div className="flex justify-between items-baseline gap-3">
                                 <span className="font-medium text-muted-foreground">Fund contributions</span>
-                                <span className="font-bold tabular-nums">${myContributionsTotal}</span>
+                                <span className="font-bold tabular-nums">{money(Math.round((myContributionsTotal) * 100))}</span>
                               </div>
                             </>
                           )}
@@ -512,7 +489,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                   : "text-green-600 dark:text-green-400"
                               }`}
                             >
-                              ${myOutstandingTotal}
+                              {money(myOutstandingCents)}
                             </span>
                           </div>
                         </div>
@@ -590,9 +567,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   )}
                 </div>
 
-                {isSignedIn &&
-                  (myFirstUnpaidRegistration || myPendingChipIns.length > 0) &&
-                  myPaymentStatus === "pending" && (
+                {isSignedIn && myBalance.canSubmitPayment && (
                   <SubmitPayment
                     reunionId={reunion.id}
                     registrations={myUnpaidRegistrations.map((r) => ({
@@ -600,11 +575,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       label: `${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,
                       // A registration's line includes any fund chip-in pledged with it,
                       // so selecting it pays both together.
-                      amount:
-                        computeTotal(reunion.fees, r.attendees, r.selectedFeeIds ?? []) +
-                        (myContributionsData?.contributions ?? [])
-                          .filter((c) => c.registrationId === r.id)
-                          .reduce((sum, c) => sum + c.amount, 0),
+                      amount: remainingFor(r),
                     }))}
                     chipIns={myPendingChipIns.map((c) => ({
                       id: c.id,
@@ -677,7 +648,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                       : "text-red-600 dark:text-red-400"
                                 }`}
                               >
-                                ${contribution.amount}
+                                {money(Math.round((contribution.amount) * 100))}
                               </span>
                             </span>
                           </div>

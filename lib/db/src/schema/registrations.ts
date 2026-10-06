@@ -49,6 +49,10 @@ export const registrationsTable = pgTable("registrations", {
   status: registrationStatusEnum("status").notNull().default("active"),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   cancellationResolution: cancellationResolutionEnum("cancellation_resolution"),
+  // Set once the registration's legacy paid status has been converted into an
+  // explicit opening credit in the receipt ledger (lazy, before any money
+  // mutation). Null = legacy state; reads derive the same numbers virtually.
+  ledgerInitializedAt: timestamp("ledger_initialized_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

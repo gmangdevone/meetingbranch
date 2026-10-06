@@ -14,6 +14,11 @@ export interface TransferRegistrationInput {
      * @minLength 3
      */
   targetEmail?: string;
-  /** kind=payment: registration (same reunion) that receives the paid status. */
+  /** kind=payment: registration (same reunion) that receives confirmed money. */
   targetRegistrationId?: number;
+  /**
+     * kind=payment: cents to move. Defaults to min(source confirmed money, target remaining balance).
+     * @minimum 1
+     */
+  amountCents?: number;
 }

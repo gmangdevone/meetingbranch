@@ -8,9 +8,11 @@
 import type { Attendee } from './attendee';
 import type { CancellationResolution } from './cancellationResolution';
 import type { PaymentStatus } from './paymentStatus';
+import type { RegistrationLedger } from './registrationLedger';
 import type { RegistrationStatus } from './registrationStatus';
 
 export interface AdminRegistration {
+  ledger?: RegistrationLedger;
   id: number;
   reunionId: number;
   userId: string;

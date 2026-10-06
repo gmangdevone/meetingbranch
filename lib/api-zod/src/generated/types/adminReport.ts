@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { DayRegistrationCount } from './dayRegistrationCount';
+import type { FinanceSummary } from './financeSummary';
 import type { GroupCount } from './groupCount';
 import type { ShirtSizeCount } from './shirtSizeCount';
 
@@ -15,6 +16,9 @@ export interface AdminReport {
   paidCount: number;
   pendingCount: number;
   waivedCount: number;
+  unpaidCount?: number;
+  partialCount?: number;
+  finance?: FinanceSummary;
   dietaryCount: number;
   byGroup: GroupCount[];
   byShirtSize: ShirtSizeCount[];

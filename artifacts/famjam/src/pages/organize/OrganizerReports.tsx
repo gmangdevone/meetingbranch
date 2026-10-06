@@ -2,6 +2,7 @@ import { useGetReunionReports, getGetReunionReportsQueryKey } from "@workspace/a
 import { OrganizerLayout } from "./OrganizerLayout";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Users, Shirt, Utensils, CreditCard } from "lucide-react";
+import { money } from "../../components/payments/money";
 
 const COLORS = ['hsl(15 80% 55%)', 'hsl(190 40% 30%)', 'hsl(45 90% 60%)', 'hsl(0 84% 60%)', '#8b5cf6', '#10b981', '#f97316'];
 
@@ -15,7 +16,8 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
 
   const paymentData = [
     { name: 'Paid', value: reports.paidCount },
-    { name: 'Pending', value: reports.pendingCount },
+    { name: 'Partially paid', value: reports.partialCount ?? 0 },
+    { name: 'Unpaid', value: reports.unpaidCount ?? reports.pendingCount },
     { name: 'Waived', value: reports.waivedCount },
   ].filter(d => d.value > 0);
 
@@ -54,6 +56,32 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
             <div className="text-xs text-muted-foreground mt-1">notes recorded</div>
           </div>
         </div>
+
+        {reports.finance && (
+          <section className="bg-card border shadow-sm rounded-3xl p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+              <h3 className="font-bold text-lg">Money (active registrations)</h3>
+              <span className="text-xs text-muted-foreground">Confirmed receipts only. Reported payments are shown separately.</span>
+            </div>
+            <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+              {[
+                ["Charges", reports.finance.chargesCents, ""],
+                ["Confirmed received", reports.finance.confirmedCents, "text-green-700 dark:text-green-400"],
+                ["Opening credits", reports.finance.legacyCreditCents, ""],
+                ["Sponsored", reports.finance.sponsoredCents, ""],
+                ["Waived", reports.finance.waivedCents, ""],
+                ["Outstanding", reports.finance.outstandingCents, "text-red-600 dark:text-red-400"],
+                ["Reported, unconfirmed", reports.finance.pendingReportedCents, "text-amber-700 dark:text-amber-400"],
+                ["Credits to review", reports.finance.creditCents, "text-sky-700 dark:text-sky-300"],
+              ].map(([label, cents, tone]) => (
+                <div key={label as string}>
+                  <dt className="text-muted-foreground text-xs font-bold uppercase tracking-widest">{label}</dt>
+                  <dd className={`font-serif text-2xl font-bold tabular-nums ${tone}`}>{money(cents as number)}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-card border shadow-sm rounded-3xl p-6">

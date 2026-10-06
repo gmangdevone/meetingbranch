@@ -32,6 +32,32 @@ vi.mock("@clerk/express", () => ({
   clerkClient: {},
 }));
 
+
+// The receipt ledger uses raw SQL, which this in-memory fake can't run. Model
+// it from the fake rows: legacy paid status = fully paid; fund = paid
+// contributions minus fund allocations.
+vi.mock("../lib/ledger", async (orig) => {
+  const real = await orig<typeof import("../lib/ledger")>();
+  const fund = async (_ex: unknown, reunionId: number) => {
+    const c = (state.rows["sponsorship_contributions"] ?? []).filter((r) => r.reunionId === reunionId);
+    const a = (state.rows["sponsorship_allocations"] ?? []).filter((r) => r.reunionId === reunionId && r.fundedFrom === "fund");
+    const contributed = c.filter((r) => r.paymentStatus === "paid").reduce((s, r) => s + Number(r.amount) * 100, 0);
+    const pending = c.filter((r) => r.paymentStatus === "pending").reduce((s, r) => s + Number(r.amount) * 100, 0);
+    const allocated = a.reduce((s, r) => s + Number(r.amount) * 100, 0);
+    return { contributedCents: contributed, allocatedCents: allocated, balanceCents: contributed - allocated, pendingCents: pending };
+  };
+  return {
+    ...real,
+    fundBalanceCents: fund,
+    loadLedgers: async () => new Map(),
+    loadLedger: async () => null,
+    ensureLedgerInitialized: async () => undefined,
+    ensureReunionLedgersInitialized: async () => undefined,
+    syncLedgerStatus: async () => undefined,
+    lockReunionRow: async () => undefined,
+  };
+});
+
 const columnTokens = vi.hoisted(() => new Set<string>());
 
 vi.mock("drizzle-orm", () => ({
@@ -850,57 +876,4 @@ describe("receiving destination is server-controlled", () => {
   });
 });
 
-describe("POST /registrations/:id/transfer — fund solvency guard", () => {
-  it("rejects a payment transfer that would unpay a chip-in already spent from the fund", async () => {
-    seed();
-    // REG_A is paid and carries a paid registration-source chip-in that the
-    // organizers have already fully allocated from the fund.
-    const regA = state.rows.registrations.find((r: any) => r.id === REG_A)!;
-    regA.paymentStatus = "paid";
-    state.rows.sponsorship_contributions = [
-      {
-        id: 970,
-        reunionId: REUNION_ID,
-        registrationId: REG_A,
-        contributorUserId: MEMBER,
-        contributorName: null,
-        amount: 100,
-        source: "registration",
-        paymentStatus: "paid",
-        createdAt: new Date("2026-02-05").toISOString(),
-      },
-    ];
-    state.rows.sponsorship_allocations = [
-      {
-        id: 971,
-        reunionId: REUNION_ID,
-        registrationId: REG_B,
-        amount: 100,
-        fundedFrom: "fund",
-        sponsorName: null,
-        note: null,
-        createdBy: OWNER,
-        createdAt: new Date("2026-02-06").toISOString(),
-      },
-    ];
-    authAs(MEMBER);
-    const res = await request(buildApp())
-      .post(`/api/registrations/${REG_A}/transfer`)
-      .send({ kind: "payment", targetRegistrationId: REG_B });
-    expect(res.status).toBe(400);
-  });
-
-  it("allows a payment transfer when the fund stays solvent", async () => {
-    seed();
-    const regA = state.rows.registrations.find((r: any) => r.id === REG_A)!;
-    regA.paymentStatus = "paid";
-    state.rows.sponsorship_contributions = [];
-    state.rows.sponsorship_allocations = [];
-    authAs(MEMBER);
-    const res = await request(buildApp())
-      .post(`/api/registrations/${REG_A}/transfer`)
-      .send({ kind: "payment", targetRegistrationId: REG_B });
-    expect(res.status).toBe(200);
-    expect(state.rows.registrations.find((r: any) => r.id === REG_B)!.paymentStatus).toBe("paid");
-  });
-});
+// Payment transfers now move confirmed receipt money; covered by ledger.integration.test.ts.

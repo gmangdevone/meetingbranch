@@ -1,9 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SubmitPayment } from "./SubmitPayment";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+const qc = new QueryClient();
+const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+const withQc = (ui: ReactElement) => <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
+void invalidateSpy;
 
 const h = vi.hoisted(() => ({ mutate: vi.fn(), getRecipient: vi.fn() }));
-vi.mock("@workspace/api-client-react", () => ({
+vi.mock("@workspace/api-client-react", async (orig) => ({
+  ...(await orig<object>()),
   useCreatePaymentSubmission: () => ({ mutate: h.mutate, isPending: false }),
   useCreateContributionPaymentSubmission: () => ({ mutate: vi.fn(), isPending: false }),
   getReunionPaymentRecipient: h.getRecipient,
@@ -21,7 +28,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 const renderPay = (zelle: typeof ZELLE | null) =>
-  render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} zelle={zelle} checkPayee={null} />);
+  render(withQc(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} zelle={zelle} checkPayee={null} />));
 
 describe("Zelle payments", () => {
   it("hides Zelle when no approved Zelle recipient exists", () => {
@@ -71,7 +78,7 @@ describe("Zelle payments", () => {
 
 describe("special payment instructions in the payment form", () => {
   it("shows the owner's note before and after submitting, as text", async () => {
-    render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} instructions={"Hand cash to Rhonda.\n<b>x</b>"} checkPayee={null} />);
+    render(withQc(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} instructions={"Hand cash to Rhonda.\n<b>x</b>"} checkPayee={null} />));
     expect(screen.getByTestId("special-payment-instructions")).toHaveTextContent("Hand cash to Rhonda.");
     expect(document.querySelector("[data-testid=special-payment-instructions] b")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Cash$/ }));
@@ -82,7 +89,27 @@ describe("special payment instructions in the payment form", () => {
     expect(await screen.findByTestId("special-payment-instructions")).toBeInTheDocument();
   });
   it("shows nothing when no instructions are provided", () => {
-    render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} checkPayee={null} />);
+    render(withQc(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} checkPayee={null} />));
     expect(screen.queryByTestId("special-payment-instructions")).toBeNull();
+  });
+});
+
+describe("SubmitPayment without any online recipient", () => {
+  it("still offers cash, and saving refreshes balances so the reported amount shows immediately", () => {
+    renderPay(null);
+    expect(screen.queryByRole("button", { name: /Cash App/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Cash$/ }));
+    expect((screen.getByLabelText(/amount/i) as HTMLInputElement).value).toBe("40.00");
+    for (const input of screen.getAllByRole("textbox")) {
+      if (!(input as HTMLInputElement).value) fireEvent.change(input, { target: { value: "Handed to Aunt May" } });
+    }
+    const date = document.querySelector('input[type="date"]') as HTMLInputElement | null;
+    if (date) fireEvent.change(date, { target: { value: "2026-06-01" } });
+    fireEvent.click(screen.getByRole("button", { name: /Save|Submit|Record/ }));
+    expect(h.mutate).toHaveBeenCalled();
+    const keys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
+    expect(keys.some((k) => k.includes("registrations/1/ledger"))).toBe(true);
+    expect(keys.some((k) => k.includes("/api/registrations"))).toBe(true);
+    expect(keys.some((k) => k.includes("contributions"))).toBe(true);
   });
 });

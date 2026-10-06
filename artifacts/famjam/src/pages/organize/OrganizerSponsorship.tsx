@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "../../components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { useToast } from "../../hooks/use-toast";
 import { format } from "date-fns";
+import { money } from "../../components/payments/money";
 
 export function OrganizerSponsorship({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -196,24 +197,24 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
               <div className="bg-rose-500 text-white border-transparent shadow-md rounded-3xl p-6 relative overflow-hidden">
                 <Heart className="absolute -bottom-8 -right-8 w-40 h-40 opacity-10" />
                 <h3 className="font-bold text-rose-100 mb-2 relative z-10">Fund Balance</h3>
-                <div className="font-serif text-5xl font-bold relative z-10">${fund.balance}</div>
+                <div className="font-serif text-5xl font-bold relative z-10">{money(Math.round((fund.balance) * 100))}</div>
                 <p className="text-sm text-rose-100 mt-2 relative z-10">Available to allocate</p>
               </div>
               <div className="bg-card border shadow-sm rounded-3xl p-6">
                 <h3 className="font-bold text-muted-foreground mb-2">Total Contributed</h3>
-                <div className="font-serif text-4xl font-bold text-foreground">${fund.totalContributed}</div>
+                <div className="font-serif text-4xl font-bold text-foreground">{money(Math.round((fund.totalContributed) * 100))}</div>
                 <p className="text-sm text-muted-foreground mt-2">
                   Received funds only
                   {fund.totalPending > 0 && (
                     <span className="block text-amber-600 dark:text-amber-400 font-semibold">
-                      +${fund.totalPending} pledged, not yet received
+                      +{money(Math.round((fund.totalPending) * 100))} pledged, not yet received
                     </span>
                   )}
                 </p>
               </div>
               <div className="bg-card border shadow-sm rounded-3xl p-6">
                 <h3 className="font-bold text-muted-foreground mb-2">Total Allocated</h3>
-                <div className="font-serif text-4xl font-bold text-foreground">${fund.totalAllocated}</div>
+                <div className="font-serif text-4xl font-bold text-foreground">{money(Math.round((fund.totalAllocated) * 100))}</div>
                 <p className="text-sm text-muted-foreground mt-2">Spent from the fund</p>
               </div>
             </div>
@@ -240,7 +241,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                           </div>
                           {alloc.note && <div className="text-xs text-rose-700/80 dark:text-rose-300/80 mt-1 italic">"{alloc.note}"</div>}
                         </div>
-                        <div className="font-bold text-xl text-rose-600 dark:text-rose-400">-${alloc.amount}</div>
+                        <div className="font-bold text-xl text-rose-600 dark:text-rose-400">-{money(Math.round((alloc.amount) * 100))}</div>
                       </div>
                     ))
                   )}
@@ -277,7 +278,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                                   : 'text-red-600 dark:text-red-400'
                             }`}
                           >
-                            +${cont.amount}
+                            +{money(Math.round((cont.amount) * 100))}
                           </div>
                           {cont.source !== 'direct' ? (
                             <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">

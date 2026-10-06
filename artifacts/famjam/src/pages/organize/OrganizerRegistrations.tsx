@@ -38,6 +38,11 @@ import { OrganizerLayout } from "./OrganizerLayout";
 import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
 import { computeTotal } from "../../lib/fees";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
+import { LedgerHistory, LedgerStatusBadge } from "../../components/payments/LedgerPanel";
+import { RecordPaymentDialog, type PayableRegistration, type RecordPaymentPreset } from "../../components/payments/RecordPaymentDialog";
+import { money, parseCents } from "../../components/payments/money";
+import { Wallet, FileSpreadsheet } from "lucide-react";
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
@@ -109,6 +114,10 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     return map;
   }, [paymentSubmissionsData]);
   const [submissionsRegId, setSubmissionsRegId] = useState<number | null>(null);
+  // Money drawer + receipt entry.
+  const [moneyRegId, setMoneyRegId] = useState<number | null>(null);
+  const [recordFor, setRecordFor] = useState<{ regIds: number[]; preset?: RecordPaymentPreset } | null>(null);
+  const [transferAmount, setTransferAmount] = useState("");
   // Submissions that cover ONLY standalone fund chip-ins — they have no
   // registration row to appear under, so they get their own section.
   const chipInOnlySubmissions = useMemo(
@@ -231,7 +240,13 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         (reg.userName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         reg.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
         reg.branchName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "all" || reg.paymentStatus === statusFilter;
+      const ledgerStatus = reg.ledger?.status ?? (reg.paymentStatus === "pending" ? "unpaid" : reg.paymentStatus);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "outstanding" ? reg.status !== "cancelled" && (reg.ledger?.balanceCents ?? 0) > 0 :
+         statusFilter === "reported" ? (reg.ledger?.pendingReportedCents ?? 0) > 0 :
+         statusFilter === "credit" ? (reg.ledger?.creditCents ?? 0) > 0 :
+         ledgerStatus === statusFilter);
       return matchesSearch && matchesStatus;
     });
   }, [registrations, searchTerm, statusFilter]);
@@ -246,9 +261,32 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
         queryClient.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
         queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunionId) });
-        toast({ title: "Status updated" });
-      }
+        queryClient.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
+        toast({ title: status === "waived" ? "Remaining fees waived" : "Waiver removed" });
+      },
+      onError: (err: any) => toast({ title: err?.error || "Could not update", variant: "destructive" }),
     });
+  };
+
+  const moneyReg = useMemo(() => registrations?.find((r) => r.id === moneyRegId) ?? null, [registrations, moneyRegId]);
+  const payableFor = (ids: number[]): PayableRegistration[] =>
+    (registrations ?? [])
+      .filter((r) => ids.includes(r.id) && r.ledger && r.status !== "cancelled")
+      .map((r) => ({ id: r.id, label: `#${r.id} ${r.userName || r.branchName}`, ledger: r.ledger! }));
+
+  const handleReceiptsExport = async () => {
+    const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/reunions/${reunionId}/receipts/export`, { credentials: "include" });
+    if (!res.ok) {
+      toast({ title: "Could not export receipts", variant: "destructive" });
+      return;
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `reunion-${reunionId}-receipts.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleExport = async () => {
@@ -268,7 +306,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
 
   const handleCancel = () => {
     if (!cancelReg) return;
-    const isPaid = cancelReg.paymentStatus === 'paid';
+    const isPaid = (cancelReg.ledger ? cancelReg.ledger.confirmedCents + cancelReg.ledger.legacyCreditCents : 0) > 0 || cancelReg.paymentStatus === 'paid';
     cancelMutation.mutate({
       reunionId,
       registrationId: cancelReg.id,
@@ -295,10 +333,13 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         kind: transferMode,
         targetEmail: transferMode === "registration" ? targetEmail : undefined,
         targetRegistrationId: transferMode === "payment" ? parseInt(targetRegistrationId, 10) : undefined,
+        amountCents: transferMode === "payment" && transferAmount.trim() ? parseCents(transferAmount) ?? -1 : undefined,
       }
     }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListReunionRegistrationsQueryKey(reunionId) });
+        queryClient.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
+        setTransferAmount("");
         toast({ title: "Registration transferred" });
         setTransferReg(null);
         setTargetEmail("");
@@ -318,6 +359,9 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             </Button>
             <Button onClick={handleExport} variant="outline" className="rounded-full" disabled={isExporting || !registrations?.length}>
               <Download className="w-4 h-4 mr-2" /> Export CSV
+            </Button>
+            <Button onClick={handleReceiptsExport} variant="outline" className="rounded-full">
+              <FileSpreadsheet className="w-4 h-4 mr-2" /> Receipts CSV
             </Button>
           </div>
         </div>
@@ -341,9 +385,13 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="outstanding">Balance due</SelectItem>
+                  <SelectItem value="unpaid">Unpaid</SelectItem>
+                  <SelectItem value="partial">Partially paid</SelectItem>
                   <SelectItem value="paid">Paid</SelectItem>
                   <SelectItem value="waived">Waived</SelectItem>
+                  <SelectItem value="reported">Reported, unconfirmed</SelectItem>
+                  <SelectItem value="credit">Credit to review</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -358,7 +406,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <th className="px-4 py-3">Attendees</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Check-in</th>
-                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Balance</th>
                   <th className="px-4 py-3">Payment</th>
                   <th className="px-4 py-3 rounded-tr-xl">Actions</th>
                 </tr>
@@ -422,17 +470,29 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                         })()}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <span
-                          className={`font-bold tabular-nums ${
-                            isCancelled || reg.paymentStatus === 'waived'
-                              ? 'text-muted-foreground'
-                              : reg.paymentStatus === 'paid'
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-red-600 dark:text-red-400'
-                          }`}
-                        >
-                          ${registrationTotal}
-                        </span>
+                        {reg.ledger ? (
+                          <div className="flex flex-col">
+                            <span
+                              className={`font-bold tabular-nums ${
+                                isCancelled || reg.ledger.waived
+                                  ? 'text-muted-foreground'
+                                  : reg.ledger.balanceCents === 0
+                                    ? 'text-green-600 dark:text-green-400'
+                                    : 'text-red-600 dark:text-red-400'
+                              }`}
+                            >
+                              {money(reg.ledger.balanceCents)}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground tabular-nums">
+                              {money(reg.ledger.confirmedCents + reg.ledger.legacyCreditCents)} paid of {money(reg.ledger.chargeCents)}
+                            </span>
+                            {reg.ledger.creditCents > 0 && (
+                              <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">{money(reg.ledger.creditCents)} credit</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="font-bold tabular-nums">{money(Math.round((registrationTotal) * 100))}</span>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         {isCancelled ? (
@@ -448,23 +508,12 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                             )}
                           </div>
                         ) : (
-                          <Select 
-                            value={reg.paymentStatus} 
-                            onValueChange={(val: 'paid'|'pending'|'waived') => handleUpdateStatus(reg.id, val)}
-                          >
-                            <SelectTrigger className={`h-8 text-xs font-bold uppercase tracking-wider rounded-lg border-0 w-[110px] ${
-                              reg.paymentStatus === 'paid' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                              reg.paymentStatus === 'waived' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
-                              'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                            }`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending" className="text-amber-600 font-bold uppercase text-xs">Pending</SelectItem>
-                              <SelectItem value="paid" className="text-green-600 font-bold uppercase text-xs">Paid</SelectItem>
-                              <SelectItem value="waived" className="text-gray-600 font-bold uppercase text-xs">Waived</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex flex-col items-start gap-1.5">
+                            <LedgerStatusBadge status={reg.ledger?.status ?? (reg.paymentStatus === 'pending' ? 'unpaid' : reg.paymentStatus)} />
+                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-lg" onClick={() => setMoneyRegId(reg.id)}>
+                              <Wallet className="w-3 h-3 mr-1" /> Payments
+                            </Button>
+                          </div>
                         )}
                         {(submissionsByRegistration.get(reg.id)?.length ?? 0) > 0 && (
                           <button
@@ -518,7 +567,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <span className="font-bold uppercase tracking-wide text-sm">
                     {s.method === "cashapp" ? "Cash App" : s.method === "zelle" ? "Zelle" : s.method === "check" ? "Check" : "Cash"}
                   </span>
-                  <span className="font-bold text-lg tabular-nums">${s.amount}</span>
+                  <span className="font-bold text-lg tabular-nums">{money(s.amountCents ?? Math.round(s.amount * 100))}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
@@ -566,7 +615,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                           </span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-bold tabular-nums text-sm">${c.amount}</span>
+                          <span className="font-bold tabular-nums text-sm">{money(Math.round(c.amount * 100))}</span>
                           {c.paymentStatus === "paid" ? (
                             <span className="flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Paid
@@ -597,13 +646,63 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         </div>
       )}
 
+      <Sheet open={moneyRegId !== null} onOpenChange={(o) => { if (!o) setMoneyRegId(null); }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          {moneyReg && (
+            <>
+              <SheetHeader className="text-left">
+                <SheetTitle className="font-serif text-2xl">{moneyReg.userName || moneyReg.userEmail || `Registration #${moneyReg.id}`}</SheetTitle>
+                <SheetDescription>
+                  #{moneyReg.id} · {moneyReg.branchName} · {moneyReg.attendeeCount} {moneyReg.attendeeCount === 1 ? "attendee" : "attendees"}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {moneyReg.status !== "cancelled" && moneyReg.paymentStatus !== "waived" && (
+                  <Button className="rounded-xl" onClick={() => setRecordFor({ regIds: [moneyReg.id] })}>
+                    <Wallet className="w-4 h-4 mr-2" /> Record payment
+                  </Button>
+                )}
+                {moneyReg.status !== "cancelled" && (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={updatePayment.isPending}
+                    onClick={() => handleUpdateStatus(moneyReg.id, moneyReg.paymentStatus === "waived" ? "pending" : "waived")}
+                  >
+                    {moneyReg.paymentStatus === "waived" ? "Remove waiver" : "Waive remaining fees"}
+                  </Button>
+                )}
+              </div>
+              <div className="mt-6">
+                <LedgerHistory
+                  registrationId={moneyReg.id}
+                  reunionId={reunionId}
+                  onReplace={(e) =>
+                    setRecordFor({ regIds: [moneyReg.id], preset: { replacesReceiptId: e.id, method: e.method ?? undefined, receivedDate: e.receivedDate } })
+                  }
+                />
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {recordFor && (
+        <RecordPaymentDialog
+          reunionId={reunionId}
+          registrations={payableFor(recordFor.regIds)}
+          preset={recordFor.preset}
+          onClose={() => setRecordFor(null)}
+        />
+      )}
+
       <Dialog open={submissionsRegId !== null} onOpenChange={(open) => { if (!open) setSubmissionsRegId(null); }}>
         <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">Payment Submissions</DialogTitle>
             <DialogDescription>
-              Details recorded by the registrant. Confirm the money actually arrived before
-              marking the registration paid — submitting never changes the status.
+              Details recorded by the registrant. Reported amounts never change the balance;
+              confirm only the money that actually arrived.
             </DialogDescription>
           </DialogHeader>
           <div className="divide-y">
@@ -613,8 +712,40 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <span className="font-bold uppercase tracking-wide text-sm">
                     {s.method === "cashapp" ? "Cash App" : s.method === "zelle" ? "Zelle" : s.method === "check" ? "Check" : "Cash"}
                   </span>
-                  <span className="font-bold text-lg tabular-nums">${s.amount}</span>
+                  <span className="font-bold text-lg tabular-nums">{money(s.amountCents ?? Math.round(s.amount * 100))}</span>
                 </div>
+                {s.confirmedReceiptId ? (
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Confirmed as receipt #{s.confirmedReceiptId}
+                  </p>
+                ) : null}
+                {s.confirmedReceiptId && s.contributions.some((c) => c.standalone && c.paymentStatus === "pending") ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    A standalone fund chip-in in this note was left out of the receipt and is still pending. Mark it paid below only if that money arrived.
+                  </p>
+                ) : !s.confirmedReceiptId ? (
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => {
+                      setRecordFor({
+                        regIds: s.registrationIds?.length ? s.registrationIds : s.registrationId != null ? [s.registrationId] : [],
+                        preset: {
+                          submissionId: s.id,
+                          amountCents: s.amountCents ?? Math.round(s.amount * 100),
+                          method: s.method,
+                          reference: s.reference,
+                          receivedDate: s.givenDate,
+                          standaloneChipIns: s.contributions
+                            .filter((c) => c.standalone && c.paymentStatus === "pending")
+                            .map((c) => ({ id: c.id, label: `Fund chip-in · ${c.contributorName ?? "Anonymous"}`, cents: Math.round(c.amount * 100) })),
+                        },
+                      });
+                    }}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Confirm money received
+                  </Button>
+                ) : null}
                 <p className="text-xs text-muted-foreground">
                   Submitted {format(new Date(s.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
@@ -648,7 +779,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                           </span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="font-bold tabular-nums text-sm">${c.amount}</span>
+                          <span className="font-bold tabular-nums text-sm">{money(Math.round(c.amount * 100))}</span>
                           {c.paymentStatus === "paid" ? (
                             <span className="flex items-center gap-1 text-xs font-bold text-green-700 dark:text-green-400">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Paid
@@ -1007,10 +1138,15 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             </DialogDescription>
           </DialogHeader>
 
-          {cancelReg?.paymentStatus === 'paid' && (
+          {cancelReg && ((cancelReg.ledger ? cancelReg.ledger.confirmedCents + cancelReg.ledger.legacyCreditCents : 0) > 0 || cancelReg.paymentStatus === 'paid') && (
             <div className="space-y-4 py-4">
               <Label className="text-base">Payment Resolution</Label>
-              <p className="text-sm text-muted-foreground -mt-2">This registration is marked as paid. How are you handling the funds?</p>
+              <p className="text-sm text-muted-foreground -mt-2">
+                {cancelReg.ledger
+                  ? `${money(cancelReg.ledger.confirmedCents + cancelReg.ledger.legacyCreditCents)} was actually received for this registration.`
+                  : "This registration has confirmed money."}{" "}
+                How are you handling it? Attached fund chip-in money stays with the fund.
+              </p>
               <RadioGroup value={cancelResolution} onValueChange={(v) => setCancelResolution(v as any)} className="flex flex-col gap-3">
                 <div className="flex items-center space-x-2 border p-3 rounded-xl cursor-pointer hover:bg-muted/50">
                   <RadioGroupItem value="refunded" id="res-refund" />
@@ -1060,7 +1196,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           <Tabs value={transferMode} onValueChange={(v) => setTransferMode(v as "registration" | "payment")} className="mt-4">
             <TabsList className="grid grid-cols-2 w-full mb-6">
               <TabsTrigger value="registration">Full Registration</TabsTrigger>
-              <TabsTrigger value="payment" disabled={transferReg?.paymentStatus !== "paid"}>Payment Only</TabsTrigger>
+              <TabsTrigger value="payment" disabled={!transferReg?.ledger || transferReg.ledger.confirmedCents + transferReg.ledger.legacyCreditCents <= 0}>Payment Only</TabsTrigger>
             </TabsList>
             
             <TabsContent value="registration" className="space-y-4">
@@ -1081,7 +1217,8 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             
             <TabsContent value="payment" className="space-y-4">
               <p className="text-sm text-muted-foreground mb-4">
-                Keep the registration here, but transfer its "paid" status to another registration in this reunion.
+                Keep the registration here, but move confirmed money to another registration in this reunion.
+                {transferReg?.ledger && ` ${money(transferReg.ledger.confirmedCents + transferReg.ledger.legacyCreditCents)} is available.`}
               </p>
               <div className="space-y-2">
                 <Label>Recipient's Registration ID</Label>
@@ -1090,6 +1227,16 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   type="number"
                   value={targetRegistrationId}
                   onChange={(e) => setTargetRegistrationId(e.target.value)}
+                  className="rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Amount to move ($, optional)</Label>
+                <Input
+                  placeholder="Defaults to what the recipient still owes"
+                  inputMode="decimal"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
                   className="rounded-xl"
                 />
               </div>

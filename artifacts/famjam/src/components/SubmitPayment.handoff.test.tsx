@@ -1,12 +1,19 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SubmitPayment } from "./SubmitPayment";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+const qc = new QueryClient();
+const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
+const withQc = (ui: ReactElement) => <QueryClientProvider client={qc}>{ui}</QueryClientProvider>;
+void invalidateSpy;
 
 const h = vi.hoisted(() => ({
   mutate: vi.fn(),
   getRecipient: vi.fn(),
 }));
-vi.mock("@workspace/api-client-react", () => ({
+vi.mock("@workspace/api-client-react", async (orig) => ({
+  ...(await orig<object>()),
   useCreatePaymentSubmission: () => ({ mutate: h.mutate, isPending: false }),
   useCreateContributionPaymentSubmission: () => ({ mutate: vi.fn(), isPending: false }),
   getReunionPaymentRecipient: h.getRecipient,
@@ -22,7 +29,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function payWithCashApp() {
-  render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable checkPayee={null} />);
+  render(withQc(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable checkPayee={null} />));
   fireEvent.click(screen.getByRole("button", { name: /Cash App/ }));
   fireEvent.change(screen.getByLabelText(/Your own \$cashtag/), { target: { value: "$payer" } });
   fireEvent.click(screen.getByRole("button", { name: /Submit & Open Cash App/ }));
@@ -59,7 +66,7 @@ describe("Cash App handoff", () => {
   });
 
   it("hides the Cash App method when no approved tag exists", () => {
-    render(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} checkPayee={null} />);
+    render(withQc(<SubmitPayment reunionId={7} registrations={[{ id: 1, label: "A", amount: 40 }]} cashAppAvailable={false} checkPayee={null} />));
     expect(screen.queryByRole("button", { name: /Cash App/ })).toBeNull();
   });
 });

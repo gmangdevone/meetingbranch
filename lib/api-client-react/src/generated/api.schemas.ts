@@ -357,8 +357,13 @@ export interface TransferRegistrationInput {
      * @minLength 3
      */
   targetEmail?: string;
-  /** kind=payment: registration (same reunion) that receives the paid status. */
+  /** kind=payment: registration (same reunion) that receives confirmed money. */
   targetRegistrationId?: number;
+  /**
+     * kind=payment: cents to move. Defaults to min(source confirmed money, target remaining balance).
+     * @minimum 1
+     */
+  amountCents?: number;
 }
 
 export type SponsorshipContributionSource = typeof SponsorshipContributionSource[keyof typeof SponsorshipContributionSource];
@@ -412,8 +417,8 @@ export const PaymentMethod = {
 export interface PaymentSubmissionInput {
   method: PaymentMethod;
   /**
-     * Whole-dollar amount the registrant says they are paying.
-     * @minimum 1
+     * Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.
+     * @exclusiveMinimum 0
      */
   amount: number;
   /**
@@ -453,6 +458,8 @@ export const SubmissionChipInPaymentStatus = {
  * Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered.
  */
 export interface SubmissionChipIn {
+  /** True for a direct (unattached) fund chip-in, settled all-or-nothing. */
+  standalone?: boolean;
   id: number;
   /** @nullable */
   contributorName?: string | null;
@@ -496,6 +503,10 @@ export interface PaymentSubmission {
   /** @nullable */
   note?: string | null;
   createdAt: string;
+  /** Exact reported cents. */
+  amountCents?: number;
+  /** Live receipt that confirmed this reported payment, if any. */
+  confirmedReceiptId?: number | null;
 }
 
 export interface PaymentSubmissionList {
@@ -1291,7 +1302,44 @@ export interface RegistrationInput {
   sponsorshipContribution?: number;
 }
 
+export type LedgerStatus = typeof LedgerStatus[keyof typeof LedgerStatus];
+
+
+export const LedgerStatus = {
+  unpaid: 'unpaid',
+  partial: 'partial',
+  paid: 'paid',
+  waived: 'waived',
+} as const;
+
+export interface AttachedContributionLedger {
+  id: number;
+  pledgedCents: number;
+  confirmedCents: number;
+  outstandingCents: number;
+}
+
+/**
+ * Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.
+ */
+export interface RegistrationLedger {
+  registrationId: number;
+  chargeCents: number;
+  sponsoredCents: number;
+  confirmedCents: number;
+  legacyCreditCents: number;
+  waived: boolean;
+  waivedCents: number;
+  balanceCents: number;
+  creditCents: number;
+  pendingReportedCents: number;
+  status: LedgerStatus;
+  legacyPending: boolean;
+  contributions: AttachedContributionLedger[];
+}
+
 export interface Registration {
+  ledger?: RegistrationLedger;
   id: number;
   reunionId: number;
   /** @nullable */
@@ -1310,6 +1358,7 @@ export interface Registration {
 }
 
 export interface AdminRegistration {
+  ledger?: RegistrationLedger;
   id: number;
   reunionId: number;
   userId: string;
@@ -1354,12 +1403,120 @@ export interface DayRegistrationCount {
   count: number;
 }
 
+export interface LedgerReversal {
+  at: string;
+  reason?: string | null;
+  byName?: string | null;
+}
+
+export type LedgerEntryKind = typeof LedgerEntryKind[keyof typeof LedgerEntryKind];
+
+
+export const LedgerEntryKind = {
+  payment: 'payment',
+  legacy_credit: 'legacy_credit',
+  transfer: 'transfer',
+} as const;
+
+export interface LedgerEntry {
+  id: number;
+  kind: LedgerEntryKind;
+  totalCents: number;
+  registrationCents: number;
+  contributionCents: number;
+  method?: string | null;
+  receivedDate?: string | null;
+  reference?: string | null;
+  note?: string | null;
+  submissionId?: number | null;
+  replacesReceiptId?: number | null;
+  recordedByName?: string | null;
+  createdAt: string;
+  reversed?: LedgerReversal | null;
+}
+
+export interface PendingReportedPayment {
+  id: number;
+  method: string;
+  amountCents: number;
+  createdAt: string;
+  reference?: string | null;
+  registrationIds: number[];
+}
+
+export interface RegistrationLedgerResponse {
+  ledger: RegistrationLedger;
+  entries: LedgerEntry[];
+  pendingSubmissions: PendingReportedPayment[];
+  canManage: boolean;
+}
+
+export interface ReceiptAllocationInput {
+  registrationId?: number | null;
+  contributionId?: number | null;
+  /** Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge. */
+  standaloneContributionId?: number | null;
+  amountCents: number;
+}
+
+export type ReceiptInputMethod = typeof ReceiptInputMethod[keyof typeof ReceiptInputMethod];
+
+
+export const ReceiptInputMethod = {
+  cashapp: 'cashapp',
+  zelle: 'zelle',
+  cash: 'cash',
+  check: 'check',
+  other: 'other',
+} as const;
+
+export interface ReceiptInput {
+  amountCents: number;
+  method: ReceiptInputMethod;
+  /** YYYY-MM-DD */
+  receivedDate: string;
+  reference?: string | null;
+  note?: string | null;
+  allocations: ReceiptAllocationInput[];
+  submissionId?: number | null;
+  replacesReceiptId?: number | null;
+  idempotencyKey: string;
+}
+
+export interface ReceiptResult {
+  receiptId: number;
+  duplicate?: boolean;
+  ledgers: RegistrationLedger[];
+}
+
+export interface ReceiptReversalInput {
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export interface FinanceSummary {
+  chargesCents: number;
+  confirmedCents: number;
+  legacyCreditCents: number;
+  sponsoredCents: number;
+  waivedCents: number;
+  outstandingCents: number;
+  creditCents: number;
+  pendingReportedCents: number;
+}
+
 export interface AdminReport {
   totalRegistrations: number;
   totalAttendees: number;
   paidCount: number;
   pendingCount: number;
   waivedCount: number;
+  unpaidCount?: number;
+  partialCount?: number;
+  finance?: FinanceSummary;
   dietaryCount: number;
   byGroup: GroupCount[];
   byShirtSize: ShirtSizeCount[];

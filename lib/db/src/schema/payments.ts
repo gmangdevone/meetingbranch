@@ -45,6 +45,8 @@ export const paymentSubmissionsTable = pgTable("payment_submissions", {
   givenDate: text("given_date"),
   note: text("note"),
   amount: integer("amount").notNull(),
+  // Exact reported cents (new submissions). Null on legacy rows = amount * 100.
+  amountCents: integer("amount_cents"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

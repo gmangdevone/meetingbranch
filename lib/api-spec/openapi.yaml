@@ -964,6 +964,101 @@ paths:
         "404":
           description: Not found
 
+  /registrations/{id}/ledger:
+    get:
+      operationId: getRegistrationLedger
+      tags: [registrations]
+      summary: Balance and confirmed payment history (registrant or registration manager)
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationLedgerResponse" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
+  /reunions/{reunionId}/receipts:
+    post:
+      operationId: recordReceipt
+      tags: [manage]
+      summary: Record confirmed money with explicit allocations (registration managers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReceiptInput" }
+      responses:
+        "200":
+          description: Duplicate request; original receipt returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptResult" }
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptResult" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403": { description: Forbidden }
+        "409":
+          description: Conflict (over-allocation, already confirmed, stale)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
+  /reunions/{reunionId}/receipts/{receiptId}/reversal:
+    post:
+      operationId: reverseReceipt
+      tags: [manage]
+      summary: Reverse a receipt with a required reason (history is kept)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReceiptReversalInput" }
+      responses:
+        "200":
+          description: Reversed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ReceiptResult" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+        "409":
+          description: Conflict
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+
   /reunions/{reunionId}/registrations/{registrationId}/cancel:
     post:
       operationId: cancelRegistration
@@ -2869,7 +2964,11 @@ components:
           description: "kind=registration: email of the account taking over this registration."
         targetRegistrationId:
           type: integer
-          description: "kind=payment: registration (same reunion) that receives the paid status."
+          description: "kind=payment: registration (same reunion) that receives confirmed money."
+        amountCents:
+          type: integer
+          minimum: 1
+          description: "kind=payment: cents to move. Defaults to min(source confirmed money, target remaining balance)."
 
     MyContributionsResponse:
       type: object
@@ -2891,9 +2990,9 @@ components:
         method:
           $ref: "#/components/schemas/PaymentMethod"
         amount:
-          type: integer
-          minimum: 1
-          description: "Whole-dollar amount the registrant says they are paying."
+          type: number
+          exclusiveMinimum: 0
+          description: "Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only."
         registrationIds:
           type: array
           items:
@@ -2920,6 +3019,9 @@ components:
       required: [id, amount, paymentStatus, createdAt]
       description: "Abbreviated chip-in record embedded in a payment submission so organizers can see exactly which contributions are covered."
       properties:
+        standalone:
+          type: boolean
+          description: True for a direct (unattached) fund chip-in, settled all-or-nothing.
         id:
           type: integer
         contributorName:
@@ -2970,7 +3072,7 @@ components:
         method:
           $ref: "#/components/schemas/PaymentMethod"
         amount:
-          type: integer
+          type: number
         reference:
           type: ["string", "null"]
         givenDate:
@@ -2980,6 +3082,13 @@ components:
         createdAt:
           type: string
           format: date-time
+        amountCents:
+          type: integer
+          description: Exact reported cents.
+        confirmedReceiptId:
+          type: integer
+          nullable: true
+          description: Live receipt that confirmed this reported payment, if any.
 
     PaymentSubmissionList:
       type: object
@@ -3218,7 +3327,7 @@ components:
         contributorName:
           type: ["string", "null"]
         amount:
-          type: integer
+          type: number
         source:
           type: string
           enum: [registration, direct, cancellation]
@@ -3279,16 +3388,16 @@ components:
       required: [balance, totalContributed, totalPending, totalAllocated, contributions, allocations]
       properties:
         balance:
-          type: integer
+          type: number
           description: totalContributed (paid only) minus fund-funded allocations
         totalContributed:
-          type: integer
+          type: number
           description: sum of contributions actually received (paymentStatus paid)
         totalPending:
-          type: integer
+          type: number
           description: sum of pledged contributions not yet received (paymentStatus pending)
         totalAllocated:
-          type: integer
+          type: number
           description: total applied from the fund (excludes direct sponsorships)
         contributions:
           type: array
@@ -4099,6 +4208,8 @@ components:
       required:
         [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, status]
       properties:
+        ledger:
+          $ref: "#/components/schemas/RegistrationLedger"
         id:
           type: integer
         reunionId:
@@ -4138,6 +4249,8 @@ components:
       required:
         [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, userEmail, status, registrantIsManaged]
       properties:
+        ledger:
+          $ref: "#/components/schemas/RegistrationLedger"
         id:
           type: integer
         reunionId:
@@ -4225,6 +4338,130 @@ components:
         count:
           type: integer
 
+    LedgerStatus:
+      type: string
+      enum: [unpaid, partial, paid, waived]
+    AttachedContributionLedger:
+      type: object
+      required: [id, pledgedCents, confirmedCents, outstandingCents]
+      properties:
+        id: { type: integer }
+        pledgedCents: { type: integer }
+        confirmedCents: { type: integer }
+        outstandingCents: { type: integer }
+    RegistrationLedger:
+      type: object
+      description: Server-authoritative balance in exact cents. Pending reported payments never reduce balanceCents.
+      required: [registrationId, chargeCents, sponsoredCents, confirmedCents, legacyCreditCents, waived, waivedCents, balanceCents, creditCents, pendingReportedCents, status, legacyPending, contributions]
+      properties:
+        registrationId: { type: integer }
+        chargeCents: { type: integer }
+        sponsoredCents: { type: integer }
+        confirmedCents: { type: integer }
+        legacyCreditCents: { type: integer }
+        waived: { type: boolean }
+        waivedCents: { type: integer }
+        balanceCents: { type: integer }
+        creditCents: { type: integer }
+        pendingReportedCents: { type: integer }
+        status: { $ref: "#/components/schemas/LedgerStatus" }
+        legacyPending: { type: boolean }
+        contributions:
+          type: array
+          items: { $ref: "#/components/schemas/AttachedContributionLedger" }
+    LedgerReversal:
+      type: object
+      required: [at]
+      properties:
+        at: { type: string, format: date-time }
+        reason: { type: string, nullable: true }
+        byName: { type: string, nullable: true }
+    LedgerEntry:
+      type: object
+      required: [id, kind, totalCents, registrationCents, contributionCents, createdAt]
+      properties:
+        id: { type: integer }
+        kind: { type: string, enum: [payment, legacy_credit, transfer] }
+        totalCents: { type: integer }
+        registrationCents: { type: integer }
+        contributionCents: { type: integer }
+        method: { type: string, nullable: true }
+        receivedDate: { type: string, nullable: true }
+        reference: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        submissionId: { type: integer, nullable: true }
+        replacesReceiptId: { type: integer, nullable: true }
+        recordedByName: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        reversed:
+          allOf: [{ $ref: "#/components/schemas/LedgerReversal" }]
+          nullable: true
+    PendingReportedPayment:
+      type: object
+      required: [id, method, amountCents, createdAt, registrationIds]
+      properties:
+        id: { type: integer }
+        method: { type: string }
+        amountCents: { type: integer }
+        createdAt: { type: string, format: date-time }
+        reference: { type: string, nullable: true }
+        registrationIds: { type: array, items: { type: integer } }
+    RegistrationLedgerResponse:
+      type: object
+      required: [ledger, entries, pendingSubmissions, canManage]
+      properties:
+        ledger: { $ref: "#/components/schemas/RegistrationLedger" }
+        entries: { type: array, items: { $ref: "#/components/schemas/LedgerEntry" } }
+        pendingSubmissions: { type: array, items: { $ref: "#/components/schemas/PendingReportedPayment" } }
+        canManage: { type: boolean }
+    ReceiptAllocationInput:
+      type: object
+      required: [amountCents]
+      properties:
+        registrationId: { type: integer, nullable: true }
+        contributionId: { type: integer, nullable: true }
+        standaloneContributionId:
+          type: integer
+          nullable: true
+          description: Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge.
+        amountCents: { type: integer }
+    ReceiptInput:
+      type: object
+      required: [amountCents, method, receivedDate, allocations, idempotencyKey]
+      properties:
+        amountCents: { type: integer }
+        method: { type: string, enum: [cashapp, zelle, cash, check, other] }
+        receivedDate: { type: string, description: "YYYY-MM-DD" }
+        reference: { type: string, nullable: true }
+        note: { type: string, nullable: true }
+        allocations: { type: array, items: { $ref: "#/components/schemas/ReceiptAllocationInput" } }
+        submissionId: { type: integer, nullable: true }
+        replacesReceiptId: { type: integer, nullable: true }
+        idempotencyKey: { type: string }
+    ReceiptResult:
+      type: object
+      required: [receiptId, ledgers]
+      properties:
+        receiptId: { type: integer }
+        duplicate: { type: boolean }
+        ledgers: { type: array, items: { $ref: "#/components/schemas/RegistrationLedger" } }
+    ReceiptReversalInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 500 }
+    FinanceSummary:
+      type: object
+      required: [chargesCents, confirmedCents, legacyCreditCents, sponsoredCents, waivedCents, outstandingCents, creditCents, pendingReportedCents]
+      properties:
+        chargesCents: { type: integer }
+        confirmedCents: { type: integer }
+        legacyCreditCents: { type: integer }
+        sponsoredCents: { type: integer }
+        waivedCents: { type: integer }
+        outstandingCents: { type: integer }
+        creditCents: { type: integer }
+        pendingReportedCents: { type: integer }
     AdminReport:
       type: object
       required:
@@ -4240,6 +4477,12 @@ components:
           type: integer
         waivedCount:
           type: integer
+        unpaidCount:
+          type: integer
+        partialCount:
+          type: integer
+        finance:
+          $ref: "#/components/schemas/FinanceSummary"
         dietaryCount:
           type: integer
         byGroup:

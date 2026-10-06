@@ -43,4 +43,8 @@ export interface PaymentSubmission {
   /** @nullable */
   note?: string | null;
   createdAt: Date;
+  /** Exact reported cents. */
+  amountCents?: number;
+  /** Live receipt that confirmed this reported payment, if any. */
+  confirmedReceiptId?: number | null;
 }
