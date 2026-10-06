@@ -1,5 +1,5 @@
 import { pgTable, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
-import { reunionsTable } from "./reunions";
+import { reunionsTable, reunionBranchesTable } from "./reunions";
 import { registrationsTable } from "./registrations";
 
 /**
@@ -47,6 +47,9 @@ export const paymentSubmissionsTable = pgTable("payment_submissions", {
   amount: integer("amount").notNull(),
   // Exact reported cents (new submissions). Null on legacy rows = amount * 100.
   amountCents: integer("amount_cents"),
+  // Self-reported portion for the branch special fee (never reduces balances).
+  branchFeeBranchId: integer("branch_fee_branch_id").references(() => reunionBranchesTable.id, { onDelete: "restrict" }),
+  branchFeeCents: integer("branch_fee_cents"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

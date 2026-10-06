@@ -455,7 +455,11 @@ export const CreateReunionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
   "id": zod.number(),
@@ -532,7 +536,11 @@ export const ListMyReunionsResponseItem = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
   "id": zod.number(),
@@ -646,7 +654,11 @@ export const GetReunionByCodeResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
   "id": zod.number(),
@@ -727,7 +739,11 @@ export const GetReunionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
   "id": zod.number(),
@@ -847,7 +863,11 @@ export const UpdateReunionResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
   "id": zod.number(),
@@ -1216,7 +1236,11 @@ export const CreateBranchResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })
 
 
@@ -1240,7 +1264,11 @@ export const UpdateBranchResponse = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })
 
 
@@ -1512,6 +1540,126 @@ export const GetRegistrationLedgerResponse = zod.object({
 
 
 /**
+ * @summary Configure a branch's one shared special fee (power users)
+ */
+export const UpdateBranchSpecialFeeParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "branchId": zod.coerce.number()
+})
+
+export const updateBranchSpecialFeeBodyLabelMax = 60;
+
+export const updateBranchSpecialFeeBodyAmountCentsMin = 0;
+export const updateBranchSpecialFeeBodyAmountCentsMax = 10000000;
+
+
+
+export const UpdateBranchSpecialFeeBody = zod.object({
+  "enabled": zod.boolean(),
+  "label": zod.string().min(1).max(updateBranchSpecialFeeBodyLabelMax),
+  "amountCents": zod.number().min(updateBranchSpecialFeeBodyAmountCentsMin).max(updateBranchSpecialFeeBodyAmountCentsMax)
+})
+
+export const UpdateBranchSpecialFeeResponse = zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "enabled": zod.boolean(),
+  "archived": zod.boolean(),
+  "amountCents": zod.number(),
+  "paidCents": zod.number().describe('Confirmed receipts only.'),
+  "remainingCents": zod.number(),
+  "creditCents": zod.number().describe('Confirmed money above the current amount (e.g. after a reduction)'),
+  "pendingReportedCents": zod.number().describe('Self-reported'),
+  "settled": zod.boolean(),
+  "entries": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "kind": zod.string(),
+  "cents": zod.number(),
+  "method": zod.string().nullish(),
+  "receivedDate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reversed": zod.boolean(),
+  "reversalReason": zod.string().nullish(),
+  "payerRegistrationId": zod.number().nullish().describe('Organizer view only (null for members; payers are private).'),
+  "payerName": zod.string().nullish().describe('Organizer view only (null for members; payers are private).')
+}))
+})
+
+
+/**
+ * @summary Shared branch fee balances and confirmed history (power users and registration managers)
+ */
+export const ListBranchFeesParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListBranchFeesResponse = zod.object({
+  "branches": zod.array(zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "enabled": zod.boolean(),
+  "archived": zod.boolean(),
+  "amountCents": zod.number(),
+  "paidCents": zod.number().describe('Confirmed receipts only.'),
+  "remainingCents": zod.number(),
+  "creditCents": zod.number().describe('Confirmed money above the current amount (e.g. after a reduction)'),
+  "pendingReportedCents": zod.number().describe('Self-reported'),
+  "settled": zod.boolean(),
+  "entries": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "kind": zod.string(),
+  "cents": zod.number(),
+  "method": zod.string().nullish(),
+  "receivedDate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reversed": zod.boolean(),
+  "reversalReason": zod.string().nullish(),
+  "payerRegistrationId": zod.number().nullish().describe('Organizer view only (null for members; payers are private).'),
+  "payerName": zod.string().nullish().describe('Organizer view only (null for members; payers are private).')
+}))
+}))
+})
+
+
+/**
+ * @summary The shared special fee for this registration's branch (registrant or registration manager; payers hidden)
+ */
+export const GetRegistrationBranchFeeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetRegistrationBranchFeeResponse = zod.object({
+  "branchFee": zod.union([zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string(),
+  "label": zod.string(),
+  "enabled": zod.boolean(),
+  "archived": zod.boolean(),
+  "amountCents": zod.number(),
+  "paidCents": zod.number().describe('Confirmed receipts only.'),
+  "remainingCents": zod.number(),
+  "creditCents": zod.number().describe('Confirmed money above the current amount (e.g. after a reduction)'),
+  "pendingReportedCents": zod.number().describe('Self-reported'),
+  "settled": zod.boolean(),
+  "entries": zod.array(zod.object({
+  "receiptId": zod.number(),
+  "kind": zod.string(),
+  "cents": zod.number(),
+  "method": zod.string().nullish(),
+  "receivedDate": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "reversed": zod.boolean(),
+  "reversalReason": zod.string().nullish(),
+  "payerRegistrationId": zod.number().nullish().describe('Organizer view only (null for members; payers are private).'),
+  "payerName": zod.string().nullish().describe('Organizer view only (null for members; payers are private).')
+}))
+}),zod.null()])
+})
+
+
+/**
  * @summary Record confirmed money with explicit allocations (registration managers)
  */
 export const RecordReceiptParams = zod.object({
@@ -1528,6 +1676,8 @@ export const RecordReceiptBody = zod.object({
   "registrationId": zod.number().nullish(),
   "contributionId": zod.number().nullish(),
   "standaloneContributionId": zod.number().nullish().describe('Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge.'),
+  "branchId": zod.number().nullish().describe('Branch special fee (shared once per branch). Never touches registration balances or the fund.'),
+  "payerRegistrationId": zod.number().nullish().describe('Who paid the branch fee (private, organizer-only). Must be an active registration in that branch.'),
   "amountCents": zod.number()
 })),
   "submissionId": zod.number().nullish(),
@@ -2375,12 +2525,12 @@ export const createContributionPaymentSubmissionBodyAmountExclusiveMin = 0;
 
 
 
-
 export const CreateContributionPaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number().gt(createContributionPaymentSubmissionBodyAmountExclusiveMin).describe('Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.'),
-  "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
+  "registrationIds": zod.array(zod.number()).optional().describe('All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report.'),
   "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
+  "branchFeeAmount": zod.number().nullish().describe('Portion (dollars and cents) for the path registration\'s branch special fee. Explicit opt-in only. Informational until confirmed.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
   "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
   "note": zod.string().nullish().describe('Free-form note from the registrant.')
@@ -2410,7 +2560,13 @@ export const CreateContributionPaymentSubmissionResponse = zod.object({
   "note": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "amountCents": zod.number().optional().describe('Exact reported cents.'),
-  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.')
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
+  "branchFee": zod.union([zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string().nullish(),
+  "label": zod.string(),
+  "amountCents": zod.number()
+}),zod.null()]).optional()
 })
 
 
@@ -2890,12 +3046,12 @@ export const createPaymentSubmissionBodyAmountExclusiveMin = 0;
 
 
 
-
 export const CreatePaymentSubmissionBody = zod.object({
   "method": zod.enum(['cashapp', 'zelle', 'cash', 'check']),
   "amount": zod.number().gt(createPaymentSubmissionBodyAmountExclusiveMin).describe('Dollars and cents (at most 2 decimals) the registrant says they are paying. Informational only.'),
-  "registrationIds": zod.array(zod.number()).min(1).optional().describe('All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.'),
+  "registrationIds": zod.array(zod.number()).optional().describe('All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report.'),
   "contributionIds": zod.array(zod.number()).optional().describe('Standalone fund chip-ins (contribution ids with no registration) this payment also covers.'),
+  "branchFeeAmount": zod.number().nullish().describe('Portion (dollars and cents) for the path registration\'s branch special fee. Explicit opt-in only. Informational until confirmed.'),
   "reference": zod.string().nullish().describe('Method-specific reconciliation key: payer\'s $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number\/payer (check).'),
   "givenDate": zod.string().nullish().describe('Date the cash was handed over (cash only), YYYY-MM-DD.'),
   "note": zod.string().nullish().describe('Free-form note from the registrant.')
@@ -2925,7 +3081,13 @@ export const CreatePaymentSubmissionResponse = zod.object({
   "note": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "amountCents": zod.number().optional().describe('Exact reported cents.'),
-  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.')
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
+  "branchFee": zod.union([zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string().nullish(),
+  "label": zod.string(),
+  "amountCents": zod.number()
+}),zod.null()]).optional()
 })
 
 
@@ -2961,7 +3123,13 @@ export const ListPaymentSubmissionsResponse = zod.object({
   "note": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "amountCents": zod.number().optional().describe('Exact reported cents.'),
-  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.')
+  "confirmedReceiptId": zod.number().nullish().describe('Live receipt that confirmed this reported payment, if any.'),
+  "branchFee": zod.union([zod.object({
+  "branchId": zod.number(),
+  "branchName": zod.string().nullish(),
+  "label": zod.string(),
+  "amountCents": zod.number()
+}),zod.null()]).optional()
 }))
 })
 
@@ -3339,7 +3507,11 @@ export const AdminListReunionsResponseItem = zod.object({
   "id": zod.number(),
   "reunionId": zod.number(),
   "name": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "specialFeeEnabled": zod.boolean().optional().describe('Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.'),
+  "specialFeeLabel": zod.string().nullish(),
+  "specialFeeCents": zod.number().optional().describe('The shared fee amount for the whole branch, in cents (once per branch, not per registration).'),
+  "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
   "id": zod.number(),

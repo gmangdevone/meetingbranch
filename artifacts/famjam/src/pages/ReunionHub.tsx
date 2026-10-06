@@ -8,7 +8,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQueries } from "@tanstack/react-query";
+import { getGetRegistrationBranchFeeQueryOptions, getGetRegistrationBranchFeeQueryKey } from "@workspace/api-client-react";
+import { BranchFeeCard } from "../components/payments/BranchFeeCard";
 import { useUser } from "@clerk/react";
 import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
@@ -132,6 +134,19 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const remainingFor = (r: (typeof myActiveRegistrations)[number]) => myBalance.remainingCentsFor(r) / 100;
   const myUnpaidRegistrations = myBalance.unpaid;
   const myPendingChipIns = myBalance.pendingChipIns;
+  // Branch special fees: one shared fee per branch. One lookup per distinct
+  // branch among my registrations whose branch has the fee turned on.
+  const feeBranchNames = new Set((reunion?.branches ?? []).filter((b) => b.specialFeeEnabled).map((b) => b.name));
+  const myFeeRegs = [...new Map(myActiveRegistrations.filter((r) => feeBranchNames.has(r.branchName)).map((r) => [r.branchName, r] as const)).values()];
+  const branchFeeResults = useQueries({
+    queries: myFeeRegs.map((r) => getGetRegistrationBranchFeeQueryOptions(r.id, { query: { enabled: isSignedIn, queryKey: getGetRegistrationBranchFeeQueryKey(r.id) } })),
+  });
+  const myBranchFees = branchFeeResults
+    .map((q, i) => (q.data?.branchFee ? { fee: q.data.branchFee, registrationId: myFeeRegs[i].id } : null))
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  const payableBranchFees = myBranchFees
+    .filter(({ fee }) => fee.enabled && !fee.archived && fee.remainingCents > 0)
+    .map(({ fee, registrationId }) => ({ registrationId, branchId: fee.branchId, branchName: fee.branchName, label: fee.label, remainingCents: fee.remainingCents }));
   const myPendingChipInsTotal = myBalance.pendingChipInsCents / 100;
   const myPaymentStatus = myBalance.status;
   const myOutstandingCents = myBalance.outstandingCents;
@@ -567,9 +582,13 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                   )}
                 </div>
 
-                {isSignedIn && myBalance.canSubmitPayment && (
+                {isSignedIn && myBranchFees.map(({ fee }) => <BranchFeeCard key={fee.branchId} fee={fee} />)}
+
+                {isSignedIn && (myBalance.canSubmitPayment || payableBranchFees.length > 0) && (
                   <SubmitPayment
+                    key={payableBranchFees.map((f) => `${f.branchId}:${f.remainingCents}`).join(",")}
                     reunionId={reunion.id}
+                    branchFees={payableBranchFees}
                     registrations={myUnpaidRegistrations.map((r) => ({
                       id: r.id,
                       label: `${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,

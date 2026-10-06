@@ -14,7 +14,8 @@ import {
   sponsorshipAllocationsTable,
   paymentSubmissionsTable,
 } from "@workspace/db";
-import { and } from "drizzle-orm";
+import { and, isNull } from "drizzle-orm";
+import { branchIdForRegistration, loadBranchFeeLedgers } from "../lib/branchFees";
 import { inArray } from "drizzle-orm";
 import {
   CreateRegistrationBody,
@@ -116,7 +117,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
   const branches = await db
     .select({ name: reunionBranchesTable.name })
     .from(reunionBranchesTable)
-    .where(eq(reunionBranchesTable.reunionId, reunionId));
+    .where(and(eq(reunionBranchesTable.reunionId, reunionId), isNull(reunionBranchesTable.archivedAt)));
   if (branches.length > 0 && !branches.some((b) => b.name === branchName)) {
     res.status(400).json({ error: "Selected branch is not part of this reunion." });
     return;
@@ -312,7 +313,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
   const branches = await db
     .select({ name: reunionBranchesTable.name })
     .from(reunionBranchesTable)
-    .where(eq(reunionBranchesTable.reunionId, registration.reunionId));
+    .where(and(eq(reunionBranchesTable.reunionId, registration.reunionId), isNull(reunionBranchesTable.archivedAt)));
   if (branches.length > 0 && !branches.some((b) => b.name === branchName)) {
     res.status(400).json({ error: "Selected branch is not part of this reunion." });
     return;
@@ -508,6 +509,31 @@ router.post("/registrations/:id/transfer", requireAuth, async (req, res): Promis
   res.json(GetRegistrationResponse.parse(full));
 });
 
+// GET /registrations/:id/branch-fee
+// The ONE shared special fee for this registration's branch. Members see the
+// shared balance and dated confirmed amounts, never who paid.
+router.get("/registrations/:id/branch-fee", requireAuth, async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: "Invalid registration ID" });
+    return;
+  }
+  const userId = (req as any).userId as string;
+  const [registration] = await db.select().from(registrationsTable).where(eq(registrationsTable.id, id));
+  if (!registration) {
+    res.status(404).json({ error: "Registration not found" });
+    return;
+  }
+  const manager = await canManageRegistrations(userId, registration.reunionId);
+  if (registration.userId !== userId && !manager) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const branchId = await branchIdForRegistration(db, id);
+  const fee = branchId == null ? undefined : (await loadBranchFeeLedgers(db, registration.reunionId, { branchIds: [branchId], includePayers: manager }))[0];
+  res.json({ branchFee: fee && (fee.enabled || fee.entries.length > 0) ? fee : null });
+});
+
 // POST /registrations/:id/payment-submissions
 // A registrant (or a manager on their behalf) records that a payment was
 // sent/handed over, with method-specific reconciliation info. This is purely
@@ -568,14 +594,21 @@ router.post(
     // account (unless the submitter can manage registrations).
     const requestedIds = body.data.registrationIds ?? [registration.id];
     const coveredIds = [...new Set(requestedIds)];
-    if (!coveredIds.includes(registration.id)) {
+    const wantsBranchFee = body.data.branchFeeAmount != null && body.data.branchFeeAmount > 0;
+    if (coveredIds.length === 0 && !wantsBranchFee) {
+      res.status(400).json({ error: "Choose what this payment is for." });
+      return;
+    }
+    if (coveredIds.length > 0 && !coveredIds.includes(registration.id)) {
       res.status(400).json({ error: "registrationIds must include the registration being paid." });
       return;
     }
-    const coveredRegistrations = await db
-      .select()
-      .from(registrationsTable)
-      .where(inArray(registrationsTable.id, coveredIds));
+    const coveredRegistrations = coveredIds.length
+      ? await db
+          .select()
+          .from(registrationsTable)
+          .where(inArray(registrationsTable.id, coveredIds))
+      : [];
     if (coveredRegistrations.length !== coveredIds.length) {
       res.status(400).json({ error: "One or more registrations were not found." });
       return;
@@ -659,6 +692,39 @@ router.post(
       res.status(400).json({ error: "Please include the date the cash was given (YYYY-MM-DD)." });
       return;
     }
+    // Branch special fee: explicit opt-in, re-validated against the live
+    // shared balance (a stale page can't report against a settled fee).
+    let branchFeeBranchId: number | null = null;
+    let branchFeeCents: number | null = null;
+    if (wantsBranchFee) {
+      branchFeeCents = parseDollarsToCents(body.data.branchFeeAmount!);
+      if (branchFeeCents === null) {
+        res.status(400).json({ error: "Enter the branch fee portion in dollars and cents." });
+        return;
+      }
+      branchFeeBranchId = await branchIdForRegistration(db, registration.id);
+      const fee = branchFeeBranchId == null ? undefined : (await loadBranchFeeLedgers(db, registration.reunionId, { branchIds: [branchFeeBranchId], includePayers: false }))[0];
+      if (!fee || !fee.enabled || fee.amountCents <= 0) {
+        res.status(409).json({ error: "Your branch doesn't have a special fee right now. Refresh to see the latest." });
+        return;
+      }
+      if (fee.remainingCents <= 0) {
+        res.status(409).json({ error: `Your branch's ${fee.label} is already paid in full. Nothing more is owed.` });
+        return;
+      }
+      if (branchFeeCents > fee.remainingCents) {
+        res.status(409).json({ error: `Only ${fmtCents(fee.remainingCents)} is left on your branch's ${fee.label}.` });
+        return;
+      }
+      if (branchFeeCents > amountCents) {
+        res.status(400).json({ error: "The branch fee portion can't be more than the total amount." });
+        return;
+      }
+      if (coveredIds.length === 0 && contributionIds.length === 0 && branchFeeCents !== amountCents) {
+        res.status(400).json({ error: "For a branch fee payment, the amount must match the branch fee portion." });
+        return;
+      }
+    }
     const [created] = await db
       .insert(paymentSubmissionsTable)
       .values({
@@ -670,6 +736,8 @@ router.post(
         method,
         amount: Math.floor(amountCents / 100),
         amountCents,
+        branchFeeBranchId,
+        branchFeeCents,
         reference: reference || null,
         givenDate: givenDate || null,
         note: note || null,
@@ -692,7 +760,14 @@ router.post(
             .where(inArray(sponsorshipContributionsTable.id, contributionIds))
             .then((rs) => rs.map(({ source, registrationId, ...c }) => ({ ...c, standalone: source === "direct" && registrationId == null })))
         : [];
-    res.status(201).json(CreatePaymentSubmissionResponse.parse({ ...created, amount: amountCents / 100, amountCents, confirmedReceiptId: null, contributions }));
+    const { branchFeeBranchId: _b, branchFeeCents: _c, ...createdOut } = created;
+    void _b; void _c;
+    let branchFee = null;
+    if (branchFeeBranchId != null && branchFeeCents) {
+      const [fb] = await db.select().from(reunionBranchesTable).where(eq(reunionBranchesTable.id, branchFeeBranchId));
+      branchFee = { branchId: fb.id, branchName: fb.name, label: fb.specialFeeLabel?.trim() || "Branch fee", amountCents: branchFeeCents };
+    }
+    res.status(201).json(CreatePaymentSubmissionResponse.parse({ ...createdOut, amount: amountCents / 100, amountCents, confirmedReceiptId: null, contributions, branchFee }));
   },
 );
 

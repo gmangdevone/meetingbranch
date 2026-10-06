@@ -11,4 +11,12 @@ export interface ReunionBranch {
   reunionId: number;
   name: string;
   sortOrder: number;
+  /** Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues. */
+  specialFeeEnabled?: boolean;
+  /** @nullable */
+  specialFeeLabel?: string | null;
+  /** The shared fee amount for the whole branch, in cents (once per branch, not per registration). */
+  specialFeeCents?: number;
+  /** @nullable */
+  archivedAt?: Date | null;
 }

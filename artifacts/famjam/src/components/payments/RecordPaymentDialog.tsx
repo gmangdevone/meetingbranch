@@ -27,6 +27,18 @@ export interface RecordPaymentPreset {
   replacesReceiptId?: number;
   /** Pending standalone fund chip-ins included in the reported payment (all-or-nothing). */
   standaloneChipIns?: { id: number; label: string; cents: number }[];
+  /** A branch's ONE shared special fee (separate from registration balances and the fund). */
+  branchFee?: {
+    branchId: number;
+    branchName: string;
+    label: string;
+    remainingCents: number;
+    /** Portion the member reported for the fee, allocated first. */
+    reportedCents?: number;
+    /** Organizer-only record of who paid. Omit when reconciling a report (the reporter is used). */
+    payerRegistrationId?: number | null;
+    payerOptions?: { id: number; label: string }[];
+  };
 }
 
 const METHODS: { value: ReceiptInputMethod; label: string }[] = [
@@ -60,7 +72,7 @@ const newKey = () =>
     ? crypto.randomUUID()
     : `k${Date.now()}${Math.random().toString(36).slice(2, 12)}`;
 
-type Line = { key: string; registrationId?: number; contributionId?: number; label: string; maxCents: number };
+type Line = { key: string; registrationId?: number; contributionId?: number; branchId?: number; label: string; maxCents: number };
 
 /**
  * Organizer receipt entry. Allocations default to the remaining balances
@@ -84,6 +96,8 @@ export function RecordPaymentDialog({
 
   const lines: Line[] = useMemo(() => {
     const out: Line[] = [];
+    const bf = preset?.branchFee;
+    if (bf && bf.remainingCents > 0) out.push({ key: `b${bf.branchId}`, branchId: bf.branchId, label: `${bf.label} · ${bf.branchName} branch (shared, once per branch)`, maxCents: bf.remainingCents });
     for (const r of registrations) {
       if (!r.ledger.waived) out.push({ key: `r${r.id}`, registrationId: r.id, label: `${r.label} · fees`, maxCents: r.ledger.balanceCents });
       for (const c of r.ledger.contributions) {
@@ -91,18 +105,20 @@ export function RecordPaymentDialog({
       }
     }
     return out;
-  }, [registrations]);
+  }, [registrations, preset?.branchFee]);
 
   const initial = useMemo(() => {
     let budget = preset?.amountCents ?? Number.POSITIVE_INFINITY;
     const m: Record<string, string> = {};
     for (const l of lines) {
-      const take = Math.max(0, Math.min(l.maxCents, budget));
+      // The branch fee line takes only what the member said was for it.
+      const cap = l.branchId != null && preset?.branchFee?.reportedCents != null ? Math.min(l.maxCents, preset.branchFee.reportedCents) : l.maxCents;
+      const take = Math.max(0, Math.min(cap, budget));
       budget -= take;
       m[l.key] = centsToInput(take);
     }
     return m;
-  }, [lines, preset?.amountCents]);
+  }, [lines, preset?.amountCents, preset?.branchFee?.reportedCents]);
 
   const chipIns = useMemo(() => preset?.standaloneChipIns ?? [], [preset?.standaloneChipIns]);
   const [alloc, setAlloc] = useState<Record<string, string>>(initial);
@@ -126,6 +142,7 @@ export function RecordPaymentDialog({
   const [receivedDate, setReceivedDate] = useState(preset?.receivedDate ?? today());
   const [reference, setReference] = useState(preset?.reference ?? "");
   const [note, setNote] = useState("");
+  const [payerId, setPayerId] = useState<string>(preset?.branchFee?.payerRegistrationId ? String(preset.branchFee.payerRegistrationId) : "");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [doneCents, setDoneCents] = useState(0);
@@ -204,7 +221,11 @@ export function RecordPaymentDialog({
           idempotencyKey: idempotencyKey.current,
           allocations: lines
             .filter((l) => (allocCents(l.key) ?? 0) > 0)
-            .map((l) => ({ registrationId: l.registrationId ?? null, contributionId: l.contributionId ?? null, amountCents: allocCents(l.key)! }))
+            .map((l) =>
+              l.branchId != null
+                ? { branchId: l.branchId, payerRegistrationId: payerId ? Number(payerId) : null, amountCents: allocCents(l.key)! }
+                : { registrationId: l.registrationId ?? null, contributionId: l.contributionId ?? null, amountCents: allocCents(l.key)! },
+            )
             .concat(chipIns.filter((c) => includeChip[c.id]).map((c) => ({ registrationId: null, contributionId: null, standaloneContributionId: c.id, amountCents: c.cents }))),
     };
     send(frozen.current);
@@ -325,6 +346,17 @@ export function RecordPaymentDialog({
                       />
                     </div>
                   ))}
+                </div>
+              )}
+              {preset?.branchFee?.payerOptions && preset.branchFee.payerOptions.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <Label>Who paid the {preset.branchFee.label}? (organizers only)</Label>
+                  <Select value={payerId} onValueChange={setPayerId} disabled={locked}>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Not recorded" /></SelectTrigger>
+                    <SelectContent>
+                      {preset.branchFee.payerOptions.map((o) => <SelectItem key={o.id} value={String(o.id)}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
               {mismatch && (

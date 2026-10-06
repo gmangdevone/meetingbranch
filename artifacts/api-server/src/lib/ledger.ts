@@ -116,7 +116,7 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
       SELECT id, registration_id, amount, amount_cents, payment_status FROM sponsorship_contributions
       WHERE registration_id IN (${L}) AND source = 'registration' ORDER BY id`),
     rows<{ rid: number; cents: string }>(ex, sql`
-      SELECT rid, sum(coalesce(s.amount_cents, s.amount * 100)) AS cents
+      SELECT rid, sum(coalesce(s.amount_cents, s.amount * 100) - coalesce(s.branch_fee_cents, 0)) AS cents
       FROM payment_submissions s CROSS JOIN LATERAL unnest(s.registration_ids) AS rid
       WHERE rid IN (${L}) AND NOT EXISTS (
         SELECT 1 FROM payment_receipts r WHERE r.submission_id = s.id

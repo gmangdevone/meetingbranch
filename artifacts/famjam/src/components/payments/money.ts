@@ -8,6 +8,7 @@ import {
   getGetReunionReportsQueryKey,
   getGetReunionSummaryQueryKey,
   getGetSponsorshipFundQueryKey,
+  getListBranchFeesQueryKey,
 } from "@workspace/api-client-react";
 
 /** Exact cents to "$1,234.50". */
@@ -39,6 +40,13 @@ export function invalidateMoney(qc: QueryClient, reunionId: number, registration
   qc.invalidateQueries({ queryKey: getGetReunionReportsQueryKey(reunionId) });
   qc.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunionId) });
   qc.invalidateQueries({ queryKey: getGetSponsorshipFundQueryKey(reunionId) });
+  invalidateBranchFees(qc, reunionId);
+}
+
+/** Branch fee balances are shared across registrations: refresh every view of them. */
+export function invalidateBranchFees(qc: QueryClient, reunionId: number) {
+  qc.invalidateQueries({ queryKey: getListBranchFeesQueryKey(reunionId) });
+  qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && /\/registrations\/\d+\/branch-fee$/.test(q.queryKey[0]) });
 }
 
 /** Registrations whose balances a transfer changes: always the source; the target too for payment transfers. */

@@ -985,6 +985,73 @@ paths:
         "403": { description: Forbidden }
         "404": { description: Not found }
 
+  /reunions/{reunionId}/branches/{branchId}/special-fee:
+    put:
+      operationId: updateBranchSpecialFee
+      tags: [manage]
+      summary: Configure a branch's one shared special fee (power users)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - $ref: "#/components/parameters/BranchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BranchSpecialFeeInput" }
+      responses:
+        "200":
+          description: Updated branch fee ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BranchFeeLedger" }
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
+  /reunions/{reunionId}/branch-fees:
+    get:
+      operationId: listBranchFees
+      tags: [manage]
+      summary: Shared branch fee balances and confirmed history (power users and registration managers)
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Branch fee ledgers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BranchFeeLedgerList" }
+        "403": { description: Forbidden }
+
+  /registrations/{id}/branch-fee:
+    get:
+      operationId: getRegistrationBranchFee
+      tags: [registrations]
+      summary: The shared special fee for this registration's branch (registrant or registration manager; payers hidden)
+      security:
+        - clerkAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Branch fee (null when the branch has none)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationBranchFee" }
+        "403": { description: Forbidden }
+        "404": { description: Not found }
+
   /reunions/{reunionId}/receipts:
     post:
       operationId: recordReceipt
@@ -2997,13 +3064,15 @@ components:
           type: array
           items:
             type: integer
-          minItems: 1
-          description: "All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted."
+          description: "All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report."
         contributionIds:
           type: array
           items:
             type: integer
           description: "Standalone fund chip-ins (contribution ids with no registration) this payment also covers."
+        branchFeeAmount:
+          type: ["number", "null"]
+          description: "Portion (dollars and cents) for the path registration's branch special fee. Explicit opt-in only. Informational until confirmed."
         reference:
           type: ["string", "null"]
           description: "Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check)."
@@ -3089,6 +3158,10 @@ components:
           type: integer
           nullable: true
           description: Live receipt that confirmed this reported payment, if any.
+        branchFee:
+          oneOf:
+            - $ref: "#/components/schemas/SubmissionBranchFee"
+            - type: "null"
 
     PaymentSubmissionList:
       type: object
@@ -3420,6 +3493,87 @@ components:
           type: string
         sortOrder:
           type: integer
+        specialFeeEnabled:
+          type: boolean
+          description: Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues.
+        specialFeeLabel:
+          type: ["string", "null"]
+        specialFeeCents:
+          type: integer
+          description: The shared fee amount for the whole branch, in cents (once per branch, not per registration).
+        archivedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    BranchSpecialFeeInput:
+      type: object
+      required: [enabled, label, amountCents]
+      properties:
+        enabled: { type: boolean }
+        label: { type: string, minLength: 1, maxLength: 60 }
+        amountCents: { type: integer, minimum: 0, maximum: 10000000 }
+
+    BranchFeeEntry:
+      type: object
+      required: [receiptId, kind, cents, createdAt, reversed]
+      properties:
+        receiptId: { type: integer }
+        kind: { type: string }
+        cents: { type: integer }
+        method: { type: string, nullable: true }
+        receivedDate: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        reversed: { type: boolean }
+        reversalReason: { type: string, nullable: true }
+        payerRegistrationId:
+          type: integer
+          nullable: true
+          description: Organizer view only (null for members; payers are private).
+        payerName:
+          type: string
+          nullable: true
+          description: Organizer view only (null for members; payers are private).
+
+    BranchFeeLedger:
+      type: object
+      required: [branchId, branchName, label, enabled, archived, amountCents, paidCents, remainingCents, creditCents, pendingReportedCents, settled, entries]
+      properties:
+        branchId: { type: integer }
+        branchName: { type: string }
+        label: { type: string }
+        enabled: { type: boolean }
+        archived: { type: boolean }
+        amountCents: { type: integer }
+        paidCents: { type: integer, description: Confirmed receipts only. }
+        remainingCents: { type: integer }
+        creditCents: { type: integer, description: Confirmed money above the current amount (e.g. after a reduction), kept for organizer review. }
+        pendingReportedCents: { type: integer, description: Self-reported, not yet confirmed. Never reduces the balance. }
+        settled: { type: boolean }
+        entries: { type: array, items: { $ref: "#/components/schemas/BranchFeeEntry" } }
+
+    BranchFeeLedgerList:
+      type: object
+      required: [branches]
+      properties:
+        branches: { type: array, items: { $ref: "#/components/schemas/BranchFeeLedger" } }
+
+    RegistrationBranchFee:
+      type: object
+      required: [branchFee]
+      properties:
+        branchFee:
+          oneOf:
+            - $ref: "#/components/schemas/BranchFeeLedger"
+            - type: "null"
+
+    SubmissionBranchFee:
+      type: object
+      required: [branchId, label, amountCents]
+      properties:
+        branchId: { type: integer }
+        branchName: { type: string, nullable: true }
+        label: { type: string }
+        amountCents: { type: integer }
 
     Reunion:
       type: object
@@ -4424,6 +4578,14 @@ components:
           type: integer
           nullable: true
           description: Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge.
+        branchId:
+          type: integer
+          nullable: true
+          description: Branch special fee (shared once per branch). Never touches registration balances or the fund.
+        payerRegistrationId:
+          type: integer
+          nullable: true
+          description: Who paid the branch fee (private, organizer-only). Must be an active registration in that branch.
         amountCents: { type: integer }
     ReceiptInput:
       type: object

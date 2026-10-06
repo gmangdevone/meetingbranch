@@ -107,7 +107,7 @@ describe("SubmitPayment without any online recipient", () => {
     if (date) fireEvent.change(date, { target: { value: "2026-06-01" } });
     fireEvent.click(screen.getByRole("button", { name: /Save|Submit|Record/ }));
     expect(h.mutate).toHaveBeenCalled();
-    const keys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
+    const keys = invalidateSpy.mock.calls.map((c) => (c[0] as { queryKey?: unknown }).queryKey).filter((k) => k !== undefined).map((k) => JSON.stringify(k));
     expect(keys.some((k) => k.includes("registrations/1/ledger"))).toBe(true);
     expect(keys.some((k) => k.includes("/api/registrations"))).toBe(true);
     expect(keys.some((k) => k.includes("contributions"))).toBe(true);

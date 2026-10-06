@@ -14,13 +14,15 @@ export interface PaymentSubmissionInput {
      * @exclusiveMinimum 0
      */
   amount: number;
-  /**
-     * All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.
-     * @minItems 1
-     */
+  /** All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report. */
   registrationIds?: number[];
   /** Standalone fund chip-ins (contribution ids with no registration) this payment also covers. */
   contributionIds?: number[];
+  /**
+     * Portion (dollars and cents) for the path registration's branch special fee. Explicit opt-in only. Informational until confirmed.
+     * @nullable
+     */
+  branchFeeAmount?: number | null;
   /**
      * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
      * @nullable

@@ -104,6 +104,12 @@ export const reunionBranchesTable = pgTable("reunion_branches", {
     .references(() => reunionsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
+  // One shared, one-time, opt-in special fee for the whole branch (cents).
+  specialFeeEnabled: boolean("special_fee_enabled").notNull().default(false),
+  specialFeeLabel: text("special_fee_label"),
+  specialFeeCents: integer("special_fee_cents").notNull().default(0),
+  // Branches with financial history are archived instead of deleted.
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
 });
 
 /**

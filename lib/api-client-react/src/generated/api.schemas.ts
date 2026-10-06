@@ -421,13 +421,15 @@ export interface PaymentSubmissionInput {
      * @exclusiveMinimum 0
      */
   amount: number;
-  /**
-     * All registrations this payment covers. Must include the path registration. Defaults to just the path registration when omitted.
-     * @minItems 1
-     */
+  /** All registrations this payment covers. Must include the path registration when non-empty. Defaults to just the path registration when omitted. May be empty only for a branch-fee-only report. */
   registrationIds?: number[];
   /** Standalone fund chip-ins (contribution ids with no registration) this payment also covers. */
   contributionIds?: number[];
+  /**
+     * Portion (dollars and cents) for the path registration's branch special fee. Explicit opt-in only. Informational until confirmed.
+     * @nullable
+     */
+  branchFeeAmount?: number | null;
   /**
      * Method-specific reconciliation key: payer's $cashtag (cashapp), Zelle ID (zelle), who cash was handed to (cash), or check number/payer (check).
      * @nullable
@@ -466,6 +468,13 @@ export interface SubmissionChipIn {
   amount: number;
   paymentStatus: SubmissionChipInPaymentStatus;
   createdAt: string;
+}
+
+export interface SubmissionBranchFee {
+  branchId: number;
+  branchName?: string | null;
+  label: string;
+  amountCents: number;
 }
 
 export interface PaymentSubmission {
@@ -507,6 +516,7 @@ export interface PaymentSubmission {
   amountCents?: number;
   /** Live receipt that confirmed this reported payment, if any. */
   confirmedReceiptId?: number | null;
+  branchFee?: SubmissionBranchFee | null;
 }
 
 export interface PaymentSubmissionList {
@@ -761,6 +771,69 @@ export interface ReunionBranch {
   reunionId: number;
   name: string;
   sortOrder: number;
+  /** Whether this branch has its one shared, one-time special fee turned on. Opt-in only; never added to registration dues. */
+  specialFeeEnabled?: boolean;
+  /** @nullable */
+  specialFeeLabel?: string | null;
+  /** The shared fee amount for the whole branch, in cents (once per branch, not per registration). */
+  specialFeeCents?: number;
+  /** @nullable */
+  archivedAt?: string | null;
+}
+
+export interface BranchSpecialFeeInput {
+  enabled: boolean;
+  /**
+     * @minLength 1
+     * @maxLength 60
+     */
+  label: string;
+  /**
+     * @minimum 0
+     * @maximum 10000000
+     */
+  amountCents: number;
+}
+
+export interface BranchFeeEntry {
+  receiptId: number;
+  kind: string;
+  cents: number;
+  method?: string | null;
+  receivedDate?: string | null;
+  createdAt: string;
+  reversed: boolean;
+  reversalReason?: string | null;
+  /** Organizer view only (null for members; payers are private). */
+  payerRegistrationId?: number | null;
+  /** Organizer view only (null for members; payers are private). */
+  payerName?: string | null;
+}
+
+export interface BranchFeeLedger {
+  branchId: number;
+  branchName: string;
+  label: string;
+  enabled: boolean;
+  archived: boolean;
+  amountCents: number;
+  /** Confirmed receipts only. */
+  paidCents: number;
+  remainingCents: number;
+  /** Confirmed money above the current amount (e.g. after a reduction) */
+  creditCents: number;
+  /** Self-reported */
+  pendingReportedCents: number;
+  settled: boolean;
+  entries: BranchFeeEntry[];
+}
+
+export interface BranchFeeLedgerList {
+  branches: BranchFeeLedger[];
+}
+
+export interface RegistrationBranchFee {
+  branchFee: BranchFeeLedger | null;
 }
 
 /**
@@ -1456,6 +1529,10 @@ export interface ReceiptAllocationInput {
   contributionId?: number | null;
   /** Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge. */
   standaloneContributionId?: number | null;
+  /** Branch special fee (shared once per branch). Never touches registration balances or the fund. */
+  branchId?: number | null;
+  /** Who paid the branch fee (private, organizer-only). Must be an active registration in that branch. */
+  payerRegistrationId?: number | null;
   amountCents: number;
 }
 

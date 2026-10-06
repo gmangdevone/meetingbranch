@@ -1,6 +1,6 @@
 import { pgTable, text, integer, timestamp, pgEnum, uniqueIndex, index, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { reunionsTable } from "./reunions";
+import { reunionsTable, reunionBranchesTable } from "./reunions";
 import { registrationsTable } from "./registrations";
 import { paymentSubmissionsTable } from "./payments";
 import { sponsorshipContributionsTable } from "./sponsorships";
@@ -54,8 +54,11 @@ export const paymentReceiptAllocationsTable = pgTable(
     registrationId: integer("registration_id").references(() => registrationsTable.id, { onDelete: "cascade" }),
     contributionId: integer("contribution_id").references(() => sponsorshipContributionsTable.id, { onDelete: "set null" }),
     amountCents: integer("amount_cents").notNull(),
+    branchId: integer("branch_id").references(() => reunionBranchesTable.id, { onDelete: "restrict" }),
+    payerRegistrationId: integer("payer_registration_id").references(() => registrationsTable.id, { onDelete: "set null" }),
   },
   (t) => [
+    index("payment_receipt_alloc_branch_idx").on(t.branchId),
     index("payment_receipt_alloc_reg_idx").on(t.registrationId),
     index("payment_receipt_alloc_receipt_idx").on(t.receiptId),
   ],

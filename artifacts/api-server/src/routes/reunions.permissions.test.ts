@@ -61,6 +61,7 @@ vi.mock("drizzle-orm", () => ({
   asc: (col: string) => ({ kind: "asc", col }),
   desc: (col: string) => ({ kind: "desc", col }),
   inArray: (col: string, vals: unknown[]) => ({ kind: "inArray", col, vals }),
+  isNull: (col: string) => ({ kind: "isNull", col }),
   sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({
     kind: "sql",
     strings: Array.from(strings),
@@ -83,7 +84,7 @@ vi.mock("@workspace/db", () => {
       "createdAt",
     ],
     reunion_organizers: ["id", "reunionId", "userId", "roles", "createdAt"],
-    reunion_branches: ["id", "reunionId", "name", "sortOrder"],
+    reunion_branches: ["id", "reunionId", "name", "sortOrder", "specialFeeEnabled", "specialFeeLabel", "specialFeeCents", "archivedAt"],
     reunion_fees: [
       "id",
       "reunionId",
@@ -174,6 +175,10 @@ vi.mock("@workspace/db", () => {
     if (expr.kind === "eq") {
       const [t, f] = String(expr.col).split(".");
       return scoped[t]?.[f] === resolve(expr.val, scoped);
+    }
+    if (expr.kind === "isNull") {
+      const [t, f] = String(expr.col).split(".");
+      return scoped[t]?.[f] == null;
     }
     if (expr.kind === "inArray") {
       const [t, f] = String(expr.col).split(".");

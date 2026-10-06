@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, asc, sql, and, inArray, isNull } from "drizzle-orm";
 import {
   db,
   reunionsTable,
@@ -34,6 +34,7 @@ import {
   UpdateScheduleItemBody,
   CreateBranchBody,
   UpdateBranchBody,
+  UpdateBranchSpecialFeeBody,
   ListReunionRegistrationsResponse,
   CreateManagedRegistrationBody,
   CreateManagedRegistrationResponse,
@@ -55,6 +56,7 @@ import {
   CreateContributionPaymentSubmissionResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { loadBranchFeeLedgers } from "../lib/branchFees";
 import { type Exec, ensureLedgerInitialized, ensureReunionLedgersInitialized, fundBalanceCents, loadLedger, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { attachAuth } from "../middlewares/requireAdmin";
 import {
@@ -93,7 +95,7 @@ async function getReunionWithBranches(reunionId: number) {
   const branches = await db
     .select()
     .from(reunionBranchesTable)
-    .where(eq(reunionBranchesTable.reunionId, reunionId))
+    .where(and(eq(reunionBranchesTable.reunionId, reunionId), isNull(reunionBranchesTable.archivedAt)))
     .orderBy(asc(reunionBranchesTable.sortOrder), asc(reunionBranchesTable.id));
   const fees = await db
     .select()
@@ -502,21 +504,36 @@ router.put("/reunions/:reunionId/branches/:branchId", ...manage, requireReunionP
     res.status(400).json({ error: "Invalid input" });
     return;
   }
-  const [updated] = await db
-    .update(reunionBranchesTable)
-    .set({ name: body.data.name.trim(), sortOrder: body.data.sortOrder ?? 0 })
-    .where(
-      and(
-        eq(reunionBranchesTable.id, branchId),
-        eq(reunionBranchesTable.reunionId, req.managedReunion!.id),
-      ),
-    )
-    .returning();
-  if (!updated) {
+  const reunionId = req.managedReunion!.id;
+  const name = body.data.name.trim();
+  // Renames keep the branch's id (and its fee history). Registrations store
+  // the branch by name, so they move with it in the same transaction.
+  const result = await db.transaction(async (tx) => {
+    await lockReunionRow(tx, reunionId);
+    const [current] = await tx.select().from(reunionBranchesTable)
+      .where(and(eq(reunionBranchesTable.id, branchId), eq(reunionBranchesTable.reunionId, reunionId), isNull(reunionBranchesTable.archivedAt)));
+    if (!current) return { status: 404 as const };
+    if (name !== current.name) {
+      const [clash] = await tx.select({ id: reunionBranchesTable.id }).from(reunionBranchesTable)
+        .where(and(eq(reunionBranchesTable.reunionId, reunionId), eq(reunionBranchesTable.name, name), isNull(reunionBranchesTable.archivedAt)));
+      if (clash) return { status: 409 as const };
+      await tx.update(registrationsTable).set({ branchName: name })
+        .where(and(eq(registrationsTable.reunionId, reunionId), eq(registrationsTable.branchName, current.name)));
+    }
+    const [updated] = await tx.update(reunionBranchesTable)
+      .set({ name, sortOrder: body.data.sortOrder ?? current.sortOrder })
+      .where(eq(reunionBranchesTable.id, branchId)).returning();
+    return { status: 200 as const, updated };
+  });
+  if (result.status === 404) {
     res.status(404).json({ error: "Branch not found" });
     return;
   }
-  res.json(updated);
+  if (result.status === 409) {
+    res.status(409).json({ error: "Another branch already has that name." });
+    return;
+  }
+  res.json(result.updated);
 });
 
 router.delete("/reunions/:reunionId/branches/:branchId", ...manage, requireReunionPermission("branches"), async (req, res): Promise<void> => {
@@ -525,20 +542,75 @@ router.delete("/reunions/:reunionId/branches/:branchId", ...manage, requireReuni
     res.status(400).json({ error: "Invalid branch id" });
     return;
   }
-  const [deleted] = await db
-    .delete(reunionBranchesTable)
-    .where(
-      and(
-        eq(reunionBranchesTable.id, branchId),
-        eq(reunionBranchesTable.reunionId, req.managedReunion!.id),
-      ),
-    )
-    .returning();
-  if (!deleted) {
+  const reunionId = req.managedReunion!.id;
+  // A branch with any branch-fee money or reports is archived (hidden, fee
+  // turned off) so its financial history survives; otherwise it is deleted.
+  const found = await db.transaction(async (tx) => {
+    await lockReunionRow(tx, reunionId);
+    const [b] = await tx.select({ id: reunionBranchesTable.id }).from(reunionBranchesTable)
+      .where(and(eq(reunionBranchesTable.id, branchId), eq(reunionBranchesTable.reunionId, reunionId), isNull(reunionBranchesTable.archivedAt)));
+    if (!b) return false;
+    const r = (await tx.execute(sql`SELECT
+      EXISTS (SELECT 1 FROM payment_receipt_allocations WHERE branch_id = ${branchId}) OR
+      EXISTS (SELECT 1 FROM payment_submissions WHERE branch_fee_branch_id = ${branchId}) AS has_history`)) as unknown as { rows: { has_history: boolean }[] };
+    if (r.rows[0]?.has_history) {
+      await tx.update(reunionBranchesTable).set({ archivedAt: new Date(), specialFeeEnabled: false }).where(eq(reunionBranchesTable.id, branchId));
+    } else {
+      await tx.delete(reunionBranchesTable).where(eq(reunionBranchesTable.id, branchId));
+    }
+    return true;
+  });
+  if (!found) {
     res.status(404).json({ error: "Branch not found" });
     return;
   }
   res.status(204).send();
+});
+
+// ── Branch special fee (power users configure; registration managers view) ──
+router.put("/reunions/:reunionId/branches/:branchId/special-fee", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
+  const body = UpdateBranchSpecialFeeBody.safeParse(req.body);
+  const branchId = Number(req.params.branchId);
+  if (!body.success || !Number.isInteger(branchId) || !Number.isInteger(body.data.amountCents)) {
+    res.status(400).json({ error: "Enter a label and an amount in dollars and cents." });
+    return;
+  }
+  const label = body.data.label.trim();
+  if (!label) {
+    res.status(400).json({ error: "Give the fee a label, like Sibling Fee." });
+    return;
+  }
+  if (body.data.enabled && body.data.amountCents <= 0) {
+    res.status(400).json({ error: "Set an amount greater than $0.00 to turn the fee on." });
+    return;
+  }
+  const reunionId = req.managedReunion!.id;
+  // Edits never touch history: a reduction leaves confirmed money in place
+  // (shown as credit for review); turning it off stops new money only.
+  const ledger = await db.transaction(async (tx) => {
+    await lockReunionRow(tx, reunionId);
+    const [updated] = await tx.update(reunionBranchesTable)
+      .set({ specialFeeEnabled: body.data.enabled, specialFeeLabel: label, specialFeeCents: body.data.amountCents })
+      .where(and(eq(reunionBranchesTable.id, branchId), eq(reunionBranchesTable.reunionId, reunionId), isNull(reunionBranchesTable.archivedAt)))
+      .returning();
+    if (!updated) return null;
+    return (await loadBranchFeeLedgers(tx, reunionId, { branchIds: [branchId], includePayers: true }))[0];
+  });
+  if (!ledger) {
+    res.status(404).json({ error: "Branch not found" });
+    return;
+  }
+  res.json(ledger);
+});
+
+router.get("/reunions/:reunionId/branch-fees", ...manage, async (req, res): Promise<void> => {
+  const access = req.reunionAccess!;
+  if (!(access.isOwner || access.isAdmin || access.roles.includes("power_user") || access.roles.includes("registration"))) {
+    res.status(403).json({ error: "You don't have permission to manage this area." });
+    return;
+  }
+  const branches = await loadBranchFeeLedgers(db, req.managedReunion!.id, { includePayers: true });
+  res.json({ branches });
 });
 
 // ── Fees & dues (manage) ──────────────────────────────────────────────────────
@@ -824,7 +896,7 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
   const branches = await db
     .select({ name: reunionBranchesTable.name })
     .from(reunionBranchesTable)
-    .where(eq(reunionBranchesTable.reunionId, reunion.id));
+    .where(and(eq(reunionBranchesTable.reunionId, reunion.id), isNull(reunionBranchesTable.archivedAt)));
   if (branches.length > 0 && !branches.some((b) => b.name === branchName)) {
     res.status(400).json({ error: "Selected branch is not part of this reunion." });
     return;
@@ -1050,11 +1122,19 @@ router.get(
           AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = r.id)`)) as unknown as { rows?: { submission_id: number; id: number }[] };
       for (const r of live.rows ?? []) confirmedMap.set(r.submission_id, r.id);
     }
+    const feeBranchIds = [...new Set(submissions.map((s) => s.branchFeeBranchId).filter((x): x is number => x != null))];
+    const feeBranches = feeBranchIds.length
+      ? await db.select().from(reunionBranchesTable).where(inArray(reunionBranchesTable.id, feeBranchIds))
+      : [];
     const withContribs = submissions.map((s) => {
       const submitter = s.submittedBy ? submitterMap.get(s.submittedBy) : undefined;
       const cents = s.amountCents ?? s.amount * 100;
+      const fb = s.branchFeeBranchId != null && (s.branchFeeCents ?? 0) > 0 ? feeBranches.find((b) => b.id === s.branchFeeBranchId) : undefined;
+      const { branchFeeBranchId: _bid, branchFeeCents: _bc, ...rest } = s;
+      void _bid; void _bc;
       return {
-        ...s,
+        ...rest,
+        branchFee: fb ? { branchId: fb.id, branchName: fb.name, label: fb.specialFeeLabel?.trim() || "Branch fee", amountCents: s.branchFeeCents! } : null,
         amount: cents / 100,
         amountCents: cents,
         confirmedReceiptId: confirmedMap.get(s.id) ?? null,

@@ -42,10 +42,29 @@ export interface PayableChipIn {
   amount: number;
 }
 
+/**
+ * A branch's ONE shared special fee (once per branch, not per registration).
+ * Always opt-in: it starts unchecked and is never folded into dues.
+ */
+export interface PayableBranchFee {
+  /** The registrant's registration in that branch (the report is filed under it). */
+  registrationId: number;
+  branchId: number;
+  branchName: string;
+  label: string;
+  remainingCents: number;
+}
+
+const centsOf = (v: string) => {
+  const m = /^\$?(\d{1,7})(?:\.(\d{1,2}))?$/.exec(v.trim().replace(/,/g, ""));
+  return m ? Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0")) : 0;
+};
+
 export function SubmitPayment({
   reunionId,
   registrations,
   chipIns = [],
+  branchFees = [],
   cashAppAvailable,
   zelle = null,
   instructions = null,
@@ -56,6 +75,8 @@ export function SubmitPayment({
   registrations: PayableRegistration[];
   /** Pending standalone fund chip-ins, payable like registrations. */
   chipIns?: PayableChipIn[];
+  /** Branch special fees with money still owed. Opt-in only, default off. */
+  branchFees?: PayableBranchFee[];
   /** Display hint only; the destination is always re-resolved from the server at handoff. */
   cashAppAvailable: boolean;
   /** Display hint only; re-resolved from the server after a Zelle submission. */
@@ -72,20 +93,42 @@ export function SubmitPayment({
     chipIns.filter((c) => chipInIds.includes(c.id)).reduce((sum, c) => sum + c.amount, 0);
   const selectedTotal = computeSelectedTotal(selectedIds, selectedChipInIds);
   const [amount, setAmount] = useState(selectedTotal > 0 ? selectedTotal.toFixed(2) : "");
+  // Only one branch fee per report (it's filed under that branch's registration).
+  const [feeBranchId, setFeeBranchId] = useState<number | null>(null);
+  const [feeAmount, setFeeAmount] = useState("");
+  const selectedFee = branchFees.find((f) => f.branchId === feeBranchId) ?? null;
+  const feeCents = selectedFee ? centsOf(feeAmount) : 0;
+  const syncAmount = (regIds: number[], chipInIds: number[], feeC: number) => {
+    const total = Math.round(computeSelectedTotal(regIds, chipInIds) * 100) + feeC;
+    setAmount(total > 0 ? (total / 100).toFixed(2) : "");
+  };
+  const toggleBranchFee = (fee: PayableBranchFee) => {
+    if (feeBranchId === fee.branchId) {
+      setFeeBranchId(null);
+      setFeeAmount("");
+      syncAmount(selectedIds, selectedChipInIds, 0);
+    } else {
+      setFeeBranchId(fee.branchId);
+      setFeeAmount((fee.remainingCents / 100).toFixed(2));
+      syncAmount(selectedIds, selectedChipInIds, fee.remainingCents);
+    }
+  };
+  const changeFeeAmount = (v: string) => {
+    setFeeAmount(v);
+    syncAmount(selectedIds, selectedChipInIds, centsOf(v));
+  };
 
   const toggleRegistration = (id: number) => {
     setSelectedIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      const nextTotal = computeSelectedTotal(next, selectedChipInIds);
-      setAmount(nextTotal > 0 ? nextTotal.toFixed(2) : "");
+      syncAmount(next, selectedChipInIds, feeCents);
       return next;
     });
   };
   const toggleChipIn = (id: number) => {
     setSelectedChipInIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      const nextTotal = computeSelectedTotal(selectedIds, next);
-      setAmount(nextTotal > 0 ? nextTotal.toFixed(2) : "");
+      syncAmount(selectedIds, next, feeCents);
       return next;
     });
   };
@@ -126,9 +169,23 @@ export function SubmitPayment({
   const amountNum = amountCents / 100;
   const validAmount = amountCents > 0;
   const referenceRequired = method === "cashapp" || method === "zelle" || method === "cash";
+  const feeError = !selectedFee
+    ? null
+    : feeCents <= 0
+      ? "Enter how much of the branch fee you're paying."
+      : feeCents > selectedFee.remainingCents
+        ? `Only $${(selectedFee.remainingCents / 100).toFixed(2)} is left on this branch fee.`
+        : feeCents > amountCents
+          ? "The branch fee portion can't be more than the total amount."
+          : selectedIds.length > 0 && !selectedIds.includes(selectedFee.registrationId)
+            ? `Include your ${selectedFee.branchName} registration, or report the branch fee by itself.`
+            : selectedIds.length + selectedChipInIds.length === 0 && feeCents !== amountCents
+              ? "For a branch fee payment, the amount must match the branch fee portion."
+              : null;
   const canSubmit =
     !!method &&
-    selectedIds.length + selectedChipInIds.length > 0 &&
+    selectedIds.length + selectedChipInIds.length + (selectedFee ? 1 : 0) > 0 &&
+    !feeError &&
     validAmount &&
     (!referenceRequired || reference.trim().length > 0) &&
     (method !== "cash" || givenDate.trim().length > 0) &&
@@ -188,7 +245,15 @@ export function SubmitPayment({
       givenDate: method === "cash" ? givenDate : null,
       note: note.trim() || null,
     };
-    if (selectedIds.length > 0) {
+    if (selectedFee) {
+      createSubmission.mutate(
+        {
+          id: selectedFee.registrationId,
+          data: { ...data, registrationIds: selectedIds, contributionIds: selectedChipInIds, branchFeeAmount: feeCents / 100 },
+        },
+        callbacks,
+      );
+    } else if (selectedIds.length > 0) {
       createSubmission.mutate(
         {
           id: selectedIds[0],
@@ -301,7 +366,7 @@ export function SubmitPayment({
         </div>
       )}
 
-      {registrations.length + chipIns.length > 1 && (
+      {(registrations.length + chipIns.length > 1 || branchFees.length > 0) && (
         <div className="mb-5 space-y-2">
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
             What does this payment cover?
@@ -340,7 +405,49 @@ export function SubmitPayment({
               <span className="font-bold tabular-nums">${c.amount.toFixed(2)}</span>
             </label>
           ))}
-          {selectedIds.length + selectedChipInIds.length === 0 && (
+          {branchFees.map((f) => {
+            const on = feeBranchId === f.branchId;
+            return (
+              <div key={`fee-${f.branchId}`} className={`rounded-xl border px-4 py-2.5 transition-colors ${on ? "bg-background border-primary/50" : "bg-background border-dashed"}`}>
+                <label className="flex items-center justify-between gap-3 cursor-pointer">
+                  <span className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => toggleBranchFee(f)}
+                      className="w-4 h-4 accent-primary"
+                      aria-label={`Add ${f.label} for the ${f.branchName} branch`}
+                    />
+                    <span>
+                      <span className="font-medium">{f.label}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Once per branch, shared by everyone in {f.branchName}. Optional.
+                      </span>
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block font-bold tabular-nums">${(f.remainingCents / 100).toFixed(2)}</span>
+                    <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">left</span>
+                  </span>
+                </label>
+                {on && (
+                  <div className="mt-3 flex items-center gap-2 pl-7">
+                    <Label htmlFor={`fee-amt-${f.branchId}`} className="text-xs text-muted-foreground shrink-0">Paying now ($)</Label>
+                    <Input
+                      id={`fee-amt-${f.branchId}`}
+                      inputMode="decimal"
+                      value={feeAmount}
+                      onChange={(e) => changeFeeAmount(e.target.value)}
+                      className="h-8 rounded-lg max-w-[120px] tabular-nums"
+                    />
+                    <span className="text-xs text-muted-foreground">Part payments are fine.</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {feeError && method && <p className="text-sm text-destructive font-medium">{feeError}</p>}
+          {selectedIds.length + selectedChipInIds.length === 0 && !selectedFee && (
             <p className="text-sm text-destructive font-medium">
               Select at least one item to pay.
             </p>

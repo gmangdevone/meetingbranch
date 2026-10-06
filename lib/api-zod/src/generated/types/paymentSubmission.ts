@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PaymentMethod } from './paymentMethod';
+import type { SubmissionBranchFee } from './submissionBranchFee';
 import type { SubmissionChipIn } from './submissionChipIn';
 
 export interface PaymentSubmission {
@@ -47,4 +48,5 @@ export interface PaymentSubmission {
   amountCents?: number;
   /** Live receipt that confirmed this reported payment, if any. */
   confirmedReceiptId?: number | null;
+  branchFee?: SubmissionBranchFee | null;
 }

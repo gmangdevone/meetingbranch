@@ -112,3 +112,32 @@ describe("RecordPaymentDialog idempotency", () => {
     expect(screen.getByRole("button", { name: /Close and check history/ })).toBeInTheDocument();
   });
 });
+
+describe("RecordPaymentDialog branch special fee", () => {
+  const renderFee = (preset: Parameters<typeof RecordPaymentDialog>[0]["preset"], registrations: Parameters<typeof RecordPaymentDialog>[0]["registrations"] = []) =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <RecordPaymentDialog reunionId={5} registrations={registrations} preset={preset} onClose={() => undefined} />
+      </QueryClientProvider>,
+    );
+
+  it("a single $20 branch fee auto-allocates $20 and records a branch allocation with the chosen payer", () => {
+    renderFee({ method: "cash", branchFee: { branchId: 11, branchName: "Lacey", label: "Sibling Fee", remainingCents: 2000, payerRegistrationId: 4, payerOptions: [{ id: 4, label: "Amy" }] } });
+    expect(screen.getByText(/shared, once per branch/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Amount received/), { target: { value: "20" } });
+    fireEvent.click(screen.getByRole("button", { name: /Record \$20\.00/ }));
+    expect(h.mutate.mock.calls[0][0].data).toMatchObject({ amountCents: 2000, allocations: [{ branchId: 11, payerRegistrationId: 4, amountCents: 2000 }] });
+  });
+
+  it("mixed report splits exactly: branch fee takes the reported portion, the rest goes to dues", () => {
+    renderFee(
+      { submissionId: 3, amountCents: 8800, method: "cash", receivedDate: "2026-06-01", branchFee: { branchId: 11, branchName: "Lacey", label: "Sibling Fee", remainingCents: 2000, reportedCents: 800 } },
+      [{ id: 1, label: "#1 Goudy", ledger }],
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Record \$88\.00/ }));
+    expect(h.mutate.mock.calls[0][0].data.allocations).toEqual([
+      { branchId: 11, payerRegistrationId: null, amountCents: 800 },
+      { registrationId: 1, contributionId: null, amountCents: 8000 },
+    ]);
+  });
+});

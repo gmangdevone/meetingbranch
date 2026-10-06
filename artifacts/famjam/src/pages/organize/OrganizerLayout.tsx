@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetReunion, getGetReunionQueryKey } from "@workspace/api-client-react";
 import type { ReunionRole } from "@workspace/api-client-react";
-import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart, Vote, Briefcase, ClipboardList } from "lucide-react";
+import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart, Vote, Briefcase, ClipboardList, Coins } from "lucide-react";
 import { Skeleton } from "../../components/ui/skeleton";
 import { FULL_ACCESS_VIEWER, viewerHasRole, viewerHasAnyRole } from "../../lib/roles";
 
@@ -57,6 +57,7 @@ export function OrganizerLayout({
     { href: `${baseUrl}/announcements`, label: "Announcements", icon: Bell, role: "announcements" },
     { href: `${baseUrl}/schedule`, label: "Schedule", icon: CalendarDays, role: "schedule" },
     { href: `${baseUrl}/branches`, label: "Branches", icon: List, role: "branches" },
+    { href: `${baseUrl}/branch-fees`, label: "Branch Fees", icon: Coins, role: "power_user" },
     { href: `${baseUrl}/polls`, label: "Polls", icon: Vote },
     { href: `${baseUrl}/activities`, label: "Activities & Choices", icon: ClipboardList },
     { href: `${baseUrl}/sponsorship`, label: "Sponsorship", icon: Heart, role: "power_user" },
@@ -68,6 +69,10 @@ export function OrganizerLayout({
     if (!item.role) return true;
     if (item.href === `${baseUrl}/settings`) {
       return viewerHasRole(viewer, "power_user") || viewer.canManageOrganizers;
+    }
+    if (item.href === `${baseUrl}/branch-fees`) {
+      // Power users configure; registration managers confirm money.
+      return viewerHasRole(viewer, "power_user") || viewerHasRole(viewer, "registration");
     }
     return viewerHasRole(viewer, item.role);
   });

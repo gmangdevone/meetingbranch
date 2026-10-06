@@ -15,6 +15,8 @@ import {
   useCreateManagedRegistration,
   useSetAttendeeCheckIn,
   useListPaymentSubmissions,
+  useListBranchFees,
+  getListBranchFeesQueryKey,
   getListPaymentSubmissionsQueryKey,
   useUpdateContributionPayment,
 } from "@workspace/api-client-react";
@@ -94,6 +96,9 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   // grouped per registration for the reconciliation dialog.
   const { data: paymentSubmissionsData } = useListPaymentSubmissions(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getListPaymentSubmissionsQueryKey(reunionId) },
+  });
+  const { data: branchFeesData } = useListBranchFees(reunionId, {
+    query: { enabled: !isNaN(reunionId), queryKey: getListBranchFeesQueryKey(reunionId) },
   });
   const submissionsByRegistration = useMemo(() => {
     const map = new Map<number, NonNullable<typeof paymentSubmissionsData>["submissions"]>();
@@ -724,8 +729,20 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                     className="h-8 rounded-lg"
                     onClick={() => {
                       setRecordFor({
-                        regIds: s.registrationIds?.length ? s.registrationIds : s.registrationId != null ? [s.registrationId] : [],
+                        regIds: s.registrationIds?.length ? s.registrationIds : s.registrationId != null && !s.branchFee ? [s.registrationId] : [],
                         preset: {
+                          branchFee: s.branchFee
+                            ? (() => {
+                                const live = branchFeesData?.branches.find((b) => b.branchId === s.branchFee!.branchId);
+                                return {
+                                  branchId: s.branchFee.branchId,
+                                  branchName: live?.branchName ?? s.branchFee.branchName ?? "Branch",
+                                  label: live?.label ?? s.branchFee.label,
+                                  remainingCents: live?.remainingCents ?? 0,
+                                  reportedCents: s.branchFee.amountCents,
+                                };
+                              })()
+                            : undefined,
                           submissionId: s.id,
                           amountCents: s.amountCents ?? Math.round(s.amount * 100),
                           method: s.method,
@@ -753,6 +770,11 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                     {s.submittedByName && s.submittedByEmail && (
                       <> (<span className="font-mono">{s.submittedByEmail}</span>)</>
                     )}
+                  </p>
+                )}
+                {s.branchFee && (
+                  <p className="text-xs font-bold text-primary">
+                    Includes {money(s.branchFee.amountCents)} for the {s.branchFee.branchName ?? ""} {s.branchFee.label} (shared, once per branch)
                   </p>
                 )}
                 {(s.registrationIds?.length ?? 0) > 1 && (

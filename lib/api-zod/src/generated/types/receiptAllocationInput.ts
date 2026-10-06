@@ -11,5 +11,9 @@ export interface ReceiptAllocationInput {
   contributionId?: number | null;
   /** Standalone (unattached) fund chip-in included in the reported payment. All-or-nothing; amount must equal its full pledge. */
   standaloneContributionId?: number | null;
+  /** Branch special fee (shared once per branch). Never touches registration balances or the fund. */
+  branchId?: number | null;
+  /** Who paid the branch fee (private, organizer-only). Must be an active registration in that branch. */
+  payerRegistrationId?: number | null;
   amountCents: number;
 }

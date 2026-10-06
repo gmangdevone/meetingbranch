@@ -5,6 +5,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { attachAuth } from "../middlewares/requireAdmin";
 import { requireReunionManager, requireReunionPermission } from "../middlewares/requireReunionManager";
 import { canManageRegistrations } from "./registrations";
+import { loadBranchFeeLedgers } from "../lib/branchFees";
 import {
   type Exec,
   LedgerError,
@@ -144,7 +145,8 @@ router.get("/registrations/:id/ledger", requireAuth, async (req, res): Promise<v
 
 // standalone=true: a direct (unattached) fund chip-in included in a reported
 // payment. Settled all-or-nothing: the allocation must equal its full pledge.
-interface AllocIn { registrationId: number | null; contributionId: number | null; amountCents: number; standalone: boolean }
+// branchId: the branch's ONE shared special fee (never a registration balance or the fund).
+interface AllocIn { registrationId: number | null; contributionId: number | null; amountCents: number; standalone: boolean; branchId: number | null; payerRegistrationId: number | null }
 
 function parseReceiptBody(b: Record<string, unknown>) {
   if (!isValidCents(b.amountCents)) throw new LedgerError(400, "Enter an amount greater than $0.00, in dollars and cents.");
@@ -160,6 +162,16 @@ function parseReceiptBody(b: Record<string, unknown>) {
   const seen = new Set<string>();
   const allocations: AllocIn[] = b.allocations.map((raw) => {
     const a = (raw ?? {}) as Record<string, unknown>;
+    if (a.branchId != null) {
+      const branchId = Number(a.branchId);
+      const payerRegistrationId = a.payerRegistrationId == null ? null : Number(a.payerRegistrationId);
+      if (a.registrationId != null || a.contributionId != null || a.standaloneContributionId != null) throw new LedgerError(400, "Each allocation targets exactly one obligation.");
+      if (!Number.isInteger(branchId) || (payerRegistrationId != null && !Number.isInteger(payerRegistrationId))) throw new LedgerError(400, "Invalid allocation target.");
+      if (!isValidCents(a.amountCents)) throw new LedgerError(400, "Every allocation must be more than $0.00.");
+      if (seen.has(`b${branchId}`)) throw new LedgerError(400, "Each branch fee may appear only once.");
+      seen.add(`b${branchId}`);
+      return { registrationId: null, contributionId: null, amountCents: a.amountCents as number, standalone: false, branchId, payerRegistrationId };
+    }
     const standalone = a.standaloneContributionId != null;
     if (standalone && (a.registrationId != null || a.contributionId != null)) throw new LedgerError(400, "Each allocation targets exactly one obligation.");
     const registrationId = a.registrationId == null ? null : Number(a.registrationId);
@@ -170,7 +182,7 @@ function parseReceiptBody(b: Record<string, unknown>) {
     const k = registrationId != null ? `r${registrationId}` : `c${contributionId}`;
     if (seen.has(k)) throw new LedgerError(400, "Each registration or contribution may appear only once.");
     seen.add(k);
-    return { registrationId, contributionId, amountCents: a.amountCents as number, standalone };
+    return { registrationId, contributionId, amountCents: a.amountCents as number, standalone, branchId: null, payerRegistrationId: null };
   });
   const sum = allocations.reduce((s, a) => s + a.amountCents, 0);
   if (sum !== b.amountCents) throw new LedgerError(400, `Allocations add up to ${fmtCents(sum)}, but the amount received is ${fmtCents(b.amountCents as number)}.`);
@@ -250,7 +262,8 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
           throw new LedgerError(400, "Only a sponsorship chip-in attached to a registration can share a receipt. Standalone chip-ins are confirmed on their own.");
         a.registrationId = c.registration_id;
       }
-      const ids = [...new Set(input.allocations.filter((a) => !a.standalone).map((a) => a.registrationId!))].sort((x, y) => x - y);
+      const branchAllocs = input.allocations.filter((a) => a.branchId != null);
+      const ids = [...new Set(input.allocations.filter((a) => !a.standalone && a.branchId == null).map((a) => a.registrationId!))].sort((x, y) => x - y);
       const regs = ids.length
         ? await rows<{ id: number; reunion_id: number; status: string; payment_status: string }>(tx, sql`SELECT id, reunion_id, status, payment_status FROM registrations WHERE id IN (${sql.join(ids.map((i) => sql`${i}`), sql`, `)}) ORDER BY id FOR UPDATE`)
         : [];
@@ -261,11 +274,15 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
       for (const id of ids) await ensureLedgerInitialized(tx, id, actor);
 
       if (input.submissionId != null) {
-        const [s] = await rows<{ id: number; reunion_id: number; registration_ids: number[]; contribution_ids: number[] | null }>(tx, sql`SELECT id, reunion_id, registration_ids, contribution_ids FROM payment_submissions WHERE id = ${input.submissionId} FOR UPDATE`);
+        const [s] = await rows<{ id: number; reunion_id: number; registration_id: number | null; registration_ids: number[]; contribution_ids: number[] | null; branch_fee_branch_id: number | null; branch_fee_cents: number | null }>(tx, sql`SELECT id, reunion_id, registration_id, registration_ids, contribution_ids, branch_fee_branch_id, branch_fee_cents FROM payment_submissions WHERE id = ${input.submissionId} FOR UPDATE`);
         if (!s || s.reunion_id !== reunionId) throw new LedgerError(404, "Reported payment not found.");
         const [live] = await rows<{ id: number }>(tx, sql`SELECT r.id FROM payment_receipts r WHERE r.submission_id = ${s.id} AND NOT EXISTS (SELECT 1 FROM payment_receipt_reversals v WHERE v.receipt_id = r.id)`);
         if (live) throw new LedgerError(409, "This reported payment was already confirmed. Reverse that receipt first to re-confirm it.", "already_recorded");
         if (ids.some((id) => !s.registration_ids.includes(id))) throw new LedgerError(400, "Allocate only to registrations covered by the reported payment.");
+        if (branchAllocs.some((a) => a.branchId !== s.branch_fee_branch_id || !s.branch_fee_cents))
+          throw new LedgerError(400, "Allocate to the branch fee only when the reported payment included it.");
+        // The reporter is the private payer on record for the branch fee.
+        for (const a of branchAllocs) a.payerRegistrationId ??= s.registration_id;
         if (standaloneAllocs.some((a) => !(s.contribution_ids ?? []).includes(a.contributionId!)))
           throw new LedgerError(400, "Allocate only to chip-ins included in the reported payment.");
       }
@@ -280,9 +297,27 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
         if (o.replaced) throw new LedgerError(409, "That receipt already has a replacement.");
       }
 
+      // Branch fee: validated against the live shared balance under the
+      // reunion lock, so concurrent payers can never over-collect.
+      if (branchAllocs.length) {
+        const fees = await loadBranchFeeLedgers(tx, reunionId, { branchIds: branchAllocs.map((a) => a.branchId!), includePayers: false });
+        for (const a of branchAllocs) {
+          const f = fees.find((x) => x.branchId === a.branchId);
+          if (!f || f.archived) throw new LedgerError(404, "That branch isn't part of this reunion.");
+          if (!f.enabled || f.amountCents <= 0) throw new LedgerError(409, `The ${f.label} for ${f.branchName} is turned off. Turn it on before recording money for it.`);
+          if (a.amountCents > f.remainingCents)
+            throw new LedgerError(409, f.remainingCents === 0
+              ? `The ${f.label} for ${f.branchName} is already paid in full.`
+              : `${fmtCents(a.amountCents)} is more than the ${fmtCents(f.remainingCents)} left on the ${f.label} for ${f.branchName}.`);
+          if (a.payerRegistrationId != null) {
+            const [p] = await rows<{ ok: boolean }>(tx, sql`SELECT (g.reunion_id = ${reunionId} AND g.branch_name = ${f.branchName}) AS ok FROM registrations g WHERE g.id = ${a.payerRegistrationId}`);
+            if (!p?.ok) throw new LedgerError(400, "The payer must be a registration in that branch.");
+          }
+        }
+      }
       const ledgers = await loadLedgers(tx, ids);
       for (const a of input.allocations) {
-        if (a.standalone) continue;
+        if (a.standalone || a.branchId != null) continue;
         const l = ledgers.get(a.registrationId!)!;
         if (a.contributionId == null) {
           if (a.amountCents > l.balanceCents)
@@ -299,8 +334,8 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
         VALUES (${reunionId}, 'payment', ${input.amountCents}, ${input.method}, ${input.receivedDate}, ${input.reference}, ${input.note}, ${input.submissionId}, ${input.replacesReceiptId}, ${input.idempotencyKey}, ${actor})
         RETURNING id`);
       for (const a of input.allocations) {
-        await tx.execute(sql`INSERT INTO payment_receipt_allocations (receipt_id, reunion_id, registration_id, contribution_id, amount_cents)
-          VALUES (${receipt.id}, ${reunionId}, ${a.standalone ? null : a.registrationId}, ${a.contributionId}, ${a.amountCents})`);
+        await tx.execute(sql`INSERT INTO payment_receipt_allocations (receipt_id, reunion_id, registration_id, contribution_id, amount_cents, branch_id, payer_registration_id)
+          VALUES (${receipt.id}, ${reunionId}, ${a.standalone || a.branchId != null ? null : a.registrationId}, ${a.contributionId}, ${a.amountCents}, ${a.branchId}, ${a.payerRegistrationId})`);
         // All-or-nothing: the standalone chip-in is now fully received. The fund
         // counts it once, via its paid status (receipt allocations for direct
         // chip-ins are excluded from fundBalanceCents).
@@ -375,7 +410,7 @@ router.get("/reunions/:reunionId/receipts/export", ...manage, requireReunionPerm
     rev_reason: string | null; rev_at: Date | null; allocs: string | null;
   }>(db, sql`
     SELECT r.*, v.reason AS rev_reason, v.created_at AS rev_at,
-      (SELECT string_agg(CASE WHEN a.contribution_id IS NULL THEN 'reg ' || a.registration_id ELSE 'chip-in ' || a.contribution_id END || ':' || to_char(a.amount_cents / 100.0, 'FM999999990.00'), '; ' ORDER BY a.id)
+      (SELECT string_agg(CASE WHEN a.branch_id IS NOT NULL THEN 'branch fee ' || a.branch_id WHEN a.contribution_id IS NULL THEN 'reg ' || a.registration_id ELSE 'chip-in ' || a.contribution_id END || ':' || to_char(a.amount_cents / 100.0, 'FM999999990.00'), '; ' ORDER BY a.id)
         FROM payment_receipt_allocations a WHERE a.receipt_id = r.id) AS allocs
     FROM payment_receipts r LEFT JOIN payment_receipt_reversals v ON v.receipt_id = r.id
     WHERE r.reunion_id = ${reunionId} ORDER BY r.created_at, r.id`);
