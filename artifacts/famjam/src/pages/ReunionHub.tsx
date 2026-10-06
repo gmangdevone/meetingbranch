@@ -362,7 +362,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               aria-expanded={showPayments}
               className="w-full flex items-center justify-between bg-card border shadow-sm rounded-3xl px-8 py-5 font-serif text-xl font-bold hover:bg-muted/50 transition-colors"
             >
-              <span>{showPayments ? "Hide" : "Show"} Payments and Contributions</span>
+              <span>{showPayments ? "Hide" : "Update/Show"} Payments and Contributions</span>
               <ChevronDown className={`w-5 h-5 transition-transform ${showPayments ? "rotate-180" : ""}`} />
             </button>
 
