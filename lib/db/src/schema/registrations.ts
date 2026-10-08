@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { reunionsTable, reunionFeesTable } from "./reunions";
@@ -67,6 +67,9 @@ export const attendeesTable = pgTable("attendees", {
   // Set when an organizer checks the attendee in at the event (food/seating counts,
   // and gates voting eligibility for the household's account). Null = not checked in.
   checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
+  // False opts this attendee out of dinner-classified fees only. Default true
+  // keeps legacy totals identical.
+  includeDinner: boolean("include_dinner").notNull().default(true),
 });
 
 /**

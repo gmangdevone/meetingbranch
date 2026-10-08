@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import {
   getGetRegistrationLedgerQueryKey,
+  getExportReunionRegistrationsQueryKey,
   getGetRegistrationQueryKey,
   getListMyRegistrationsQueryKey,
   getListReunionRegistrationsQueryKey,
@@ -55,4 +56,11 @@ export function invalidateBranchFees(qc: QueryClient, reunionId: number) {
 /** Registrations whose balances a transfer changes: always the source; the target too for payment transfers. */
 export function transferMoneyIds(sourceId: number, kind: "registration" | "payment", targetId: number | null | undefined): number[] {
   return kind === "payment" && Number.isInteger(targetId) ? [sourceId, targetId as number] : [sourceId];
+}
+
+/** After a registration create/edit: every cache that shows its charges or totals. */
+export function invalidateRegistrationTotals(qc: QueryClient, reunionId: number, registrationId: number) {
+  invalidateMoney(qc, reunionId, [registrationId]);
+  qc.invalidateQueries({ queryKey: getExportReunionRegistrationsQueryKey(reunionId) });
+  invalidateBranchFees(qc, reunionId);
 }

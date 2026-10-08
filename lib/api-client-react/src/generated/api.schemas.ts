@@ -331,6 +331,8 @@ export interface AttendeeInput {
      * @nullable
      */
   age?: number | null;
+  /** False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true). */
+  includeDinner?: boolean;
 }
 
 export interface UpdateRegistrationInput {
@@ -970,6 +972,17 @@ export interface BranchFeePaymentInput {
 }
 
 /**
+ * explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'.
+ */
+export type ReunionFeeDinnerClassification = typeof ReunionFeeDinnerClassification[keyof typeof ReunionFeeDinnerClassification];
+
+
+export const ReunionFeeDinnerClassification = {
+  explicit: 'explicit',
+  detected: 'detected',
+} as const;
+
+/**
  * per_person = charged once per attendee; flat = one flat amount per registration/household
  */
 export type FeeChargeType = typeof FeeChargeType[keyof typeof FeeChargeType];
@@ -999,6 +1012,10 @@ export interface FeeAgeTier {
 }
 
 export interface ReunionFee {
+  /** Effective dinner classification. Only per_person fees can be dinner fees; each attendee's includeDinner opt-out removes just their share of dinner fees. */
+  isDinner: boolean;
+  /** explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'. */
+  dinnerClassification: ReunionFeeDinnerClassification;
   id: number;
   reunionId: number;
   label: string;
@@ -1095,6 +1112,11 @@ export interface FeeInput {
   amount: number;
   ageTiers?: FeeAgeTier[];
   sortOrder?: number;
+  /**
+     * Classify as a dinner fee (per_person only; true with flat is rejected). Null or omitted keeps the existing classification (legacy detection for unclassified fees).
+     * @nullable
+     */
+  isDinner?: boolean | null;
 }
 
 /**
@@ -1288,6 +1310,8 @@ export interface BranchInput {
 
 export interface Attendee {
   id: number;
+  /** Whether this attendee is charged dinner-classified fees. */
+  includeDinner: boolean;
   registrationId: number;
   name: string;
   shirtSize: ShirtSize;
@@ -1727,6 +1751,8 @@ export interface AdminReport {
   unpaidCount?: number;
   partialCount?: number;
   finance?: FinanceSummary;
+  /** Active attendees who opted out of dinner-classified fees. */
+  dinnerOptOutCount?: number;
   dietaryCount: number;
   byGroup: GroupCount[];
   byShirtSize: ShirtSizeCount[];

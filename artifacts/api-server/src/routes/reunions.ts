@@ -70,7 +70,7 @@ import {
   isUniqueConstraintViolation,
   normalizeEventCode,
 } from "../lib/reunionCode";
-import { computeTotal } from "../lib/fees";
+import { computeTotal, serializeFee } from "../lib/fees";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
 import {
@@ -105,7 +105,7 @@ async function getReunionWithBranches(reunionId: number) {
   // Never return legacy destination columns: only the owner-approved,
   // freshly resolved recipient (or nulls) reaches any client.
   const recipient = await resolveRecipient(reunionId);
-  return withResolvedRecipient({ ...reunion, branches, fees }, recipient);
+  return withResolvedRecipient({ ...reunion, branches, fees: fees.map(serializeFee) }, recipient);
 }
 
 /**
@@ -114,6 +114,8 @@ async function getReunionWithBranches(reunionId: number) {
  * Rejected (caller returns 400 when this returns null): a tier with both bounds
  * null, an inverted range (minAge > maxAge), or overlapping tiers.
  */
+const FLAT_DINNER_ERROR = "Only per-person fees can be dinner fees. A flat fee can't be removed for one attendee.";
+
 function normalizeFeeInput(data: {
   label: string;
   chargeType: "per_person" | "flat";
@@ -121,7 +123,10 @@ function normalizeFeeInput(data: {
   amount: number;
   ageTiers?: { minAge?: number | null; maxAge?: number | null; amount: number }[];
   sortOrder: number;
+  isDinner?: boolean | null;
 }) {
+  // A flat fee can't be split per attendee, so it can never be a dinner fee.
+  if (data.chargeType === "flat" && data.isDinner === true) return "flat_dinner" as const;
   const rawTiers = data.chargeType === "per_person" ? (data.ageTiers ?? []) : [];
   const tiers = rawTiers.map((t) => ({
     minAge: t.minAge ?? null,
@@ -146,7 +151,20 @@ function normalizeFeeInput(data: {
     amount: data.amount,
     ageTiers: sorted,
     sortOrder: data.sortOrder,
+    // Flat => explicitly not dinner. Null/omitted leaves the stored value alone
+    // (undefined is skipped by drizzle), so legacy detection keeps working.
+    isDinner: data.chargeType === "flat" ? false : (data.isDinner ?? undefined),
   };
+}
+
+/** Active attendees who opted out of dinner-classified fees. */
+async function dinnerOptOutCount(reunionId: number): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`cast(count(*) as int)` })
+    .from(attendeesTable)
+    .innerJoin(registrationsTable, eq(attendeesTable.registrationId, registrationsTable.id))
+    .where(and(activeInReunion(reunionId), eq(attendeesTable.includeDinner, false)));
+  return row?.count ?? 0;
 }
 
 /** Active (non-cancelled) registrations of a reunion — cancelled ones never count. */
@@ -635,6 +653,10 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
     return;
   }
   const normalized = normalizeFeeInput(body.data);
+  if (normalized === "flat_dinner") {
+    res.status(400).json({ error: FLAT_DINNER_ERROR });
+    return;
+  }
   if (!normalized) {
     res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
     return;
@@ -646,7 +668,7 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
       ...normalized,
     })
     .returning());
-  res.status(201).json(created);
+  res.status(201).json(serializeFee(created));
 });
 
 router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
@@ -657,6 +679,10 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
     return;
   }
   const normalizedUpdate = normalizeFeeInput(body.data);
+  if (normalizedUpdate === "flat_dinner") {
+    res.status(400).json({ error: FLAT_DINNER_ERROR });
+    return;
+  }
   if (!normalizedUpdate) {
     res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
     return;
@@ -675,7 +701,7 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
     res.status(404).json({ error: "Fee not found" });
     return;
   }
-  res.json(updated);
+  res.json(serializeFee(updated));
 });
 
 router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
@@ -956,6 +982,7 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
         shirtSize: a.shirtSize,
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
+        includeDinner: a.includeDinner ?? true,
       })),
     );
     if (chosenFeeIds.length > 0) {
@@ -1025,7 +1052,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
 
   const escape = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
   const csvLines: string[] = [
-    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Charges,Sponsored,Confirmed Paid,Legacy Opening Credit,Waived,Balance Due,Credit For Review,Pending Reported,Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions",
+    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Charges,Sponsored,Confirmed Paid,Legacy Opening Credit,Waived,Balance Due,Credit For Review,Pending Reported,Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions,Dinner Included",
   ];
   const exportLedgers = await loadLedgers(db, rows.map((r) => r.id));
   const d = (c: number | undefined) => ((c ?? 0) / 100).toFixed(2);
@@ -1054,6 +1081,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
         escape(attendees.map((a) => a.name).join("; ")),
         escape(attendees.map((a) => a.shirtSize).join("; ")),
         escape(attendees.map((a) => a.dietaryRestrictions ?? "").join("; ")),
+        escape(attendees.map((a) => (a.includeDinner ? "Yes" : "No")).join("; ")),
       ].join(","),
     );
   }
@@ -1314,6 +1342,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
       partialCount: fin.counts.partial,
       finance: fin.finance,
       dietaryCount: dietaryCount[0]?.count ?? 0,
+      dinnerOptOutCount: await dinnerOptOutCount(reunionId),
       byGroup,
       byShirtSize,
       registrationsOverTime: overTime,

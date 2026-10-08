@@ -17,4 +17,9 @@ export interface FeeInput {
   amount: number;
   ageTiers?: FeeAgeTier[];
   sortOrder?: number;
+  /**
+     * Classify as a dinner fee (per_person only; true with flat is rejected). Null or omitted keeps the existing classification (legacy detection for unclassified fees).
+     * @nullable
+     */
+  isDinner?: boolean | null;
 }

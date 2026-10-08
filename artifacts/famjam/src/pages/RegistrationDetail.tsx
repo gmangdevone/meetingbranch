@@ -154,6 +154,9 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
                 <div key={attendee.id} className="py-3 flex justify-between items-center first:pt-0 last:pb-0">
                   <div>
                     <div className="font-bold text-foreground">{attendee.name}</div>
+                    {attendee.includeDinner === false && (
+                      <div className="text-sm text-muted-foreground" data-testid="attendee-no-dinner">Not attending dinner</div>
+                    )}
                     {attendee.dietaryRestrictions && (
                       <div className="text-sm text-muted-foreground">Diet: {attendee.dietaryRestrictions}</div>
                     )}

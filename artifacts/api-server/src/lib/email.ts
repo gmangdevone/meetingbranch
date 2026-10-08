@@ -1,6 +1,6 @@
 import type { ReunionFee } from "@workspace/db";
 import { logger } from "./logger";
-import { feeApplies, computeFeeAmount } from "./fees";
+import { feeApplies, computeFeeAmount, isDinnerFee } from "./fees";
 import type { PublicRecipient } from "./paymentRecipients/validation";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? null;
@@ -10,6 +10,7 @@ interface AttendeeInfo {
   shirtSize: string;
   dietaryRestrictions?: string | null;
   age?: number | null;
+  includeDinner?: boolean | null;
 }
 
 interface ReunionInfo {
@@ -131,13 +132,14 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
   const payHandle = approved ? escapeHtml(r.paymentHandle ?? "the link below") : "";
   const payUrl = approved && r.paymentUrl ? escapeHtml(r.paymentUrl) : null;
 
+  const hasDinner = reunion.fees.some((f) => feeApplies(f, selectedFeeIds) && isDinnerFee(f));
   const attendeeRows = attendees
     .map(
       (a, i) => `
       <tr style="background:${i % 2 === 0 ? "#f9fafb" : "#ffffff"}">
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.name}</td>
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">${a.shirtSize}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.dietaryRestrictions || "None"}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.dietaryRestrictions || "None"}${hasDinner && a.includeDinner === false ? " (no dinner)" : ""}</td>
       </tr>`,
     )
     .join("");

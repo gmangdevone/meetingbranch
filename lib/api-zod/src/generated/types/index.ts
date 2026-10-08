@@ -115,6 +115,7 @@ export * from './registrationSummary';
 export * from './reunion';
 export * from './reunionBranch';
 export * from './reunionFee';
+export * from './reunionFeeDinnerClassification';
 export * from './reunionImage';
 export * from './reunionImageInput';
 export * from './reunionImageList';

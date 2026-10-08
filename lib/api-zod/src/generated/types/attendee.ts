@@ -9,6 +9,8 @@ import type { ShirtSize } from './shirtSize';
 
 export interface Attendee {
   id: number;
+  /** Whether this attendee is charged dinner-classified fees. */
+  includeDinner: boolean;
   registrationId: number;
   name: string;
   shirtSize: ShirtSize;

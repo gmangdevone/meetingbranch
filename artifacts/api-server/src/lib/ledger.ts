@@ -101,9 +101,9 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
   const [regs, fees, attendees, selected, sponsored, allocs, contribs, pending] = await Promise.all([
     rows<{ id: number; reunion_id: number; payment_status: string; ledger_initialized_at: Date | null }>(
       ex, sql`SELECT id, reunion_id, payment_status, ledger_initialized_at FROM registrations WHERE id IN (${L})`),
-    rows<{ id: number; reunion_id: number; amount: number; charge_type: string; is_optional: boolean; age_tiers: unknown }>(
+    rows<{ id: number; reunion_id: number; label: string; amount: number; charge_type: string; is_optional: boolean; age_tiers: unknown; is_dinner: boolean | null }>(
       ex, sql`SELECT f.* FROM reunion_fees f WHERE f.reunion_id IN (SELECT reunion_id FROM registrations WHERE id IN (${L}))`),
-    rows<{ registration_id: number; age: number | null }>(ex, sql`SELECT registration_id, age FROM attendees WHERE registration_id IN (${L})`),
+    rows<{ registration_id: number; age: number | null; include_dinner: boolean }>(ex, sql`SELECT registration_id, age, include_dinner FROM attendees WHERE registration_id IN (${L})`),
     rows<{ registration_id: number; fee_id: number }>(ex, sql`SELECT registration_id, fee_id FROM registration_fees WHERE registration_id IN (${L})`),
     rows<{ registration_id: number; cents: string }>(ex, sql`SELECT registration_id, sum(amount)*100 AS cents FROM sponsorship_allocations WHERE registration_id IN (${L}) GROUP BY registration_id`),
     rows<{ registration_id: number | null; contribution_id: number | null; kind: string; cents: string }>(ex, sql`
@@ -126,12 +126,12 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
   for (const reg of regs) {
     const regFees = fees
       .filter((f) => f.reunion_id === reg.reunion_id)
-      .map((f) => ({ id: f.id, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers }));
+      .map((f) => ({ id: f.id, label: f.label, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers, isDinner: f.is_dinner }));
     const chargeCents =
       computeTotal(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         regFees as any,
-        attendees.filter((a) => a.registration_id === reg.id),
+        attendees.filter((a) => a.registration_id === reg.id).map((a) => ({ age: a.age, includeDinner: a.include_dinner })),
         selected.filter((s) => s.registration_id === reg.id).map((s) => s.fee_id),
       ) * 100;
     const sponsoredCents = Number(sponsored.find((s) => s.registration_id === reg.id)?.cents ?? 0);

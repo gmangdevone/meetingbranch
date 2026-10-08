@@ -19,6 +19,8 @@ export interface AdminReport {
   unpaidCount?: number;
   partialCount?: number;
   finance?: FinanceSummary;
+  /** Active attendees who opted out of dinner-classified fees. */
+  dinnerOptOutCount?: number;
   dietaryCount: number;
   byGroup: GroupCount[];
   byShirtSize: ShirtSizeCount[];

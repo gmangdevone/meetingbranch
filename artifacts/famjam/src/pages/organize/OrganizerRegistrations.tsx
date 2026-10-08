@@ -39,7 +39,7 @@ import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
-import { computeTotal } from "../../lib/fees";
+import { computeTotal, feeApplies, isDinnerFee } from "../../lib/fees";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { LedgerHistory, LedgerStatusBadge } from "../../components/payments/LedgerPanel";
 import { RecordPaymentDialog, type PayableRegistration, type RecordPaymentPreset } from "../../components/payments/RecordPaymentDialog";
@@ -59,7 +59,8 @@ const managedRegistrationSchema = z.object({
     age: z.preprocess((val) => {
       if (val === "" || val === undefined || val === null) return undefined;
       return Number(val);
-    }, z.number().int().min(0).max(120).optional())
+    }, z.number().int().min(0).max(120).optional()),
+    includeDinner: z.boolean().optional()
   })).min(1, "Add at least one attendee"),
   selectedFeeIds: z.array(z.number()).optional(),
 });
@@ -179,7 +180,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       memberFirstName: "",
       memberLastName: "",
       branchName: "",
-      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined }],
+      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined, includeDinner: true }],
       selectedFeeIds: [],
     },
   });
@@ -192,6 +193,8 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const firstName = form.watch("memberFirstName");
   const lastName = form.watch("memberLastName");
   const watchAttendees = form.watch("attendees");
+  const watchSelectedFees = form.watch("selectedFeeIds") ?? [];
+  const managedDinnerFees = (reunion?.fees ?? []).filter((f) => isDinnerFee(f) && feeApplies(f, watchSelectedFees));
   const [lastSyncedName, setLastSyncedName] = useState("");
 
   useEffect(() => {
@@ -218,6 +221,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           shirtSize: a.shirtSize,
           dietaryRestrictions: a.dietaryRestrictions || undefined,
           age: a.age,
+          includeDinner: a.includeDinner !== false,
         })),
         selectedFeeIds: values.selectedFeeIds && values.selectedFeeIds.length > 0 ? values.selectedFeeIds : undefined,
       }
@@ -1007,6 +1011,25 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                           </FormItem>
                         )}
                       />
+
+                      {managedDinnerFees.length > 0 && (
+                        <FormField
+                          control={form.control}
+                          name={`attendees.${index}.includeDinner`}
+                          render={({ field: inputField }) => (
+                            <FormItem className="md:col-span-2">
+                              <label htmlFor={`managed-include-dinner-${index}`} className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 cursor-pointer">
+                                <Checkbox
+                                  id={`managed-include-dinner-${index}`}
+                                  checked={inputField.value !== false}
+                                  onCheckedChange={(v) => inputField.onChange(v === true)}
+                                />
+                                <span className="text-sm"><span className="font-bold">Include dinner</span> <span className="text-muted-foreground">· {managedDinnerFees.map((f) => f.label).join(", ")}</span></span>
+                              </label>
+                            </FormItem>
+                          )}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1014,7 +1037,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined })}
+                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined, includeDinner: true })}
                   className="w-full py-4 border-dashed rounded-2xl text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="mr-2 w-4 h-4" /> Add Another Person

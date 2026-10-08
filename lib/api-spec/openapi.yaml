@@ -3847,8 +3847,15 @@ components:
 
     ReunionFee:
       type: object
-      required: [id, reunionId, label, chargeType, isOptional, amount, sortOrder]
+      required: [id, reunionId, label, chargeType, isOptional, amount, sortOrder, isDinner, dinnerClassification]
       properties:
+        isDinner:
+          type: boolean
+          description: "Effective dinner classification. Only per_person fees can be dinner fees; each attendee's includeDinner opt-out removes just their share of dinner fees."
+        dinnerClassification:
+          type: string
+          enum: [explicit, detected]
+          description: "explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'."
         id:
           type: integer
         reunionId:
@@ -3908,6 +3915,9 @@ components:
         sortOrder:
           type: integer
           default: 0
+        isDinner:
+          type: ["boolean", "null"]
+          description: "Classify as a dinner fee (per_person only; true with flat is rejected). Null or omitted keeps the existing classification (legacy detection for unclassified fees)."
 
     ReunionRole:
       type: string
@@ -4163,13 +4173,20 @@ components:
         age:
           type: ["integer", "null"]
           minimum: 0
+        includeDinner:
+          type: boolean
+          default: true
+          description: "False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true)."
 
     Attendee:
       type: object
-      required: [id, registrationId, name, shirtSize]
+      required: [id, registrationId, name, shirtSize, includeDinner]
       properties:
         id:
           type: integer
+        includeDinner:
+          type: boolean
+          description: Whether this attendee is charged dinner-classified fees.
         registrationId:
           type: integer
         name:
@@ -4832,6 +4849,9 @@ components:
           type: integer
         finance:
           $ref: "#/components/schemas/FinanceSummary"
+        dinnerOptOutCount:
+          type: integer
+          description: Active attendees who opted out of dinner-classified fees.
         dietaryCount:
           type: integer
         byGroup:

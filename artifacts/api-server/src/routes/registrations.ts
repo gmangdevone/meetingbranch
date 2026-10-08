@@ -139,6 +139,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
       shirtSize: a.shirtSize,
       dietaryRestrictions: a.dietaryRestrictions ?? null,
       age: a.age ?? null,
+      includeDinner: a.includeDinner ?? true,
     })),
   );
 
@@ -363,6 +364,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
         shirtSize: a.shirtSize,
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
+        includeDinner: a.includeDinner ?? true,
         checkedInAt: checkInsByName.get(a.name.trim().toLowerCase())?.shift() ?? null,
       })),
     );

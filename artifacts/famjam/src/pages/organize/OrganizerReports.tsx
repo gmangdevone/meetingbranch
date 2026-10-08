@@ -55,6 +55,9 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
             <div className="text-muted-foreground text-sm font-bold uppercase tracking-widest mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2"/> Dietary</div>
             <div className="text-4xl font-bold font-serif text-amber-600 dark:text-amber-500">{reports.dietaryCount}</div>
             <div className="text-xs text-muted-foreground mt-1">notes recorded</div>
+            {(reports.dinnerOptOutCount ?? 0) > 0 && (
+              <div className="text-xs text-muted-foreground mt-1" data-testid="dinner-opt-outs">{reports.dinnerOptOutCount} skipping dinner</div>
+            )}
           </div>
         </div>
 

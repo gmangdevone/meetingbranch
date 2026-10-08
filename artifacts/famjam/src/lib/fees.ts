@@ -2,6 +2,19 @@ import type { ReunionFee, FeeAgeTier } from "@workspace/api-client-react";
 
 export interface FeeAttendee {
   age?: number | null;
+  /** false = opted out of dinner-classified fees. Missing means included. */
+  includeDinner?: boolean | null;
+}
+
+/**
+ * Dinner fees are per_person only. Uses the server-resolved isDinner (explicit
+ * or legacy-detected); falls back to the label rule when absent. Mirrors the
+ * API server copy.
+ */
+export function isDinnerFee(fee: { chargeType: string; label?: string | null; isDinner?: boolean | null }): boolean {
+  if (fee.chargeType !== "per_person") return false;
+  if (fee.isDinner != null) return fee.isDinner;
+  return /dinner/i.test(fee.label ?? "");
 }
 
 /** A mandatory fee always applies; an optional fee applies only if it was selected. */
@@ -31,12 +44,14 @@ export function tierForAge(
  *   A null age always pays the base amount.
  */
 export function computeFeeAmount(
-  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers">,
+  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & { label?: string | null; isDinner?: boolean | null },
   attendees: FeeAttendee[],
 ): number {
   if (fee.chargeType === "flat") return fee.amount;
   const tiers = fee.ageTiers ?? [];
-  return attendees.reduce(
+  // Dinner fees skip attendees who opted out; every other fee charges everyone.
+  const charged = isDinnerFee(fee) ? attendees.filter((a) => a.includeDinner !== false) : attendees;
+  return charged.reduce(
     (sum, a) => sum + (tierForAge(tiers, a.age)?.amount ?? fee.amount),
     0,
   );

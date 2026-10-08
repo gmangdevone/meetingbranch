@@ -17,4 +17,6 @@ export interface AttendeeInput {
      * @nullable
      */
   age?: number | null;
+  /** False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true). */
+  includeDinner?: boolean;
 }

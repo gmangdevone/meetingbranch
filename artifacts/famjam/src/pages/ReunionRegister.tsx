@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, useUpdateRegistration, useGetRegistration, getGetRegistrationQueryKey, getListMyRegistrationsQueryKey, getGetReunionSummaryQueryKey, useListBranchFeeOptions, getListBranchFeeOptionsQueryKey, useElectBranchFee, getListMyBranchFeeElectionsQueryKey } from "@workspace/api-client-react";
+import { invalidateRegistrationTotals } from "../components/payments/money";
+import { useGetReunionByCode, getGetReunionByCodeQueryKey, useCreateRegistration, useUpdateRegistration, useGetRegistration, getGetRegistrationQueryKey, useListBranchFeeOptions, getListBranchFeeOptionsQueryKey, useElectBranchFee, getListMyBranchFeeElectionsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,7 +18,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
 import { eventCodePath } from "../lib/eventCode";
-import { computeTotal, computeFeeAmount, feeApplies, describeFee } from "../lib/fees";
+import { computeTotal, computeFeeAmount, feeApplies, describeFee, isDinnerFee } from "../lib/fees";
 import { registrationPricingReady } from "../lib/registrationReadiness";
 import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 
@@ -31,6 +32,7 @@ const formSchema = z.object({
     dietaryRestrictions: z.string().optional(),
     age: z.preprocess((value) => value == null || String(value).trim() === "" ? undefined : value,
       z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age")),
+    includeDinner: z.boolean(),
   })).min(1, "Add at least one attendee"),
   sponsorshipContribution: z.coerce.number().int().min(0).optional(),
 });
@@ -71,7 +73,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
     resolver: zodResolver(formSchema),
     defaultValues: {
       branchName: "",
-      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number }],
+      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true }],
     },
   });
 
@@ -90,6 +92,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
         shirtSize: a.shirtSize,
         dietaryRestrictions: a.dietaryRestrictions ?? "",
         age: (a.age ?? undefined) as unknown as number,
+        includeDinner: a.includeDinner ?? true,
       })),
     });
     setSelectedFeeIds(existingReg.selectedFeeIds ?? []);
@@ -101,7 +104,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   const electingFee = asksFee && feeChoice === "yes";
   const feeOnlyMode = electingFee && feeOnly && !isEdit;
   // Attendee details appear once the branch is chosen and any fee question is answered.
-  const showAttendees = !!watchBranch && (!asksFee || feeChoice !== null) && !feeOnlyMode;
+  // Editing: the saved branch is already chosen, so the optional fee question never gates the form.
+  const showAttendees = !!watchBranch && (isEdit || !asksFee || feeChoice !== null) && !feeOnlyMode;
   const feeCents = electingFee ? feeOption!.amountCents : 0;
   const changeBranch = (name: string) => {
     // A different branch discards the stale fee answer and re-checks live status.
@@ -121,11 +125,15 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   // every render rather than memoizing on that array's identity.
   const feeAttendees = watchAttendees.map((a) => {
     const n = Number(a?.age);
-    return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n };
+    return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n, includeDinner: a?.includeDinner !== false };
   });
 
   const fees = reunion?.fees ?? [];
   const optionalFees = useMemo(() => fees.filter((f) => f.isOptional), [fees]);
+  // Dinner fees this household is charged (an optional dinner must be opted into first).
+  const dinnerFees = fees.filter((f) => isDinnerFee(f) && feeApplies(f, selectedFeeIds));
+  const dinnerCostFor = (age: number | null) =>
+    dinnerFees.reduce((sum, f) => sum + computeFeeAmount(f, [{ age, includeDinner: true }]), 0);
   const feeLines = useMemo(
     () =>
       (pricingReady ? fees : [])
@@ -194,7 +202,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!reunion) return;
-    if (asksFee && feeChoice === null) {
+    if (asksFee && feeChoice === null && !isEdit) {
       setFlowError({ title: "One quick question", detail: `Let us know above if you'll pay the ${feeOption!.label}.` });
       return;
     }
@@ -228,9 +236,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
         }
       }, {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetRegistrationQueryKey(editId) });
-          queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunion.id) });
+          // Totals live in several caches (ledger, lists, reports, summary): refresh all of them.
+          invalidateRegistrationTotals(queryClient, reunion.id, editId);
           toast({ title: "Registration updated", description: "Your changes have been saved." });
           setLocation(`/registrations/${editId}`);
         },
@@ -256,8 +263,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
       }
     }, {
       onSuccess: (data) => {
-        queryClient.invalidateQueries({ queryKey: getListMyRegistrationsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetReunionSummaryQueryKey(reunion.id) });
+        invalidateRegistrationTotals(queryClient, reunion.id, data.id);
         toast({ title: "Registration Successful!", description: "We can't wait to see you." });
         setLocation(`/registrations/${data.id}`);
       },
@@ -356,7 +362,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-base font-bold">Which family branch are you in?</FormLabel>
-                      <Select onValueChange={(v) => { if (v !== field.value) field.onChange(changeBranch(v)); }} value={field.value}>
+                      <Select onValueChange={(v) => { if (v && v !== field.value) field.onChange(changeBranch(v)); }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="rounded-xl h-14 bg-muted/50 border-transparent focus:border-primary">
                             <SelectValue placeholder="Select a branch..." />
@@ -479,6 +485,38 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                           </FormItem>
                         )}
                       />
+
+                      {dinnerFees.length > 0 && (
+                        <FormField
+                          control={form.control}
+                          name={`attendees.${index}.includeDinner`}
+                          render={({ field: inputField }) => {
+                            const cost = dinnerCostFor(feeAttendees[index]?.age ?? null);
+                            return (
+                              <FormItem className="md:col-span-2">
+                                <label
+                                  htmlFor={`include-dinner-${index}`}
+                                  className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 border border-transparent hover:border-primary/40 cursor-pointer transition-colors"
+                                >
+                                  <Checkbox
+                                    id={`include-dinner-${index}`}
+                                    checked={inputField.value !== false}
+                                    onCheckedChange={(v) => inputField.onChange(v === true)}
+                                    data-testid={`include-dinner-${index}`}
+                                  />
+                                  <span className="flex-1 text-sm">
+                                    <span className="font-bold">Include dinner</span>
+                                    <span className="text-muted-foreground"> · {dinnerFees.map((f) => f.label).join(", ")}</span>
+                                  </span>
+                                  <span className={`text-sm font-bold tabular-nums ${inputField.value === false ? "line-through text-muted-foreground" : ""}`}>
+                                    {cost === 0 ? "Free" : `$${cost}`}
+                                  </span>
+                                </label>
+                              </FormItem>
+                            );
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 ))}
@@ -486,7 +524,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number })}
+                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true })}
                   className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
                 >
                   <Plus className="mr-2 w-5 h-5" /> Add Another Person

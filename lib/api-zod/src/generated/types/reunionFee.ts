@@ -7,8 +7,13 @@
  */
 import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
+import type { ReunionFeeDinnerClassification } from './reunionFeeDinnerClassification';
 
 export interface ReunionFee {
+  /** Effective dinner classification. Only per_person fees can be dinner fees; each attendee's includeDinner opt-out removes just their share of dinner fees. */
+  isDinner: boolean;
+  /** explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'. */
+  dinnerClassification: ReunionFeeDinnerClassification;
   id: number;
   reunionId: number;
   label: string;

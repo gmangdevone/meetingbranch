@@ -95,6 +95,10 @@ export const reunionFeesTable = pgTable("reunion_fees", {
   amount: integer("amount").notNull(),
   ageTiers: jsonb("age_tiers").$type<FeeAgeTier[]>().notNull().default([]),
   sortOrder: integer("sort_order").notNull().default(0),
+  // Dinner classification. NULL = legacy/unclassified: a per_person fee whose
+  // label contains "dinner" is treated as dinner (see isDinnerFee). Explicit
+  // true/false survives renames. Only per_person fees can be dinner fees.
+  isDinner: boolean("is_dinner"),
 });
 
 export const reunionBranchesTable = pgTable("reunion_branches", {

@@ -1,3 +1,4 @@
+import { serializeFee } from "../lib/fees";
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, sql } from "drizzle-orm";
 import {
@@ -175,7 +176,7 @@ router.get("/admin/reunions", async (_req, res): Promise<void> => {
         .from(registrationsTable)
         .where(eq(registrationsTable.reunionId, r.id));
       return {
-        reunion: withResolvedRecipient({ ...r, branches, fees }, recipients.get(r.id)!),
+        reunion: withResolvedRecipient({ ...r, branches, fees: fees.map(serializeFee) }, recipients.get(r.id)!),
         registrationCount: counts?.registrationCount ?? 0,
         attendeeCount: counts?.attendeeCount ?? 0,
       };

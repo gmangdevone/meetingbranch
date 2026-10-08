@@ -436,6 +436,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                   <div className="flex justify-between items-baseline gap-3">
                                     <span className="font-bold text-foreground">
                                       {attendee.name}
+                                      {attendee.includeDinner === false && (
+                                        <span className="ml-2 text-xs text-muted-foreground">no dinner</span>
+                                      )}
                                       {attendee.age != null && (
                                         <span className="ml-1.5 text-xs font-medium text-muted-foreground">
                                           age {attendee.age}

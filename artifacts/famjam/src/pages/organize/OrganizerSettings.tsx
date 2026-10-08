@@ -790,6 +790,7 @@ type FeeFormState = {
   label: string;
   chargeType: "per_person" | "flat";
   isOptional: boolean;
+  isDinner: boolean;
   amount: string;
   tiers: TierFormRow[];
 };
@@ -798,6 +799,7 @@ const EMPTY_FEE: FeeFormState = {
   label: "",
   chargeType: "per_person",
   isOptional: false,
+  isDinner: false,
   amount: "",
   tiers: [],
 };
@@ -807,6 +809,7 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
     label: fee.label,
     chargeType: fee.chargeType,
     isOptional: fee.isOptional,
+    isDinner: fee.isDinner,
     amount: String(fee.amount),
     tiers: (fee.ageTiers ?? []).map((t) => ({
       kind: (t.maxAge == null ? "above" : t.minAge == null ? "below" : "range") as TierKind,
@@ -902,6 +905,8 @@ function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[
       isOptional: draft.isOptional,
       amount,
       ageTiers: useTiers ? ageTiers : [],
+      // Saved explicitly so a rename never changes dinner treatment. Flat fees can't be dinner.
+      isDinner: draft.chargeType === "per_person" ? draft.isDinner : false,
     };
   };
 
@@ -970,6 +975,15 @@ function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[
                       {fee.isOptional && (
                         <span className="text-xs font-bold text-secondary-foreground bg-secondary/30 rounded-full px-2 py-0.5">
                           Optional
+                        </span>
+                      )}
+                      {fee.isDinner && (
+                        <span
+                          className="text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5"
+                          title={fee.dinnerClassification === "detected" ? "Detected from the name. Edit and save to lock it in so renames don't change it." : "Attendees can opt out of this fee"}
+                          data-testid={`fee-dinner-badge-${fee.id}`}
+                        >
+                          {fee.dinnerClassification === "detected" ? "Dinner (detected)" : "Dinner"}
                         </span>
                       )}
                     </div>
@@ -1120,6 +1134,22 @@ function FeeEditor({
           <span className="text-muted-foreground"> — families choose whether to add this</span>
         </span>
       </label>
+
+      {draft.chargeType === "per_person" ? (
+        <label className="flex items-center gap-3 cursor-pointer">
+          <Checkbox
+            checked={draft.isDinner}
+            onCheckedChange={(v) => set("isDinner", v === true)}
+            data-testid="fee-is-dinner"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Dinner fee</span>
+            <span className="text-muted-foreground"> — each attendee can opt out of just this charge</span>
+          </span>
+        </label>
+      ) : (
+        <p className="text-xs text-muted-foreground">Flat fees can't be dinner fees: one household charge can't be removed for a single attendee.</p>
+      )}
 
       {draft.chargeType === "per_person" && (
         <div className="space-y-3">
