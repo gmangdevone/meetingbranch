@@ -5,6 +5,37 @@ const L = (o: Partial<NonNullable<MemberRegistration["ledger"]>>) => ({ status: 
 const reg = (id: number, paymentStatus: string, ledger?: MemberRegistration["ledger"]): MemberRegistration => ({ id, paymentStatus, attendees: [], selectedFeeIds: [], ledger });
 
 describe("memberBalance (hub gating + totals)", () => {
+  const branchFee = { status: "unpaid" as const, collecting: true, amountCents: 12000 };
+
+  it("adds the elected branch fee once to registration and chip-in balances", () => {
+    const b = memberBalance(
+      [reg(1, "pending", L({ balanceCents: 8050, contributions: [{ outstandingCents: 1000 }] }))],
+      [{ id: 1, registrationId: 1, paymentStatus: "pending", amount: 10 },
+       { id: 2, registrationId: null, paymentStatus: "pending", amount: 5 }],
+      [], [branchFee],
+    );
+    expect(b).toMatchObject({ outstandingCents: 21550, branchFeeCents: 12000, status: "pending", canSubmitPayment: true });
+  });
+
+  it("includes fee-only accounts and keeps reported money due until confirmed", () => {
+    expect(memberBalance([], [], [], [branchFee])).toMatchObject({
+      outstandingCents: 12000, status: "pending", canSubmitPayment: true,
+    });
+    expect(memberBalance([], [], [], [{ ...branchFee, status: "reported" }])).toMatchObject({
+      outstandingCents: 12000, status: "pending", canSubmitPayment: false,
+    });
+    expect(memberBalance([], [], [], [{ ...branchFee, status: "paid" }])).toMatchObject({
+      outstandingCents: 0, status: "paid", canSubmitPayment: false,
+    });
+  });
+
+  it("does not charge disabled fees and restores dues after a receipt reversal", () => {
+    expect(memberBalance([], [], [], [{ ...branchFee, collecting: false }]).outstandingCents).toBe(0);
+    const registration = reg(1, "paid", L({ status: "paid" }));
+    expect(memberBalance([registration], [], [], [{ ...branchFee, status: "paid" }]).outstandingCents).toBe(0);
+    expect(memberBalance([registration], [], [], [{ ...branchFee, status: "reported" }]).outstandingCents).toBe(12000);
+  });
+
   it("offers Submit a Payment for $80 due with no recipient configured and no pending chip-ins", () => {
     const b = memberBalance([reg(1, "pending", L({ balanceCents: 8000 }))], [], []);
     expect(b).toMatchObject({ outstandingCents: 8000, status: "pending", canSubmitPayment: true });

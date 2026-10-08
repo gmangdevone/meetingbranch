@@ -15,6 +15,7 @@ export type MemberRegistration = {
   ledger?: Ledger | null;
 };
 export type MemberContribution = { id: number; registrationId?: number | null; paymentStatus: string; amount: number };
+export type MemberBranchFee = { status: "unpaid" | "reported" | "paid"; collecting: boolean; amountCents: number };
 
 /**
  * A member's money position in one reunion, in exact cents. The server ledger
@@ -27,6 +28,7 @@ export function memberBalance<R extends MemberRegistration, C extends MemberCont
   registrations: R[],
   contributions: C[],
   fees: Fee[],
+  branchFees: MemberBranchFee[] = [],
 ) {
   const remainingCentsFor = (r: R) =>
     r.ledger
@@ -40,10 +42,15 @@ export function memberBalance<R extends MemberRegistration, C extends MemberCont
   const unpaid = registrations.filter((r) => remainingCentsFor(r) > 0);
   const pendingChipIns = contributions.filter((c) => c.registrationId == null && c.paymentStatus === "pending");
   const pendingChipInsCents = pendingChipIns.reduce((s, c) => s + Math.round(c.amount * 100), 0);
-  const outstandingCents = unpaid.reduce((s, r) => s + remainingCentsFor(r), 0) + pendingChipInsCents;
+  // A report is not a confirmed receipt. Include branch fees until confirmed,
+  // but do not offer another submission while their report awaits review.
+  const outstandingBranchFees = branchFees.filter((f) => f.collecting && f.status !== "paid");
+  const branchFeeCents = outstandingBranchFees.reduce((sum, f) => sum + f.amountCents, 0);
+  const outstandingCents = unpaid.reduce((s, r) => s + remainingCentsFor(r), 0) + pendingChipInsCents + branchFeeCents;
   const settled = [
     ...registrations.map((r) => r.ledger?.status ?? r.paymentStatus),
     ...contributions.filter((c) => c.registrationId == null).map((c) => c.paymentStatus),
+    ...branchFees.filter((f) => f.collecting || f.status === "paid").map((f) => f.status),
   ];
   const status: "pending" | "paid" | "waived" =
     outstandingCents > 0 || unpaid.length > 0 || pendingChipIns.length > 0
@@ -52,6 +59,6 @@ export function memberBalance<R extends MemberRegistration, C extends MemberCont
         ? "waived"
         : "paid";
   /** Whether the "Submit a payment" form should be offered (no recipient needed: cash is always available). */
-  const canSubmitPayment = status === "pending" && (unpaid.length > 0 || pendingChipIns.length > 0);
-  return { remainingCentsFor, unpaid, pendingChipIns, pendingChipInsCents, outstandingCents, status, canSubmitPayment };
+  const canSubmitPayment = status === "pending" && (unpaid.length > 0 || pendingChipIns.length > 0 || outstandingBranchFees.some((f) => f.status === "unpaid"));
+  return { remainingCentsFor, unpaid, pendingChipIns, pendingChipInsCents, branchFeeCents, outstandingCents, status, canSubmitPayment };
 }

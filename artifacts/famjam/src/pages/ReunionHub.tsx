@@ -130,20 +130,19 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     (sum, c) => sum + c.amount,
     0,
   );
-  const myBalance = memberBalance(myActiveRegistrations, myContributionsData?.contributions ?? [], reunion?.fees ?? []);
-  const remainingFor = (r: (typeof myActiveRegistrations)[number]) => myBalance.remainingCentsFor(r) / 100;
-  const myUnpaidRegistrations = myBalance.unpaid;
-  const myPendingChipIns = myBalance.pendingChipIns;
   // Branch special fees I chose to pay (full fee, once per branch). Independent
   // of registrations: a fee-only member has no attendees but still pays here.
   const myElectionsQ = useListMyBranchFeeElections(reunion?.id ?? 0, {
     query: { enabled: isSignedIn && !!reunion, queryKey: getListMyBranchFeeElectionsQueryKey(reunion?.id ?? 0) },
   });
   const myElections = myElectionsQ.data?.elections ?? [];
+  const myBalance = memberBalance(myActiveRegistrations, myContributionsData?.contributions ?? [], reunion?.fees ?? [], myElections);
+  const remainingFor = (r: (typeof myActiveRegistrations)[number]) => myBalance.remainingCentsFor(r) / 100;
+  const myUnpaidRegistrations = myBalance.unpaid;
+  const myPendingChipIns = myBalance.pendingChipIns;
   const payableBranchFees = myElections
     .filter((e) => e.status === "unpaid" && e.collecting)
     .map((e) => ({ electionId: e.id, branchId: e.branchId, branchName: e.branchName, label: e.label, amountCents: e.amountCents }));
-  const myPendingChipInsTotal = myBalance.pendingChipInsCents / 100;
   const myPaymentStatus = myBalance.status;
   const myOutstandingCents = myBalance.outstandingCents;
   const myOutstandingTotal = myOutstandingCents / 100;
@@ -246,7 +245,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           </div>
         )}
         <div className="relative z-10">
-          {(myRegistration || (myContributionsData?.contributions.length ?? 0) > 0) && (
+          {(myRegistration || (myContributionsData?.contributions.length ?? 0) > 0 || myElections.length > 0) && (
             <button
               type="button"
               onClick={revealPayments}
@@ -370,7 +369,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <div className="flex flex-col gap-6 mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="bg-muted/50 border rounded-3xl p-6">
                   <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-6">Payment Info</h3>
-                  {reunion.fees.length === 0 && myPendingChipIns.length === 0 ? (
+                  {reunion.fees.length === 0 && myPendingChipIns.length === 0 && myElections.length === 0 ? (
                     <p className="text-foreground font-medium">This reunion is free to attend!</p>
                   ) : (
                     <div className="flex flex-col gap-4">
@@ -395,14 +394,6 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                               </div>
                             </div>
                           ))}
-                          {/* Only show chip-in subtotal when there are no registrations;
-                              the account-total row covers it when registrations exist. */}
-                          {myActiveRegistrations.length === 0 && (
-                            <div className="flex justify-between items-baseline gap-3 pb-4 border-b">
-                              <span className="font-bold">Total due</span>
-                              <span className="font-serif text-xl font-bold tabular-nums">{money(Math.round((myPendingChipInsTotal) * 100))}</span>
-                            </div>
-                          )}
                         </>
                       )}
                       {myActiveRegistrations.map((reg) => {
@@ -481,8 +472,14 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                           </div>
                         );
                       })}
-                      {myActiveRegistrations.length > 0 && (
+                      {(myActiveRegistrations.length > 0 || myPendingChipIns.length > 0 || myElections.length > 0) && (
                         <div className="flex flex-col gap-2 pb-4 border-b">
+                          {myBalance.branchFeeCents > 0 && (
+                            <div className="flex justify-between items-baseline gap-3">
+                              <span className="font-medium text-muted-foreground">Branch fee still due</span>
+                              <span className="font-bold tabular-nums">{money(myBalance.branchFeeCents)}</span>
+                            </div>
+                          )}
                           {myContributionsTotal > 0 && (
                             <>
                               <div className="flex justify-between items-baseline gap-3">
