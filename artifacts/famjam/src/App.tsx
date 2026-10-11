@@ -31,6 +31,7 @@ import { OrganizerSchedule } from "./pages/organize/OrganizerSchedule";
 import { OrganizerBranches } from "./pages/organize/OrganizerBranches";
 import { OrganizerBranchFees } from "./pages/organize/OrganizerBranchFees";
 import { OrganizerSettings } from "./pages/organize/OrganizerSettings";
+import { OrganizerHomePage } from "./pages/organize/OrganizerHomePage";
 import { OrganizerSponsorship } from "./pages/organize/OrganizerSponsorship";
 import { OrganizerPolls } from "./pages/organize/OrganizerPolls";
 import { OrganizerActivities } from "./pages/organize/OrganizerActivities";
@@ -318,6 +319,9 @@ function ClerkProviderWithRoutes() {
           </Route>
           <Route path="/organize/:reunionId/settings">
             {(params) => <ProtectedRoute component={() => <OrganizerSettings params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/home-page">
+            {(params) => <ProtectedRoute component={() => <OrganizerHomePage params={params} />} />}
           </Route>
 
           <Route path="/admin" component={() => <ProtectedRoute component={AdminArea} />} />

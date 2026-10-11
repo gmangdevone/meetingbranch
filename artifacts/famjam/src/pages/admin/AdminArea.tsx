@@ -9,7 +9,6 @@ import { Input } from "../../components/ui/input";
 import { format } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { useState } from "react";
-import { HomeContentEditor } from "../../components/HomeContentEditor";
 
 export function AdminArea() {
   const [, setLocation] = useLocation();
@@ -255,8 +254,6 @@ export function AdminArea() {
         </div>
 
         <div className="col-span-1 md:col-span-2 flex flex-col gap-8">
-          <HomeContentEditor reunions={adminReunions} />
-
           <section>
             <h2 className="font-serif text-2xl font-bold mb-4 flex items-center"><CalendarDays className="w-6 h-6 mr-2 text-primary" /> All Reunions</h2>
             <div className="bg-card border shadow-sm rounded-3xl overflow-hidden">

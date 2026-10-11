@@ -35,7 +35,7 @@ function errorMessage(err: unknown, fallback: string): string {
   return e?.data?.error || e?.message || fallback;
 }
 
-export function HomeContentEditor({ reunions }: { reunions: ReunionSummary[] }) {
+export function HomeContentEditor({ reunions, fixedEvent = false }: { reunions: ReunionSummary[]; fixedEvent?: boolean }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | null>(reunions[0]?.reunion.id ?? null);
   const selected = reunions.find((r) => r.reunion.id === selectedId) ?? null;
@@ -185,7 +185,7 @@ export function HomeContentEditor({ reunions }: { reunions: ReunionSummary[] }) 
         <Home className="w-6 h-6 mr-2 text-primary" /> Event Home Page
       </h2>
       <div className="bg-card border shadow-sm rounded-3xl p-6 space-y-6">
-        <div>
+        {!fixedEvent && <div>
           <label htmlFor="home-content-event" className="font-bold text-sm block mb-1.5">Event</label>
           <select
             id="home-content-event"
@@ -202,7 +202,7 @@ export function HomeContentEditor({ reunions }: { reunions: ReunionSummary[] }) 
             ))}
           </select>
           <p className="text-xs text-muted-foreground mt-1">Content is saved per event and shown on that event's hub only.</p>
-        </div>
+        </div>}
 
         {!draft || !selected ? (
           <div className="space-y-3" aria-busy="true">
