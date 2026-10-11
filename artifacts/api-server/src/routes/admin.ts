@@ -1,12 +1,14 @@
 import { serializeFee } from "../lib/fees";
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql, and } from "drizzle-orm";
+import { homeContentInput } from "../lib/homeContent";
 import {
   db,
   registrationsTable,
   attendeesTable,
   usersTable,
   reunionsTable,
+  reunionImagesTable,
   reunionBranchesTable,
   reunionFeesTable,
   reunionOrganizersTable,
@@ -99,6 +101,33 @@ router.get("/admin/setup", requireAuth, async (req, res): Promise<void> => {
 
 // All routes below require auth + platform-admin role
 router.use(attachAuth, requireAdmin);
+
+router.put("/admin/reunions/:reunionId/home-content", async (req, res): Promise<void> => {
+  const reunionId = Number(req.params.reunionId);
+  if (!Number.isSafeInteger(reunionId) || reunionId <= 0) {
+    res.status(400).json({ error: "Invalid event id." });
+    return;
+  }
+  const parsed = homeContentInput.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid content.", fields: parsed.error.flatten().fieldErrors });
+    return;
+  }
+  const [event] = await db.select({ id: reunionsTable.id }).from(reunionsTable).where(eq(reunionsTable.id, reunionId));
+  if (!event) { res.status(404).json({ error: "Event not found." }); return; }
+  if (parsed.data.hotelImageUrl) {
+    const [image] = await db.select({ id: reunionImagesTable.id }).from(reunionImagesTable)
+      .where(and(eq(reunionImagesTable.reunionId, reunionId), eq(reunionImagesTable.objectPath, parsed.data.hotelImageUrl)));
+    if (!image) { res.status(400).json({ error: "Choose a hotel photo from this event's image library." }); return; }
+  }
+  const [saved] = await db.update(reunionsTable).set(parsed.data).where(eq(reunionsTable.id, reunionId)).returning();
+  if (!saved) { res.status(404).json({ error: "Event not found." }); return; }
+  res.json({
+    welcomeHeading: saved.welcomeHeading, welcomeDescription: saved.welcomeDescription,
+    hotelEnabled: saved.hotelEnabled, hotelDescription: saved.hotelDescription,
+    hotelBookingUrl: saved.hotelBookingUrl, hotelImageUrl: saved.hotelImageUrl,
+  });
+});
 
 // ──────────────────────────────────────────────────────────────
 // Platform settings — reunion creation toggle

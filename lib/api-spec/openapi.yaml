@@ -24,6 +24,35 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /admin/reunions/{reunionId}/home-content:
+    put:
+      operationId: adminSaveHomeContent
+      tags: [admin]
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HomeContent"
+      responses:
+        "200":
+          description: Saved home content
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeContent"
+        "400":
+          description: Invalid content
+        "401":
+          description: Unauthorized
+        "403":
+          description: Platform administrator required
+        "404":
+          description: Event not found
   /me/payment-owner:
     get:
       operationId: getMyPaymentOwnerCapability
@@ -2796,6 +2825,28 @@ components:
         type: integer
 
   schemas:
+    HomeContent:
+      type: object
+      additionalProperties: false
+      required: [welcomeHeading, welcomeDescription, hotelEnabled, hotelDescription, hotelBookingUrl, hotelImageUrl]
+      properties:
+        welcomeHeading:
+          type: [string, "null"]
+          maxLength: 160
+        welcomeDescription:
+          type: [string, "null"]
+          maxLength: 5000
+        hotelEnabled:
+          type: boolean
+        hotelDescription:
+          type: [string, "null"]
+          maxLength: 5000
+        hotelBookingUrl:
+          type: [string, "null"]
+          maxLength: 2048
+        hotelImageUrl:
+          type: [string, "null"]
+          maxLength: 512
     PaymentRecipientStatus:
       type: string
       enum: [approved, pending_review, disabled]
@@ -3797,6 +3848,18 @@ components:
         allowRegistrantEdits:
           type: boolean
           description: "When true, registrants may edit their own active registrations."
+        welcomeHeading:
+          type: [string, "null"]
+        welcomeDescription:
+          type: [string, "null"]
+        hotelEnabled:
+          type: boolean
+        hotelDescription:
+          type: [string, "null"]
+        hotelBookingUrl:
+          type: [string, "null"]
+        hotelImageUrl:
+          type: [string, "null"]
         heroImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background."

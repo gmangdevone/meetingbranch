@@ -37,6 +37,17 @@ export interface Reunion {
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
+  /** @nullable */
+  welcomeHeading?: string | null;
+  /** @nullable */
+  welcomeDescription?: string | null;
+  hotelEnabled?: boolean;
+  /** @nullable */
+  hotelDescription?: string | null;
+  /** @nullable */
+  hotelBookingUrl?: string | null;
+  /** @nullable */
+  hotelImageUrl?: string | null;
   /**
      * Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background.
      * @nullable

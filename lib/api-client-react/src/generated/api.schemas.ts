@@ -5,6 +5,35 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+export interface HomeContent {
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  welcomeHeading: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  welcomeDescription: string | null;
+  hotelEnabled: boolean;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  hotelDescription: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  hotelBookingUrl: string | null;
+  /**
+     * @maxLength 512
+     * @nullable
+     */
+  hotelImageUrl: string | null;
+}
+
 /**
  * approved = live destination; pending_review = no owner decision yet (legacy values held for review); disabled = owner turned Cash App off.
  */
@@ -1056,6 +1085,17 @@ export interface Reunion {
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
+  /** @nullable */
+  welcomeHeading?: string | null;
+  /** @nullable */
+  welcomeDescription?: string | null;
+  hotelEnabled?: boolean;
+  /** @nullable */
+  hotelDescription?: string | null;
+  /** @nullable */
+  hotelBookingUrl?: string | null;
+  /** @nullable */
+  hotelImageUrl?: string | null;
   /**
      * Object path of a custom hub hero background image (e.g. /objects/uploads/uuid). Null means the default background.
      * @nullable

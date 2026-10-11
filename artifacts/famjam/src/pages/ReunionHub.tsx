@@ -23,6 +23,9 @@ import { SubmitPayment } from "../components/SubmitPayment";
 import { memberBalance } from "../lib/memberBalance";
 import { useEffect, useRef } from "react";
 import { money } from "../components/payments/money";
+import { PlainText } from "../components/PlainText";
+import { HotelBlock } from "../components/HotelBlock";
+import { DEFAULT_WELCOME_HEADING, defaultWelcomeDescription } from "../lib/homeContent";
 
 /**
  * Cross-fading hero background slideshow. With a single image it renders it
@@ -335,11 +338,16 @@ export function ReunionHub({ params }: { params: { code: string } }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="bg-card border shadow-sm rounded-3xl p-8">
-            <h2 className="font-serif text-2xl font-bold mb-4">Welcome to the Hub</h2>
-            <p className="text-muted-foreground text-lg mb-8">
-              This is the central location for everything related to {reunion.name}. {reunion.registrationsOpen ? "Be sure to register your household so we have a final headcount for food and activities!" : "Registration is currently closed."}
-            </p>
-            
+            <h2 data-testid="text-welcome-heading" className="font-serif text-2xl font-bold mb-4">{reunion.welcomeHeading?.trim() || DEFAULT_WELCOME_HEADING}</h2>
+            <PlainText
+              text={reunion.welcomeDescription?.trim() ? reunion.welcomeDescription : defaultWelcomeDescription(reunion.name, reunion.registrationsOpen)}
+              className="text-muted-foreground text-lg mb-8"
+            />
+            {reunion.welcomeDescription?.trim() && !reunion.registrationsOpen && (
+              <p className="text-muted-foreground text-lg -mt-5 mb-8">Registration is currently closed.</p>
+            )}
+            <HotelBlock content={reunion} />
+
             {reunion.registrationsOpen ? (
               <Link href={eventCodePath(reunion.code, "/register")} className="block w-full">
                 <Button className="w-full rounded-2xl py-8 text-xl font-bold shadow-md hover:-translate-y-1 transition-all group">

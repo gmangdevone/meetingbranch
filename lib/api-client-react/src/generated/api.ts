@@ -54,6 +54,7 @@ import type {
   EventMembership,
   FeeInput,
   HealthStatus,
+  HomeContent,
   ManageActivityChoice,
   ManagePoll,
   ManagedRegistrationInput,
@@ -147,6 +148,72 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getAdminSaveHomeContentUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/admin/reunions/${reunionId}/home-content`
+}
+
+export const adminSaveHomeContent = async (reunionId: number,
+    homeContent: HomeContent, options?: RequestInit): Promise<HomeContent> => {
+
+  return customFetch<HomeContent>(getAdminSaveHomeContentUrl(reunionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(homeContent)
+  }
+);}
+
+
+
+
+
+export const getAdminSaveHomeContentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSaveHomeContent>>, TError,{reunionId: number;data: BodyType<HomeContent>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adminSaveHomeContent>>, TError,{reunionId: number;data: BodyType<HomeContent>}, TContext> => {
+
+const mutationKey = ['adminSaveHomeContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adminSaveHomeContent>>, {reunionId: number;data: BodyType<HomeContent>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  adminSaveHomeContent(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdminSaveHomeContentMutationResult = NonNullable<Awaited<ReturnType<typeof adminSaveHomeContent>>>
+    export type AdminSaveHomeContentMutationBody = BodyType<HomeContent>
+    export type AdminSaveHomeContentMutationError = ErrorType<void>
+
+    export const useAdminSaveHomeContent = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adminSaveHomeContent>>, TError,{reunionId: number;data: BodyType<HomeContent>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adminSaveHomeContent>>,
+        TError,
+        {reunionId: number;data: BodyType<HomeContent>},
+        TContext
+      > => {
+      return useMutation(getAdminSaveHomeContentMutationOptions(options));
+    }
 
 export const getGetMyPaymentOwnerCapabilityUrl = () => {
 

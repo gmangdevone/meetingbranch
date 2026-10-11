@@ -20,6 +20,12 @@ export const reunionsTable = pgTable(
     registrationsOpen: boolean("registrations_open").notNull().default(true),
     allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
     heroImageUrl: text("hero_image_url"),
+    welcomeHeading: text("welcome_heading"),
+    welcomeDescription: text("welcome_description"),
+    hotelEnabled: boolean("hotel_enabled").notNull().default(false),
+    hotelDescription: text("hotel_description"),
+    hotelBookingUrl: text("hotel_booking_url"),
+    hotelImageUrl: text("hotel_image_url"),
     // Ordered hero slideshow images (object paths, max 5 enforced at the API).
     // Empty array means "use heroImageUrl (legacy single image) or the default look".
     heroImageUrls: text("hero_image_urls").array().notNull().default([]),

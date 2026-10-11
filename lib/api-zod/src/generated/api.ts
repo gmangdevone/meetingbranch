@@ -8,6 +8,53 @@
 import * as zod from 'zod';
 
 
+export const AdminSaveHomeContentParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const adminSaveHomeContentBodyWelcomeHeadingMax = 160;
+
+export const adminSaveHomeContentBodyWelcomeDescriptionMax = 5000;
+
+export const adminSaveHomeContentBodyHotelDescriptionMax = 5000;
+
+export const adminSaveHomeContentBodyHotelBookingUrlMax = 2048;
+
+export const adminSaveHomeContentBodyHotelImageUrlMax = 512;
+
+
+
+export const AdminSaveHomeContentBody = zod.object({
+  "welcomeHeading": zod.string().max(adminSaveHomeContentBodyWelcomeHeadingMax).nullable(),
+  "welcomeDescription": zod.string().max(adminSaveHomeContentBodyWelcomeDescriptionMax).nullable(),
+  "hotelEnabled": zod.boolean(),
+  "hotelDescription": zod.string().max(adminSaveHomeContentBodyHotelDescriptionMax).nullable(),
+  "hotelBookingUrl": zod.string().max(adminSaveHomeContentBodyHotelBookingUrlMax).nullable(),
+  "hotelImageUrl": zod.string().max(adminSaveHomeContentBodyHotelImageUrlMax).nullable()
+})
+
+export const adminSaveHomeContentResponseWelcomeHeadingMax = 160;
+
+export const adminSaveHomeContentResponseWelcomeDescriptionMax = 5000;
+
+export const adminSaveHomeContentResponseHotelDescriptionMax = 5000;
+
+export const adminSaveHomeContentResponseHotelBookingUrlMax = 2048;
+
+export const adminSaveHomeContentResponseHotelImageUrlMax = 512;
+
+
+
+export const AdminSaveHomeContentResponse = zod.object({
+  "welcomeHeading": zod.string().max(adminSaveHomeContentResponseWelcomeHeadingMax).nullable(),
+  "welcomeDescription": zod.string().max(adminSaveHomeContentResponseWelcomeDescriptionMax).nullable(),
+  "hotelEnabled": zod.boolean(),
+  "hotelDescription": zod.string().max(adminSaveHomeContentResponseHotelDescriptionMax).nullable(),
+  "hotelBookingUrl": zod.string().max(adminSaveHomeContentResponseHotelBookingUrlMax).nullable(),
+  "hotelImageUrl": zod.string().max(adminSaveHomeContentResponseHotelImageUrlMax).nullable()
+})
+
+
 /**
  * @summary Whether the signed-in user is the configured platform payment owner (independent of isAdmin)
  */
@@ -441,6 +488,12 @@ export const CreateReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "welcomeHeading": zod.string().nullish(),
+  "welcomeDescription": zod.string().nullish(),
+  "hotelEnabled": zod.boolean().optional(),
+  "hotelDescription": zod.string().nullish(),
+  "hotelBookingUrl": zod.string().nullish(),
+  "hotelImageUrl": zod.string().nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
   "heroImageUrls": zod.array(zod.string()).max(createReunionResponseHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
   "heroRotationSeconds": zod.number().min(createReunionResponseHeroRotationSecondsMin).max(createReunionResponseHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
@@ -524,6 +577,12 @@ export const ListMyReunionsResponseItem = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "welcomeHeading": zod.string().nullish(),
+  "welcomeDescription": zod.string().nullish(),
+  "hotelEnabled": zod.boolean().optional(),
+  "hotelDescription": zod.string().nullish(),
+  "hotelBookingUrl": zod.string().nullish(),
+  "hotelImageUrl": zod.string().nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
   "heroImageUrls": zod.array(zod.string()).max(listMyReunionsResponseReunionHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
   "heroRotationSeconds": zod.number().min(listMyReunionsResponseReunionHeroRotationSecondsMin).max(listMyReunionsResponseReunionHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
@@ -645,6 +704,12 @@ export const GetReunionByCodeResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "welcomeHeading": zod.string().nullish(),
+  "welcomeDescription": zod.string().nullish(),
+  "hotelEnabled": zod.boolean().optional(),
+  "hotelDescription": zod.string().nullish(),
+  "hotelBookingUrl": zod.string().nullish(),
+  "hotelImageUrl": zod.string().nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
   "heroImageUrls": zod.array(zod.string()).max(getReunionByCodeResponseHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
   "heroRotationSeconds": zod.number().min(getReunionByCodeResponseHeroRotationSecondsMin).max(getReunionByCodeResponseHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
@@ -732,6 +797,12 @@ export const GetReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "welcomeHeading": zod.string().nullish(),
+  "welcomeDescription": zod.string().nullish(),
+  "hotelEnabled": zod.boolean().optional(),
+  "hotelDescription": zod.string().nullish(),
+  "hotelBookingUrl": zod.string().nullish(),
+  "hotelImageUrl": zod.string().nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
   "heroImageUrls": zod.array(zod.string()).max(getReunionResponseReunionHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
   "heroRotationSeconds": zod.number().min(getReunionResponseReunionHeroRotationSecondsMin).max(getReunionResponseReunionHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
@@ -858,6 +929,12 @@ export const UpdateReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "welcomeHeading": zod.string().nullish(),
+  "welcomeDescription": zod.string().nullish(),
+  "hotelEnabled": zod.boolean().optional(),
+  "hotelDescription": zod.string().nullish(),
+  "hotelBookingUrl": zod.string().nullish(),
+  "hotelImageUrl": zod.string().nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
   "heroImageUrls": zod.array(zod.string()).max(updateReunionResponseHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
   "heroRotationSeconds": zod.number().min(updateReunionResponseHeroRotationSecondsMin).max(updateReunionResponseHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
@@ -3674,6 +3751,12 @@ export const AdminListReunionsResponseItem = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "welcomeHeading": zod.string().nullish(),
+  "welcomeDescription": zod.string().nullish(),
+  "hotelEnabled": zod.boolean().optional(),
+  "hotelDescription": zod.string().nullish(),
+  "hotelBookingUrl": zod.string().nullish(),
+  "hotelImageUrl": zod.string().nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image (e.g. \/objects\/uploads\/uuid). Null means the default background.'),
   "heroImageUrls": zod.array(zod.string()).max(adminListReunionsResponseReunionHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Empty means no slideshow; heroImageUrl\/default applies.'),
   "heroRotationSeconds": zod.number().min(adminListReunionsResponseReunionHeroRotationSecondsMin).max(adminListReunionsResponseReunionHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),

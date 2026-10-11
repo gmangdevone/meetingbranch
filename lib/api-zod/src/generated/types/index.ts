@@ -59,6 +59,7 @@ export * from './feeInput';
 export * from './financeSummary';
 export * from './groupCount';
 export * from './healthStatus';
+export * from './homeContent';
 export * from './ledgerEntry';
 export * from './ledgerEntryKind';
 export * from './ledgerReversal';
