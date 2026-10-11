@@ -47,13 +47,13 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Hub
       </Button>
 
-      <div className="mb-10 flex items-center gap-4 rounded-3xl border border-[#e5e0d5] bg-[#F7F4ED] p-6 shadow-sm">
+      <div className="mb-10 flex items-center gap-4 rounded-3xl border border-blue-800 bg-gradient-to-r from-[#12345B] via-[#245D8C] to-[#8EC5ED] p-6 shadow-sm">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
           <Bell className="w-8 h-8" />
         </div>
         <div>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-slate-950">Announcements</h1>
-          <p className="text-slate-600">News and updates for {reunion.name}</p>
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-white">Announcements</h1>
+          <p className="text-white">News and updates for {reunion.name}</p>
         </div>
       </div>
 
