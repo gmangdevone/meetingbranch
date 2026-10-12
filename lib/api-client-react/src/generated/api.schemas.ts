@@ -380,10 +380,27 @@ export interface CancelRegistrationInput {
   resolution?: CancelRegistrationInputResolution;
 }
 
+/**
+ * @nullable
+ */
+export type AttendeeInputShirtSize = typeof AttendeeInputShirtSize[keyof typeof AttendeeInputShirtSize] | null;
+
+
+export const AttendeeInputShirtSize = {
+  XS: 'XS',
+  S: 'S',
+  M: 'M',
+  L: 'L',
+  XL: 'XL',
+  '2XL': '2XL',
+  '3XL': '3XL',
+} as const;
+
 export interface AttendeeInput {
   /** @minLength 1 */
   name: string;
-  shirtSize: ShirtSize;
+  /** @nullable */
+  shirtSize?: AttendeeInputShirtSize;
   dietaryRestrictions?: string;
   /**
      * @minimum 0
@@ -1399,13 +1416,30 @@ export interface BranchInput {
   sortOrder?: number;
 }
 
+/**
+ * @nullable
+ */
+export type AttendeeShirtSize = typeof AttendeeShirtSize[keyof typeof AttendeeShirtSize] | null;
+
+
+export const AttendeeShirtSize = {
+  XS: 'XS',
+  S: 'S',
+  M: 'M',
+  L: 'L',
+  XL: 'XL',
+  '2XL': '2XL',
+  '3XL': '3XL',
+} as const;
+
 export interface Attendee {
   id: number;
   /** Whether this attendee is charged dinner-classified fees. */
   includeDinner: boolean;
   registrationId: number;
   name: string;
-  shirtSize: ShirtSize;
+  /** @nullable */
+  shirtSize: AttendeeShirtSize;
   /** @nullable */
   dietaryRestrictions?: string | null;
   /** @nullable */

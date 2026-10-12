@@ -30,6 +30,8 @@ export * from './announcementInput';
 export * from './attachedContributionLedger';
 export * from './attendee';
 export * from './attendeeInput';
+export * from './attendeeInputShirtSize';
+export * from './attendeeShirtSize';
 export * from './branchFeeElectionInput';
 export * from './branchFeeElectionSummary';
 export * from './branchFeeElectionSummaryStatus';

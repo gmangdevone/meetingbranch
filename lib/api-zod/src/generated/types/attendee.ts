@@ -5,7 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { ShirtSize } from './shirtSize';
+import type { AttendeeShirtSize } from './attendeeShirtSize';
 
 export interface Attendee {
   id: number;
@@ -13,7 +13,8 @@ export interface Attendee {
   includeDinner: boolean;
   registrationId: number;
   name: string;
-  shirtSize: ShirtSize;
+  /** @nullable */
+  shirtSize: AttendeeShirtSize;
   /** @nullable */
   dietaryRestrictions?: string | null;
   /** @nullable */

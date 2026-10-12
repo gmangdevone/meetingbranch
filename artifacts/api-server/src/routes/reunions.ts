@@ -1299,7 +1299,7 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
         })
         .from(attendeesTable)
         .innerJoin(registrationsTable, eq(attendeesTable.registrationId, registrationsTable.id))
-        .where(activeInReunion(reunionId))
+        .where(and(activeInReunion(reunionId), sql`${attendeesTable.shirtSize} is not null`))
         .groupBy(attendeesTable.shirtSize)
         .orderBy(attendeesTable.shirtSize),
       db

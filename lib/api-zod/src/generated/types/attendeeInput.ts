@@ -5,12 +5,13 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
-import type { ShirtSize } from './shirtSize';
+import type { AttendeeInputShirtSize } from './attendeeInputShirtSize';
 
 export interface AttendeeInput {
   /** @minLength 1 */
   name: string;
-  shirtSize: ShirtSize;
+  /** @nullable */
+  shirtSize?: AttendeeInputShirtSize;
   dietaryRestrictions?: string;
   /**
      * @minimum 0

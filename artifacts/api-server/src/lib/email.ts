@@ -7,7 +7,7 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY ?? null;
 
 interface AttendeeInfo {
   name: string;
-  shirtSize: string;
+  shirtSize: string | null;
   dietaryRestrictions?: string | null;
   age?: number | null;
   includeDinner?: boolean | null;
@@ -138,7 +138,7 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
       (a, i) => `
       <tr style="background:${i % 2 === 0 ? "#f9fafb" : "#ffffff"}">
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.name}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">${a.shirtSize}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">${a.shirtSize || "—"}</td>
         <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.dietaryRestrictions || "None"}${hasDinner && a.includeDinner === false ? " (no dinner)" : ""}</td>
       </tr>`,
     )

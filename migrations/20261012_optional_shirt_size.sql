@@ -1,0 +1,1 @@
+ALTER TABLE attendees ALTER COLUMN shirt_size DROP NOT NULL;

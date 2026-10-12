@@ -28,7 +28,7 @@ const formSchema = z.object({
   branchName: z.string().min(1, "Please select your family branch"),
   attendees: z.array(z.object({
     name: z.string().trim().min(1, "Name is required"),
-    shirtSize: z.enum(SHIRT_SIZES, { required_error: "Shirt size is required" }),
+    shirtSize: z.enum(SHIRT_SIZES).nullable().optional(),
     dietaryRestrictions: z.string().optional(),
     age: z.preprocess((value) => value == null || String(value).trim() === "" ? undefined : value,
       z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age")),
@@ -73,7 +73,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
     resolver: zodResolver(formSchema),
     defaultValues: {
       branchName: "",
-      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true }],
+      attendees: [{ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true }],
     },
   });
 
@@ -427,28 +427,6 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                         )}
                       />
                       
-                      <FormField
-                        control={form.control}
-                        name={`attendees.${index}.shirtSize`}
-                        render={({ field: inputField }) => (
-                          <FormItem>
-                            <FormLabel>T-Shirt Size</FormLabel>
-                            <Select onValueChange={inputField.onChange} value={inputField.value}>
-                              <FormControl>
-                                <SelectTrigger className="rounded-xl bg-muted/50 border-transparent focus:border-primary">
-                                  <SelectValue placeholder="Size" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {SHIRT_SIZES.map(size => (
-                                  <SelectItem key={size} value={size}>{size}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       
                       <FormField
                         control={form.control}
@@ -524,7 +502,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true })}
+                  onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true })}
                   className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
                 >
                   <Plus className="mr-2 w-5 h-5" /> Add Another Person

@@ -99,6 +99,8 @@ describe("registration dinner opt-out", () => {
     fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
     await waitFor(() => expect(h.create).toHaveBeenCalled());
     const sent = h.create.mock.calls[0][0].data.attendees;
+    expect(screen.queryByText("T-Shirt Size")).toBeNull();
+    expect(sent.every((a: { shirtSize?: string | null }) => a.shirtSize == null)).toBe(true);
     expect(sent.map((a: { includeDinner: boolean }) => a.includeDinner)).toEqual([true, false]);
   });
 

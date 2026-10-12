@@ -60,7 +60,7 @@ export const attendeesTable = pgTable("attendees", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   registrationId: integer("registration_id").notNull(),
   name: text("name").notNull(),
-  shirtSize: shirtSizeEnum("shirt_size").notNull(),
+  shirtSize: shirtSizeEnum("shirt_size"),
   dietaryRestrictions: text("dietary_restrictions"),
   // Age at registration; nullable (legacy rows + optional). Used for age-tiered fees.
   age: integer("age"),

@@ -4241,13 +4241,14 @@ components:
 
     AttendeeInput:
       type: object
-      required: [name, shirtSize]
+      required: [name]
       properties:
         name:
           type: string
           minLength: 1
         shirtSize:
-          $ref: "#/components/schemas/ShirtSize"
+          type: ["string", "null"]
+          enum: [XS, S, M, L, XL, "2XL", "3XL", null]
         dietaryRestrictions:
           type: string
         age:
@@ -4272,7 +4273,8 @@ components:
         name:
           type: string
         shirtSize:
-          $ref: "#/components/schemas/ShirtSize"
+          type: ["string", "null"]
+          enum: [XS, S, M, L, XL, "2XL", "3XL", null]
         dietaryRestrictions:
           type: ["string", "null"]
         age:

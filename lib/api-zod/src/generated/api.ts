@@ -1447,7 +1447,7 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -1478,7 +1478,7 @@ export const CreateManagedRegistrationBody = zod.object({
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
   "name": zod.string().min(1),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullish(),
   "dietaryRestrictions": zod.string().optional(),
   "age": zod.number().min(createManagedRegistrationBodyAttendeesItemAgeMin).nullish(),
   "includeDinner": zod.boolean().default(createManagedRegistrationBodyAttendeesItemIncludeDinnerDefault).describe('False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true).')
@@ -1524,7 +1524,7 @@ export const CreateManagedRegistrationResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -1593,7 +1593,7 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -2074,7 +2074,7 @@ export const CancelRegistrationResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -2100,7 +2100,7 @@ export const SetAttendeeCheckInResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -3078,7 +3078,7 @@ export const CreateRegistrationBody = zod.object({
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
   "name": zod.string().min(1),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullish(),
   "dietaryRestrictions": zod.string().optional(),
   "age": zod.number().min(createRegistrationBodyAttendeesItemAgeMin).nullish(),
   "includeDinner": zod.boolean().default(createRegistrationBodyAttendeesItemIncludeDinnerDefault).describe('False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true).')
@@ -3124,7 +3124,7 @@ export const CreateRegistrationResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -3173,7 +3173,7 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -3227,7 +3227,7 @@ export const GetRegistrationResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -3255,7 +3255,7 @@ export const UpdateRegistrationBody = zod.object({
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
   "name": zod.string().min(1),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullish(),
   "dietaryRestrictions": zod.string().optional(),
   "age": zod.number().min(updateRegistrationBodyAttendeesItemAgeMin).nullish(),
   "includeDinner": zod.boolean().default(updateRegistrationBodyAttendeesItemIncludeDinnerDefault).describe('False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true).')
@@ -3300,7 +3300,7 @@ export const UpdateRegistrationResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
@@ -3365,7 +3365,7 @@ export const TransferRegistrationResponse = zod.object({
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
   "name": zod.string(),
-  "shirtSize": zod.enum(['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL']),
+  "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullable(),
   "dietaryRestrictions": zod.string().nullish(),
   "age": zod.number().nullish(),
   "checkedInAt": zod.coerce.date().nullish().describe('When the attendee was checked in at the event; null if not checked in.')
