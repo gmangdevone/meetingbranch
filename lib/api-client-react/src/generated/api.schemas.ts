@@ -271,18 +271,48 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type PlatformSettingsContentTextSize = typeof PlatformSettingsContentTextSize[keyof typeof PlatformSettingsContentTextSize];
+
+
+export const PlatformSettingsContentTextSize = {
+  standard: 'standard',
+  larger: 'larger',
+  largest: 'largest',
+} as const;
+
 export interface PlatformSettings {
+  contentTextSize?: PlatformSettingsContentTextSize;
   reunionCreationEnabled: boolean;
   signInsLocked: boolean;
 }
 
+export type AdminPlatformSettingsContentTextSize = typeof AdminPlatformSettingsContentTextSize[keyof typeof AdminPlatformSettingsContentTextSize];
+
+
+export const AdminPlatformSettingsContentTextSize = {
+  standard: 'standard',
+  larger: 'larger',
+  largest: 'largest',
+} as const;
+
 export interface AdminPlatformSettings {
+  contentTextSize?: AdminPlatformSettingsContentTextSize;
   reunionCreationEnabled: boolean;
   signInsLocked: boolean;
   testerEmails: string[];
 }
 
+export type AdminSettingsUpdateInputContentTextSize = typeof AdminSettingsUpdateInputContentTextSize[keyof typeof AdminSettingsUpdateInputContentTextSize];
+
+
+export const AdminSettingsUpdateInputContentTextSize = {
+  standard: 'standard',
+  larger: 'larger',
+  largest: 'largest',
+} as const;
+
 export interface AdminSettingsUpdateInput {
+  contentTextSize?: AdminSettingsUpdateInputContentTextSize;
   reunionCreationEnabled?: boolean;
   signInsLocked?: boolean;
   /** @items.minLength 3 */

@@ -127,7 +127,7 @@ export function Nav() {
             <Link key={link.href} href={link.href}
               style={{
                 fontWeight: 700,
-                fontSize: "0.875rem",
+                fontSize: "var(--text-sm)",
                 color: isActive(link.href) ? "var(--fj-brand)" : "var(--fj-ink-soft)",
                 transition: "color 0.15s",
               }}>
@@ -140,7 +140,7 @@ export function Nav() {
               className="flex items-center gap-1"
               style={{
                 fontWeight: 700,
-                fontSize: "0.875rem",
+                fontSize: "var(--text-sm)",
                 color: isActive("/admin") ? "var(--fj-brand)" : "var(--fj-ink-soft)",
               }}>
               <Shield style={{ width: 14, height: 14 }} /> Admin
@@ -152,7 +152,7 @@ export function Nav() {
               className="flex items-center gap-1"
               style={{
                 fontWeight: 700,
-                fontSize: "0.875rem",
+                fontSize: "var(--text-sm)",
                 color: isActive("/owner/payment-recipients") ? "var(--fj-brand)" : "var(--fj-ink-soft)",
               }}>
               <Wallet style={{ width: 14, height: 14 }} /> Payment recipients
@@ -170,7 +170,7 @@ export function Nav() {
                   background: menuOpen ? "var(--fj-sky)" : "transparent",
                   border: "1.5px solid var(--fj-line)",
                   fontWeight: 700,
-                  fontSize: "0.875rem",
+                  fontSize: "var(--text-sm)",
                   color: "var(--fj-ink)",
                 }}
               >
@@ -226,7 +226,7 @@ export function Nav() {
                 background: "var(--fj-accent)",
                 color: "var(--fj-brand-deep)",
                 fontWeight: 800,
-                fontSize: "0.875rem",
+                fontSize: "var(--text-sm)",
                 borderRadius: "var(--fj-r-btn)",
                 boxShadow: "0 2px 0 var(--fj-accent-shadow)",
               }}>
@@ -239,7 +239,7 @@ export function Nav() {
       {/* ── Mobile Dev Badge (top of screen) ────────────────────────── */}
       {isDevEnvironment && (
         <div
-          className="md:hidden fixed top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+          className="md:hidden flex justify-center py-2 pointer-events-none"
           style={{ paddingTop: "env(safe-area-inset-top)" }}
         >
           <DevBadge />
@@ -275,7 +275,7 @@ export function Nav() {
                 />
                 <span
                   style={{
-                    fontSize: "10.5px",
+                    fontSize: "calc(10.5px * var(--content-text-scale))",
                     fontWeight: 800,
                     marginTop: 3,
                     color: active ? "#ffffff" : "#9EBDD6",
@@ -298,7 +298,7 @@ export function Nav() {
                 className="flex flex-col items-center py-1 px-2 min-w-[44px] min-h-[44px] justify-center"
               >
                 <User style={{ width: 20, height: 20, color: mobileMenuOpen ? "var(--fj-accent-soft)" : "#9EBDD6" }} />
-                <span style={{ fontSize: "10.5px", fontWeight: 800, marginTop: 3, color: mobileMenuOpen ? "#fff" : "#9EBDD6", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: "calc(10.5px * var(--content-text-scale))", fontWeight: 800, marginTop: 3, color: mobileMenuOpen ? "#fff" : "#9EBDD6", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {shortName}
                 </span>
               </button>

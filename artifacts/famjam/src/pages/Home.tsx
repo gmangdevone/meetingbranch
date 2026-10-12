@@ -44,7 +44,7 @@ export function Home() {
 
         {/* Copy */}
         <div className="flex flex-col items-center text-center px-6 pt-4 gap-3">
-          <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--fj-accent-soft)" }}>
+          <p style={{ fontSize: "calc(11px * var(--content-text-scale))", fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--fj-accent-soft)" }}>
             Family Reunion Hub
           </p>
           <h1
@@ -60,10 +60,10 @@ export function Home() {
           >
             Gather your people.
           </h1>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "#9EBDD6", maxWidth: 340, lineHeight: 1.5 }}>
+          <p style={{ fontSize: "calc(15px * var(--content-text-scale))", fontWeight: 600, color: "#9EBDD6", maxWidth: 340, lineHeight: 1.5 }}>
             Spin up a hub, share an Event Code, get the headcount — all in one place.
           </p>
-          <div className="flex items-center gap-1 mt-1" style={{ color: "#9EBDD6", fontSize: 13, fontWeight: 700 }}>
+          <div className="flex items-center gap-1 mt-1" style={{ color: "#9EBDD6", fontSize: "calc(13px * var(--content-text-scale))", fontWeight: 700 }}>
             <MapPin style={{ width: 14, height: 14 }} />
             <span>Wherever family gathers</span>
           </div>
@@ -82,7 +82,7 @@ export function Home() {
             boxShadow: "0 2px 0 var(--fj-accent-shadow)",
             color: "var(--fj-brand-deep)",
             fontWeight: 800,
-            fontSize: 16,
+            fontSize: "var(--text-base)",
             textDecoration: "none",
           }}
         >
@@ -90,7 +90,7 @@ export function Home() {
             <Key style={{ width: 20, height: 20 }} />
             <div>
               <div style={{ fontWeight: 800 }}>Join a Reunion</div>
-              <div style={{ fontWeight: 600, fontSize: 12, opacity: 0.7 }}>Got an Event Code?</div>
+              <div style={{ fontWeight: 600, fontSize: "var(--text-xs)", opacity: 0.7 }}>Got an Event Code?</div>
             </div>
           </div>
           <ArrowRight style={{ width: 18, height: 18 }} />
@@ -108,7 +108,7 @@ export function Home() {
               boxShadow: "var(--fj-shadow-card)",
               color: "var(--fj-brand)",
               fontWeight: 800,
-              fontSize: 16,
+              fontSize: "var(--text-base)",
               textDecoration: "none",
             }}
           >
@@ -116,7 +116,7 @@ export function Home() {
               <CalendarDays style={{ width: 20, height: 20, color: "var(--fj-brand)" }} />
               <div>
                 <div style={{ fontWeight: 800, color: "var(--fj-ink)" }}>Create a Reunion</div>
-                <div style={{ fontWeight: 600, fontSize: 12, color: "var(--fj-ink-soft)" }}>Start organizing your family event</div>
+                <div style={{ fontWeight: 600, fontSize: "var(--text-xs)", color: "var(--fj-ink-soft)" }}>Start organizing your family event</div>
               </div>
             </div>
             <ArrowRight style={{ width: 18, height: 18, color: "var(--fj-brand)" }} />
@@ -140,7 +140,7 @@ export function Home() {
               <Users style={{ width: 20, height: 20, color: "var(--fj-brand)" }} />
               <div>
                 <div style={{ fontWeight: 800, color: "var(--fj-ink)" }}>My Reunions</div>
-                <div style={{ fontWeight: 600, fontSize: 12, color: "var(--fj-ink-soft)" }}>View your registrations & events</div>
+                <div style={{ fontWeight: 600, fontSize: "var(--text-xs)", color: "var(--fj-ink-soft)" }}>View your registrations & events</div>
               </div>
             </div>
             <ArrowRight style={{ width: 18, height: 18, color: "var(--fj-brand)" }} />
@@ -150,7 +150,7 @@ export function Home() {
 
       {/* ── Quick-feature tiles ───────────────────────────────────────── */}
       <section className="px-5 mt-8">
-        <p style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--fj-accent)", marginBottom: 12 }}>
+        <p style={{ fontSize: "calc(11px * var(--content-text-scale))", fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", color: "var(--fj-accent)", marginBottom: 12 }}>
           Everything you need
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -181,8 +181,8 @@ export function Home() {
               >
                 <Icon style={{ width: 18, height: 18, color: "var(--fj-brand)" }} />
               </div>
-              <div style={{ fontWeight: 800, fontSize: 13, color: "var(--fj-ink)" }}>{title}</div>
-              <div style={{ fontWeight: 600, fontSize: 11, color: "var(--fj-ink-soft)", lineHeight: 1.4 }}>{desc}</div>
+              <div style={{ fontWeight: 800, fontSize: "calc(13px * var(--content-text-scale))", color: "var(--fj-ink)" }}>{title}</div>
+              <div style={{ fontWeight: 600, fontSize: "calc(11px * var(--content-text-scale))", color: "var(--fj-ink-soft)", lineHeight: 1.4 }}>{desc}</div>
             </div>
           ))}
         </div>

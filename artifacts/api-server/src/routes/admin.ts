@@ -138,6 +138,7 @@ router.get("/admin/settings", async (_req, res): Promise<void> => {
     reunionCreationEnabled: settings.reunionCreationEnabled,
     signInsLocked: settings.signInsLocked,
     testerEmails: settings.testerEmails,
+    contentTextSize: settings.contentTextSize,
   });
 });
 
@@ -147,12 +148,13 @@ router.patch("/admin/settings", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
-  const { reunionCreationEnabled, signInsLocked, testerEmails } = body.data;
+  const { reunionCreationEnabled, signInsLocked, testerEmails, contentTextSize } = body.data;
   const current = await getOrCreateSettings();
   const [saved] = await db
     .update(appSettingsTable)
     .set({
       ...(reunionCreationEnabled === undefined ? {} : { reunionCreationEnabled }),
+      ...(contentTextSize === undefined ? {} : { contentTextSize }),
       ...(signInsLocked === undefined ? {} : { signInsLocked }),
       ...(testerEmails === undefined
         ? {}
@@ -172,6 +174,7 @@ router.patch("/admin/settings", async (req, res): Promise<void> => {
     reunionCreationEnabled: saved.reunionCreationEnabled,
     signInsLocked: saved.signInsLocked,
     testerEmails: saved.testerEmails,
+    contentTextSize: saved.contentTextSize,
   });
 });
 

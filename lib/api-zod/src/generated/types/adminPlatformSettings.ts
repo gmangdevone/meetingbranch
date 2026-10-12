@@ -5,8 +5,10 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AdminPlatformSettingsContentTextSize } from './adminPlatformSettingsContentTextSize';
 
 export interface AdminPlatformSettings {
+  contentTextSize?: AdminPlatformSettingsContentTextSize;
   reunionCreationEnabled: boolean;
   signInsLocked: boolean;
   testerEmails: string[];

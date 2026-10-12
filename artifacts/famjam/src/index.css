@@ -8,6 +8,51 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Scale content tokens, not the root rem: spacing and heading sizes stay stable.
+   These tokens also reach portaled dialogs and menus. */
+:root, [data-content-text-size] {
+  --content-text-scale: 1.125;
+  --text-xs: calc(0.75rem * var(--content-text-scale));
+  --text-sm: calc(0.875rem * var(--content-text-scale));
+  --text-base: calc(1rem * var(--content-text-scale));
+  --text-lg: calc(1.125rem * var(--content-text-scale));
+  --text-xl: calc(1.25rem * var(--content-text-scale));
+  --text-2xl: calc(1.5rem * var(--content-text-scale));
+  --text-3xl: calc(1.875rem * var(--content-text-scale));
+  --text-4xl: calc(2.25rem * var(--content-text-scale));
+  --text-5xl: calc(3rem * var(--content-text-scale));
+  --text-6xl: calc(3.75rem * var(--content-text-scale));
+  --text-7xl: calc(4.5rem * var(--content-text-scale));
+  --text-8xl: calc(6rem * var(--content-text-scale));
+  --text-9xl: calc(8rem * var(--content-text-scale));
+}
+[data-content-text-size="standard"] { --content-text-scale: 1; }
+[data-content-text-size="largest"] { --content-text-scale: 1.25; }
+body, .content-text-preview { font-size: var(--text-base); }
+:is(h1, h2, h3, h4, h5, h6, [role="heading"]) {
+  --content-text-scale: 1;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+  --text-6xl: 3.75rem;
+  --text-7xl: 4.5rem;
+  --text-8xl: 6rem;
+  --text-9xl: 8rem;
+}
+[class~="text-[10px]"] { font-size: calc(10px * var(--content-text-scale)); }
+[class~="text-[11px]"] { font-size: calc(11px * var(--content-text-scale)); }
+[class~="text-[15px]"] { font-size: calc(15px * var(--content-text-scale)); }
+/* Let interactive controls grow with text instead of clipping it. */
+button:not(:has(> svg:only-child)) { white-space: normal; }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+select { min-height: 2.5em; }
+
 /* Keep account settings above the app navigation and inside a phone viewport. */
 .meeting-profile-backdrop {
   z-index: 100;

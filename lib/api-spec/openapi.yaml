@@ -3082,6 +3082,9 @@ components:
       type: object
       required: [reunionCreationEnabled, signInsLocked]
       properties:
+        contentTextSize:
+          type: string
+          enum: [standard, larger, largest]
         reunionCreationEnabled:
           type: boolean
         signInsLocked:
@@ -3091,6 +3094,9 @@ components:
       type: object
       required: [reunionCreationEnabled, signInsLocked, testerEmails]
       properties:
+        contentTextSize:
+          type: string
+          enum: [standard, larger, largest]
         reunionCreationEnabled:
           type: boolean
         signInsLocked:
@@ -3103,6 +3109,9 @@ components:
     AdminSettingsUpdateInput:
       type: object
       properties:
+        contentTextSize:
+          type: string
+          enum: [standard, larger, largest]
         reunionCreationEnabled:
           type: boolean
         signInsLocked:

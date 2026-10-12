@@ -15,6 +15,7 @@ router.get("/settings", async (_req, res): Promise<void> => {
     GetSettingsResponse.parse({
       reunionCreationEnabled: settings.reunionCreationEnabled,
       signInsLocked: settings.signInsLocked,
+      contentTextSize: settings.contentTextSize,
     }),
   );
 });

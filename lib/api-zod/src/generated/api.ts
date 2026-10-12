@@ -414,6 +414,7 @@ export const HealthCheckResponse = zod.object({
  * @summary Public platform settings (e.g. whether reunion creation is enabled)
  */
 export const GetSettingsResponse = zod.object({
+  "contentTextSize": zod.enum(['standard', 'larger', 'largest']).optional(),
   "reunionCreationEnabled": zod.boolean(),
   "signInsLocked": zod.boolean()
 })
@@ -3763,6 +3764,7 @@ export const AdminSetupResponse = zod.object({
  * @summary Current platform settings including the tester allowlist
  */
 export const AdminGetSettingsResponse = zod.object({
+  "contentTextSize": zod.enum(['standard', 'larger', 'largest']).optional(),
   "reunionCreationEnabled": zod.boolean(),
   "signInsLocked": zod.boolean(),
   "testerEmails": zod.array(zod.string())
@@ -3777,12 +3779,14 @@ export const adminUpdateSettingsBodyTesterEmailsItemMin = 3;
 
 
 export const AdminUpdateSettingsBody = zod.object({
+  "contentTextSize": zod.enum(['standard', 'larger', 'largest']).optional(),
   "reunionCreationEnabled": zod.boolean().optional(),
   "signInsLocked": zod.boolean().optional(),
   "testerEmails": zod.array(zod.string().min(adminUpdateSettingsBodyTesterEmailsItemMin)).optional()
 })
 
 export const AdminUpdateSettingsResponse = zod.object({
+  "contentTextSize": zod.enum(['standard', 'larger', 'largest']).optional(),
   "reunionCreationEnabled": zod.boolean(),
   "signInsLocked": zod.boolean(),
   "testerEmails": zod.array(zod.string())

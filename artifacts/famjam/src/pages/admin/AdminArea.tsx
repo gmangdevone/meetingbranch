@@ -9,6 +9,7 @@ import { Input } from "../../components/ui/input";
 import { format } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { useState } from "react";
+import { ContentTextSizeSetting } from "../../components/ContentTextSize";
 
 export function AdminArea() {
   const [, setLocation] = useLocation();
@@ -178,6 +179,7 @@ export function AdminArea() {
             <h2 className="font-serif text-xl font-bold mb-6 flex items-center"><SettingsIcon className="w-5 h-5 mr-2" /> Settings</h2>
             
             <div className="flex flex-col gap-4">
+              <ContentTextSizeSetting value={adminSettings.contentTextSize ?? "larger"} />
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
                   <div className="font-medium">Allow New Reunions</div>

@@ -4,6 +4,7 @@ import { z } from "zod/v4";
 
 // Single-row table holding platform-wide settings.
 export const appSettingsTable = pgTable("app_settings", {
+  contentTextSize: text("content_text_size").notNull().default("larger"),
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   reunionCreationEnabled: boolean("reunion_creation_enabled").notNull().default(true),
   // Lockdown mode: when true, only platform admins, reunion organizers
