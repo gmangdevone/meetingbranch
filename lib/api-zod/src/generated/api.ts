@@ -2462,15 +2462,14 @@ export const CreateActivityChoiceGroupParams = zod.object({
 export const createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax = 20;
 
 
-export const createActivityChoiceGroupBodyOptionsMin = 2;
 
 
 
 export const CreateActivityChoiceGroupBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().nullish(),
-  "maxSelectionsPerRegistrant": zod.number().min(1).max(createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax),
-  "options": zod.array(zod.string().min(1)).min(createActivityChoiceGroupBodyOptionsMin)
+  "maxSelectionsPerRegistrant": zod.number().min(1).max(createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax).optional(),
+  "options": zod.array(zod.string().min(1)).min(1)
 })
 
 export const CreateActivityChoiceGroupResponse = zod.object({
@@ -2640,7 +2639,8 @@ export const DeleteActivityChoiceOptionResponse = zod.void()
 
 
 /**
- * @summary Replace the active registrant's selections for an open activity choice group
+ * @deprecated
+ * @summary Retired activity selections; use the dedicated Polls page
  */
 export const SetActivityChoiceSelectionsParams = zod.object({
   "reunionId": zod.coerce.number(),
@@ -2651,33 +2651,7 @@ export const SetActivityChoiceSelectionsBody = zod.object({
   "optionIds": zod.array(zod.number()).describe('The full set of options selected, replacing previous selections.')
 })
 
-export const SetActivityChoiceSelectionsResponse = zod.object({
-  "group": zod.object({
-  "id": zod.number(),
-  "reunionId": zod.number(),
-  "title": zod.string(),
-  "description": zod.string().nullable(),
-  "maxSelectionsPerRegistrant": zod.number(),
-  "isOpen": zod.boolean(),
-  "resultsRevealed": zod.boolean(),
-  "liveResults": zod.boolean(),
-  "createdAt": zod.coerce.date(),
-  "options": zod.array(zod.object({
-  "id": zod.number(),
-  "groupId": zod.number(),
-  "label": zod.string(),
-  "position": zod.number()
-}))
-}),
-  "myOptionIds": zod.array(zod.number()),
-  "canSelect": zod.boolean().describe('True when the group is open and the viewer has an active registration.'),
-  "results": zod.array(zod.object({
-  "optionId": zod.number(),
-  "label": zod.string(),
-  "selectionCount": zod.number(),
-  "registrants": zod.array(zod.string()).optional().describe('Registrant display names. Only present in the organizer view.')
-})).optional()
-})
+export const SetActivityChoiceSelectionsResponse = zod.void()
 
 
 /**

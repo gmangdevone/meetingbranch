@@ -2,9 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express, { type Express } from "express";
 import request from "supertest";
 
-// Focused in-memory Drizzle harness for activity choice route authorization and
-// selection rules. It intentionally does not model attendees: activity choices
-// are eligible from an active registration alone.
+// Focused directory routes and retirement of legacy activity selections.
 const state = vi.hoisted(() => ({
   auth: null as null | { userId: string | null; sessionClaims: Record<string, unknown> | null },
   rows: {} as Record<string, Record<string, unknown>[]>,
@@ -154,30 +152,66 @@ function seed() {
 
 beforeEach(seed);
 
-describe("activity choice selections", () => {
-  it("allows an active registrant with no check-in record to select", async () => {
+describe("retired activity selections", () => {
+  it("blocks selections without deleting historical choices", async () => {
+    state.rows.activity_choice_selections = [{ id: 99, groupId: GROUP, optionId: OPTION_A, userId: ACTIVE_UNCHECKED }];
     authenticate(ACTIVE_UNCHECKED);
     const response = await request(app()).put(`/api/reunions/${REUNION}/activities/${GROUP}/selections`).send({ optionIds: [OPTION_A] });
-    expect(response.status).toBe(200);
-    expect(response.body.myOptionIds).toEqual([OPTION_A]);
+    expect(response.status).toBe(410);
+    expect(state.rows.activity_choice_selections).toHaveLength(1);
   });
 
   it("rejects a signed-in user without an active registration", async () => {
     authenticate(OUTSIDER);
     const response = await request(app()).put(`/api/reunions/${REUNION}/activities/${GROUP}/selections`).send({ optionIds: [OPTION_A] });
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(410);
   });
 
   it("rejects excessive selections and options owned by another group", async () => {
     authenticate(ACTIVE_UNCHECKED);
     const tooMany = await request(app()).put(`/api/reunions/${REUNION}/activities/${GROUP}/selections`).send({ optionIds: [OPTION_A, OPTION_B] });
-    expect(tooMany.status).toBe(400);
+    expect(tooMany.status).toBe(410);
     const wrongGroup = await request(app()).put(`/api/reunions/${REUNION}/activities/${GROUP}/selections`).send({ optionIds: [OTHER_OPTION] });
-    expect(wrongGroup.status).toBe(400);
+    expect(wrongGroup.status).toBe(410);
+  });
+
+  it("lists all activities without selection eligibility or results, including previously closed lists", async () => {
+    authenticate(OUTSIDER);
+    state.rows.activity_choice_groups[0].isOpen = false;
+    state.rows.activity_choice_groups[0].liveResults = true;
+    const res = await request(app()).get(`/api/reunions/${REUNION}/activities`);
+    expect(res.status).toBe(200);
+    expect(res.body.groups).toHaveLength(2);
+    for (const item of res.body.groups) {
+      expect(item.canSelect).toBe(false);
+      expect(item.myOptionIds).toEqual([]);
+      expect(item.results).toBeUndefined();
+    }
+  });
+
+  it("allows removing an activity down to one, but not deleting the final item", async () => {
+    authenticate(OWNER);
+    expect((await request(app()).delete(`/api/reunions/${REUNION}/activities/${GROUP}/options/${OPTION_B}`)).status).toBe(204);
+    expect((await request(app()).delete(`/api/reunions/${REUNION}/activities/${GROUP}/options/${OPTION_A}`)).status).toBe(400);
   });
 });
 
 describe("activity choice organizer creation", () => {
+  it("creates a list with one activity and no polling settings", async () => {
+    authenticate(OWNER);
+    const res = await request(app()).post(`/api/reunions/${REUNION}/activities`).send({
+      title: "Nearby museum", description: "Open daily.", options: ["History museum"],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.options).toHaveLength(1);
+  });
+  it("does not let members create activity lists", async () => {
+    authenticate(OUTSIDER);
+    const res = await request(app()).post(`/api/reunions/${REUNION}/activities`).send({
+      title: "Nearby", options: ["Museum"],
+    });
+    expect(res.status).toBe(403);
+  });
   it("stores and returns the optional description", async () => {
     authenticate(OWNER);
     const response = await request(app()).post(`/api/reunions/${REUNION}/activities`).send({

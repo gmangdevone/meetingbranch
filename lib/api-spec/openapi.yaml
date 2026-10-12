@@ -1716,8 +1716,9 @@ paths:
   /reunions/{reunionId}/activities/{activityChoiceGroupId}/selections:
     put:
       operationId: setActivityChoiceSelections
+      deprecated: true
       tags: [reunions]
-      summary: Replace the active registrant's selections for an open activity choice group
+      summary: Retired activity selections; use the dedicated Polls page
       security:
         - clerkAuth: []
       parameters:
@@ -1730,18 +1731,10 @@ paths:
             schema:
               $ref: "#/components/schemas/ActivityChoiceSelectionsInput"
       responses:
-        "200":
-          description: Updated member view
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MemberActivityChoice"
-        "400":
-          description: Invalid selections or closed group
-        "403":
-          description: An active registration is required to select
-        "404":
-          description: Not found
+        "410":
+          description: Activity selections retired; use Polls
+        "401":
+          description: Sign in required
 
   /reunions/{reunionId}/sponsorship:
     get:
@@ -4458,7 +4451,7 @@ components:
 
     ActivityChoiceGroupInput:
       type: object
-      required: [title, maxSelectionsPerRegistrant, options]
+      required: [title, options]
       properties:
         title:
           type: string
@@ -4467,6 +4460,7 @@ components:
           type: ["string", "null"]
         maxSelectionsPerRegistrant:
           type: integer
+          deprecated: true
           minimum: 1
           maximum: 20
         options:
@@ -4474,7 +4468,7 @@ components:
           items:
             type: string
             minLength: 1
-          minItems: 2
+          minItems: 1
 
     ActivityChoiceGroupUpdateInput:
       type: object

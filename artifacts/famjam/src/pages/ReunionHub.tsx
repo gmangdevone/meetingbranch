@@ -728,9 +728,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               iconClassName="bg-white/20 text-white border border-white/30"
               linkClassName="text-white"
               icon={<ClipboardList className="w-6 h-6" />}
-              title="Activities & Choices"
-              description="Choose activities and share the options that work for your household."
-              linkLabel="View Choices"
+              title="Activities"
+              description="Things to do in the area while you are in town."
+              linkLabel="See Things to Do"
             />
           </div>
         </div>

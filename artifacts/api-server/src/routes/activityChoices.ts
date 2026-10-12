@@ -3,10 +3,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   activityChoiceGroupsTable,
   activityChoiceOptionsTable,
-  activityChoiceSelectionsTable,
   db,
-  registrationsTable,
-  usersTable,
 } from "@workspace/db";
 import {
   AddActivityChoiceOptionBody,
@@ -23,9 +20,6 @@ import {
   ListManageActivityChoicesParams,
   ListMemberActivityChoicesParams,
   ListMemberActivityChoicesResponse,
-  SetActivityChoiceSelectionsBody,
-  SetActivityChoiceSelectionsParams,
-  SetActivityChoiceSelectionsResponse,
   UpdateActivityChoiceGroupBody,
   UpdateActivityChoiceGroupParams,
   UpdateActivityChoiceGroupResponse,
@@ -36,24 +30,6 @@ import { requireReunionManager } from "../middlewares/requireReunionManager";
 
 const router: IRouter = Router();
 const manage = [attachAuth, requireReunionManager] as const;
-
-async function hasActiveRegistration(
-  dbOrTx: Pick<typeof db, "select">,
-  reunionId: number,
-  userId: string,
-) {
-  const [registration] = await dbOrTx
-    .select({ id: registrationsTable.id })
-    .from(registrationsTable)
-    .where(
-      and(
-        eq(registrationsTable.reunionId, reunionId),
-        eq(registrationsTable.userId, userId),
-        eq(registrationsTable.status, "active"),
-      ),
-    );
-  return Boolean(registration);
-}
 
 async function getGroupWithOptions(reunionId: number, groupId: number) {
   const [group] = await db
@@ -86,7 +62,11 @@ router.post("/reunions/:reunionId/activities", ...manage, async (req, res): Prom
     return;
   }
   const reunionId = req.managedReunion!.id;
-  const { title, description, maxSelectionsPerRegistrant, options } = body.data;
+  const { title, description, options } = body.data;
+  if (!title.trim() || options.some((label) => !label.trim())) {
+    res.status(400).json({ error: "List title and activity names cannot be blank." });
+    return;
+  }
   const group = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(activityChoiceGroupsTable)
@@ -94,7 +74,7 @@ router.post("/reunions/:reunionId/activities", ...manage, async (req, res): Prom
         reunionId,
         title: title.trim(),
         description: description?.trim() || null,
-        maxSelectionsPerRegistrant,
+        maxSelectionsPerRegistrant: 1,
       })
       .returning();
     await tx.insert(activityChoiceOptionsTable).values(
@@ -134,43 +114,12 @@ router.get(
           .where(inArray(activityChoiceOptionsTable.groupId, groupIds))
           .orderBy(asc(activityChoiceOptionsTable.position), asc(activityChoiceOptionsTable.id))
       : [];
-    const selections = groupIds.length
-      ? await db
-          .select({
-            groupId: activityChoiceSelectionsTable.groupId,
-            optionId: activityChoiceSelectionsTable.optionId,
-            userId: activityChoiceSelectionsTable.userId,
-            firstName: usersTable.firstName,
-            lastName: usersTable.lastName,
-            email: usersTable.email,
-          })
-          .from(activityChoiceSelectionsTable)
-          .leftJoin(usersTable, eq(activityChoiceSelectionsTable.userId, usersTable.id))
-          .where(inArray(activityChoiceSelectionsTable.groupId, groupIds))
-      : [];
-    const displayName = (selection: {
-      firstName: string | null;
-      lastName: string | null;
-      email: string | null;
-    }) =>
-      [selection.firstName, selection.lastName].filter(Boolean).join(" ") ||
-      selection.email ||
-      "Unknown registrant";
     const payload = groups.map((group) => {
       const groupOptions = options.filter((option) => option.groupId === group.id);
-      const groupSelections = selections.filter((selection) => selection.groupId === group.id);
       return {
         group: { ...group, options: groupOptions },
-        totalRegistrants: new Set(groupSelections.map((selection) => selection.userId)).size,
-        results: groupOptions.map((option) => {
-          const selected = groupSelections.filter((selection) => selection.optionId === option.id);
-          return {
-            optionId: option.id,
-            label: option.label,
-            selectionCount: selected.length,
-            registrants: selected.map(displayName),
-          };
-        }),
+        totalRegistrants: 0,
+        results: [],
       };
     });
     res.json(ListManageActivityChoicesResponse.parse(payload));
@@ -197,11 +146,14 @@ router.patch(
       res.status(404).json({ error: "Activity choice group not found" });
       return;
     }
-    const { title, description, ...flags } = body.data;
+    const { title, description } = body.data;
+    if (title !== undefined && !title.trim()) {
+      res.status(400).json({ error: "List title cannot be blank." });
+      return;
+    }
     await db
       .update(activityChoiceGroupsTable)
       .set({
-        ...flags,
         ...(title === undefined ? {} : { title: title.trim() }),
         ...(description === undefined ? {} : { description: description?.trim() || null }),
       })
@@ -312,27 +264,14 @@ router.delete(
       res.status(404).json({ error: "Activity choice option not found" });
       return;
     }
-    if (existing.options.length <= 2) {
-      res.status(400).json({ error: "An activity choice group needs at least two options" });
+    if (existing.options.length <= 1) {
+      res.status(400).json({ error: "An activity list needs at least one activity" });
       return;
     }
     await db.delete(activityChoiceOptionsTable).where(eq(activityChoiceOptionsTable.id, optionId));
     res.status(204).end();
   },
 );
-
-function visibleResults(
-  group: { resultsRevealed: boolean; liveResults: boolean },
-  options: { id: number; label: string }[],
-  selections: { optionId: number }[],
-) {
-  if (!group.resultsRevealed && !group.liveResults) return undefined;
-  return options.map((option) => ({
-    optionId: option.id,
-    label: option.label,
-    selectionCount: selections.filter((selection) => selection.optionId === option.id).length,
-  }));
-}
 
 router.get("/reunions/:reunionId/activities", requireAuth, async (req, res): Promise<void> => {
   const params = ListMemberActivityChoicesParams.safeParse(req.params);
@@ -341,14 +280,12 @@ router.get("/reunions/:reunionId/activities", requireAuth, async (req, res): Pro
     return;
   }
   const reunionId = params.data.reunionId;
-  const userId = req.userId!;
-  const eligible = await hasActiveRegistration(db, reunionId, userId);
   const groups = await db
     .select()
     .from(activityChoiceGroupsTable)
     .where(eq(activityChoiceGroupsTable.reunionId, reunionId))
     .orderBy(desc(activityChoiceGroupsTable.createdAt), desc(activityChoiceGroupsTable.id));
-  const visible = groups.filter((group) => group.isOpen || group.resultsRevealed);
+  const visible = groups;
   const groupIds = visible.map((group) => group.id);
   const options = groupIds.length
     ? await db
@@ -357,24 +294,14 @@ router.get("/reunions/:reunionId/activities", requireAuth, async (req, res): Pro
         .where(inArray(activityChoiceOptionsTable.groupId, groupIds))
         .orderBy(asc(activityChoiceOptionsTable.position), asc(activityChoiceOptionsTable.id))
     : [];
-  const selections = groupIds.length
-    ? await db
-        .select()
-        .from(activityChoiceSelectionsTable)
-        .where(inArray(activityChoiceSelectionsTable.groupId, groupIds))
-    : [];
   const payload = {
-    eligible,
+    eligible: false,
     groups: visible.map((group) => {
       const groupOptions = options.filter((option) => option.groupId === group.id);
-      const groupSelections = selections.filter((selection) => selection.groupId === group.id);
       return {
         group: { ...group, options: groupOptions },
-        myOptionIds: groupSelections
-          .filter((selection) => selection.userId === userId)
-          .map((selection) => selection.optionId),
-        canSelect: eligible && group.isOpen,
-        results: visibleResults(group, groupOptions, groupSelections),
+        myOptionIds: [],
+        canSelect: false,
       };
     }),
   };
@@ -384,98 +311,8 @@ router.get("/reunions/:reunionId/activities", requireAuth, async (req, res): Pro
 router.put(
   "/reunions/:reunionId/activities/:activityChoiceGroupId/selections",
   requireAuth,
-  async (req, res): Promise<void> => {
-    const params = SetActivityChoiceSelectionsParams.safeParse(req.params);
-    const body = SetActivityChoiceSelectionsBody.safeParse(req.body);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    if (!body.success) {
-      res.status(400).json({ error: body.error.message });
-      return;
-    }
-    const { reunionId, activityChoiceGroupId: groupId } = params.data;
-    const userId = req.userId!;
-    const optionIds = [...new Set(body.data.optionIds)];
-    let failure: { status: number; error: string } | null = null;
-    await db.transaction(async (tx) => {
-      const [group] = await tx
-        .select()
-        .from(activityChoiceGroupsTable)
-        .where(
-          and(
-            eq(activityChoiceGroupsTable.id, groupId),
-            eq(activityChoiceGroupsTable.reunionId, reunionId),
-          ),
-        )
-        .for("update");
-      if (!group) {
-        failure = { status: 404, error: "Activity choice group not found" };
-        return;
-      }
-      if (!group.isOpen) {
-        failure = { status: 400, error: "Selections are closed for this group" };
-        return;
-      }
-      if (!(await hasActiveRegistration(tx, reunionId, userId))) {
-        failure = { status: 403, error: "An active reunion registration is required to select" };
-        return;
-      }
-      if (optionIds.length > group.maxSelectionsPerRegistrant) {
-        failure = {
-          status: 400,
-          error: `You can select at most ${group.maxSelectionsPerRegistrant} option${group.maxSelectionsPerRegistrant === 1 ? "" : "s"}`,
-        };
-        return;
-      }
-      const options = await tx
-        .select({ id: activityChoiceOptionsTable.id })
-        .from(activityChoiceOptionsTable)
-        .where(eq(activityChoiceOptionsTable.groupId, groupId));
-      const validIds = new Set(options.map((option) => option.id));
-      if (!optionIds.every((optionId) => validIds.has(optionId))) {
-        failure = { status: 400, error: "Unknown activity choice option" };
-        return;
-      }
-      await tx
-        .delete(activityChoiceSelectionsTable)
-        .where(
-          and(
-            eq(activityChoiceSelectionsTable.groupId, groupId),
-            eq(activityChoiceSelectionsTable.userId, userId),
-          ),
-        );
-      if (optionIds.length) {
-        await tx
-          .insert(activityChoiceSelectionsTable)
-          .values(optionIds.map((optionId) => ({ groupId, optionId, userId })));
-      }
-    });
-    if (failure) {
-      const response = failure as { status: number; error: string };
-      res.status(response.status).json({ error: response.error });
-      return;
-    }
-    const group = await getGroupWithOptions(reunionId, groupId);
-    if (!group) {
-      res.status(404).json({ error: "Activity choice group not found" });
-      return;
-    }
-    const selections = await db
-      .select()
-      .from(activityChoiceSelectionsTable)
-      .where(eq(activityChoiceSelectionsTable.groupId, groupId));
-    res.json(
-      SetActivityChoiceSelectionsResponse.parse({
-        group,
-        myOptionIds: selections
-          .filter((selection) => selection.userId === userId)
-          .map((selection) => selection.optionId),
-        canSelect: true,
-        results: visibleResults(group, group.options, selections),
-      }),
-    );
+  async (_req, res): Promise<void> => {
+    res.status(410).json({ error: "Activity selections have been retired. Please use the Polls page to vote." });
   },
 );
 

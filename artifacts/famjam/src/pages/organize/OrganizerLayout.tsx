@@ -60,7 +60,7 @@ export function OrganizerLayout({
     { href: `${baseUrl}/branches`, label: "Branches", icon: List, role: "branches" },
     { href: `${baseUrl}/branch-fees`, label: "Branch Fees", icon: Coins, role: "power_user" },
     { href: `${baseUrl}/polls`, label: "Polls", icon: Vote },
-    { href: `${baseUrl}/activities`, label: "Activities & Choices", icon: ClipboardList },
+    { href: `${baseUrl}/activities`, label: "Activities", icon: ClipboardList },
     { href: `${baseUrl}/sponsorship`, label: "Sponsorship", icon: Heart, role: "power_user" },
     { href: `${baseUrl}/vendors`, label: "Vendors", icon: Briefcase, role: "scout" },
     ...(adminReunions ? [{ href: `${baseUrl}/home-page`, label: "Event Home Page", icon: Home }] : []),

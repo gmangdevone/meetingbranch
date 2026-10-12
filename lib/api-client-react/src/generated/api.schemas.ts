@@ -1497,12 +1497,13 @@ export interface ActivityChoiceGroupInput {
   /** @nullable */
   description?: string | null;
   /**
+     * @deprecated
      * @minimum 1
      * @maximum 20
      */
-  maxSelectionsPerRegistrant: number;
+  maxSelectionsPerRegistrant?: number;
   /**
-     * @minItems 2
+     * @minItems 1
      * @items.minLength 1
      */
   options: string[];

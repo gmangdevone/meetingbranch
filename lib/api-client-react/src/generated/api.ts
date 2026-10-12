@@ -58,7 +58,6 @@ import type {
   ManageActivityChoice,
   ManagePoll,
   ManagedRegistrationInput,
-  MemberActivityChoice,
   MemberActivityChoiceList,
   MemberPoll,
   MemberPollList,
@@ -5372,13 +5371,14 @@ export const getSetActivityChoiceSelectionsUrl = (reunionId: number,
 }
 
 /**
- * @summary Replace the active registrant's selections for an open activity choice group
+ * @deprecated
+ * @summary Retired activity selections; use the dedicated Polls page
  */
 export const setActivityChoiceSelections = async (reunionId: number,
     activityChoiceGroupId: number,
-    activityChoiceSelectionsInput: ActivityChoiceSelectionsInput, options?: RequestInit): Promise<MemberActivityChoice> => {
+    activityChoiceSelectionsInput: ActivityChoiceSelectionsInput, options?: RequestInit): Promise<unknown> => {
 
-  return customFetch<MemberActivityChoice>(getSetActivityChoiceSelectionsUrl(reunionId,activityChoiceGroupId),
+  return customFetch<unknown>(getSetActivityChoiceSelectionsUrl(reunionId,activityChoiceGroupId),
   {
     ...options,
     method: 'PUT',
@@ -5423,7 +5423,8 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type SetActivityChoiceSelectionsMutationError = ErrorType<void>
 
     /**
- * @summary Replace the active registrant's selections for an open activity choice group
+ * @deprecated
+ * @summary Retired activity selections; use the dedicated Polls page
  */
 export const useSetActivityChoiceSelections = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setActivityChoiceSelections>>, TError,{reunionId: number;activityChoiceGroupId: number;data: BodyType<ActivityChoiceSelectionsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
