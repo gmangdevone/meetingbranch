@@ -91,8 +91,8 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
                 </span>
               </div>
               <h3 className="font-bold text-xl mb-3 pr-16">{announcement.title}</h3>
-              <div className={`prose prose-sm max-w-none whitespace-pre-wrap ${
-                idx % 2 === 0 ? 'prose-invert text-white/90' : 'text-slate-900/85'
+              <div className={`text-sm leading-relaxed max-w-none whitespace-pre-wrap break-words ${
+                idx % 2 === 0 ? 'text-white/90' : 'text-slate-900/85'
               }`}>
                 {announcement.body}
               </div>
