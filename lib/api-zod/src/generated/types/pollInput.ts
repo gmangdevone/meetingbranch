@@ -5,6 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { PollOptionInput } from './pollOptionInput';
 
 export interface PollInput {
   /** @minLength 1 */
@@ -14,9 +15,6 @@ export interface PollInput {
      * @maximum 20
      */
   maxVotesPerMember: number;
-  /**
-     * @minItems 2
-     * @items.minLength 1
-     */
-  options: string[];
+  /** @minItems 2 */
+  options: (string | PollOptionInput)[];
 }

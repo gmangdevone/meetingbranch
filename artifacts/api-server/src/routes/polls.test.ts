@@ -540,6 +540,49 @@ describe("ballot validation", () => {
 });
 
 describe("option minimum", () => {
+  it("creates detailed options while retaining legacy string options", async () => {
+    authAs(OWNER);
+    const res = await app().post(`/api/reunions/${REUNION_ID}/polls`).send({
+      question: "Where?", maxVotesPerMember: 1,
+      options: [{ label: "Hotel", detailsEnabled: true, description: " Rooms\nPool ", linkUrl: "https://example.com" }, "Park"],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.options[0]).toMatchObject({ label: "Hotel", detailsEnabled: true, description: "Rooms\nPool", linkUrl: "https://example.com" });
+    expect(res.body.options[1].label).toBe("Park");
+  });
+
+  it("rejects unsafe links and empty enabled details before creating anything", async () => {
+    authAs(OWNER);
+    for (const details of [
+      { linkUrl: "javascript:alert(1)" }, { linkUrl: "//example.com" },
+      { linkUrl: "https://user:password@example.com" },
+      { description: "x".repeat(2001) }, { detailsEnabled: true },
+    ]) {
+      const res = await app().post(`/api/reunions/${REUNION_ID}/polls`).send({
+        question: "Where?", maxVotesPerMember: 1, options: [{ label: "Hotel", ...details }, "Park"],
+      });
+      expect(res.status).toBe(400);
+      expect(state.rows.polls).toHaveLength(1);
+    }
+  });
+
+  it("adds, edits, hides and clears option details without losing votes", async () => {
+    authAs(VOTER);
+    await vote([OPT_A]);
+    authAs(OWNER);
+    const path = `/api/reunions/${REUNION_ID}/polls/${POLL_ID}/options`;
+    const added = await app().post(path).send({ label: "Garden", detailsEnabled: true, linkUrl: "https://example.com" });
+    expect(added.status).toBe(201);
+    const details = { label: "BBQ", detailsEnabled: true, description: "Outside seating", linkUrl: "https://example.com" };
+    expect((await app().patch(`${path}/${OPT_A}`).send(details)).status).toBe(200);
+    expect((await app().patch(`${path}/${OPT_A}`).send({ label: "BBQ renamed" })).body).toMatchObject({ description: details.description, detailsEnabled: true });
+    const hidden = await app().patch(`${path}/${OPT_A}`).send({ label: "BBQ", detailsEnabled: false });
+    expect(hidden.body).toMatchObject({ detailsEnabled: false, description: details.description });
+    const cleared = await app().patch(`${path}/${OPT_A}`).send({ label: "BBQ", description: null, linkUrl: null });
+    expect(cleared.body).toMatchObject({ description: null, linkUrl: null });
+    expect(myVoteRows(VOTER).map(v => v.optionId)).toEqual([OPT_A]);
+  });
+
   it("rejects creating a poll with fewer than two options", async () => {
     authAs(OWNER);
     const res = await app()

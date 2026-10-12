@@ -31,6 +31,9 @@ export const pollOptionsTable = pgTable("poll_options", {
     .notNull()
     .references(() => pollsTable.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
+  detailsEnabled: boolean("details_enabled").notNull().default(false),
+  description: text("description"),
+  linkUrl: text("link_url"),
   position: integer("position").notNull().default(0),
 });
 

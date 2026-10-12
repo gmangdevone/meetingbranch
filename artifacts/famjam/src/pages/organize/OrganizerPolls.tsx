@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   useListManagePolls,
   getListManagePollsQueryKey,
+  getListMemberPollsQueryKey,
   useCreatePoll,
   useUpdatePoll,
   useDeletePoll,
@@ -16,6 +17,16 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { PollOptionFields, PollOptionDetails } from "../../components/polls/PollOptionFields";
+import {
+  type PollOptionDraft,
+  type OptionDraftErrors,
+  emptyOptionDraft,
+  draftFromOption,
+  draftToInput,
+  validateOptionDraft,
+  hasErrors,
+} from "../../lib/pollOptions";
 
 export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -40,37 +51,50 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   const deleteOption = useDeletePollOption();
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: getListManagePollsQueryKey(reunionId) });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: getListManagePollsQueryKey(reunionId) }),
+      queryClient.invalidateQueries({ queryKey: getListMemberPollsQueryKey(reunionId) }),
+    ]);
 
   // Create dialog state
   const [createOpen, setCreateOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [maxVotes, setMaxVotes] = useState(1);
-  const [options, setOptions] = useState<string[]>(["", ""]);
+  const [options, setOptions] = useState<PollOptionDraft[]>([emptyOptionDraft(), emptyOptionDraft()]);
+  const [optionErrors, setOptionErrors] = useState<OptionDraftErrors[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Per-poll "add option" inputs
-  const [newOptionByPoll, setNewOptionByPoll] = useState<Record<number, string>>({});
+  const [newOptionByPoll, setNewOptionByPoll] = useState<Record<number, PollOptionDraft>>({});
+  const [newOptionErrors, setNewOptionErrors] = useState<Record<number, OptionDraftErrors>>({});
+  const [newOptionServerError, setNewOptionServerError] = useState<Record<number, string>>({});
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; question: string } | null>(null);
   const [editTarget, setEditTarget] = useState<{
     id: number;
     question: string;
     maxVotesPerMember: number;
-    options: { id: number; label: string }[];
+    options: ({ id: number } & PollOptionDraft)[];
   } | null>(null);
+  const [editOptionErrors, setEditOptionErrors] = useState<OptionDraftErrors[]>([]);
   const [editError, setEditError] = useState<string | null>(null);
 
   const resetForm = () => {
     setQuestion("");
     setMaxVotes(1);
-    setOptions(["", ""]);
+    setOptions([emptyOptionDraft(), emptyOptionDraft()]);
+    setOptionErrors([]);
     setFormError(null);
   };
 
   const handleCreate = () => {
-    const cleanOptions = options.map((o) => o.trim()).filter(Boolean);
+    // Blank rows (no label, nothing typed in details) are dropped like before.
+    const kept = options.filter((o) => o.label.trim() || (o.detailsEnabled && (o.description.trim() || o.linkUrl.trim())));
     if (!question.trim()) return setFormError("Please enter a question.");
-    if (cleanOptions.length < 2) return setFormError("Add at least two options.");
+    const errs = options.map((o) => (kept.includes(o) ? validateOptionDraft(o) : {}));
+    setOptionErrors(errs);
+    if (errs.some(hasErrors)) return setFormError("Fix the highlighted options.");
+    if (kept.length < 2) return setFormError("Add at least two options.");
+    const cleanOptions = kept.map(draftToInput);
     setFormError(null);
     createPoll.mutate(
       { reunionId, data: { question: question.trim(), maxVotesPerMember: maxVotes, options: cleanOptions } },
@@ -90,15 +114,19 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   };
 
   const handleAddOption = (pollId: number) => {
-    const label = (newOptionByPoll[pollId] || "").trim();
-    if (!label) return;
+    const draft = newOptionByPoll[pollId] || emptyOptionDraft();
+    const errs = validateOptionDraft(draft);
+    setNewOptionErrors((s) => ({ ...s, [pollId]: errs }));
+    setNewOptionServerError((s) => ({ ...s, [pollId]: "" }));
+    if (hasErrors(errs)) return;
     addOption.mutate(
-      { reunionId, pollId, data: { label } },
+      { reunionId, pollId, data: draftToInput(draft) },
       {
         onSuccess: () => {
           invalidate();
-          setNewOptionByPoll((s) => ({ ...s, [pollId]: "" }));
+          setNewOptionByPoll((s) => ({ ...s, [pollId]: emptyOptionDraft() }));
         },
+        onError: (e: any) => setNewOptionServerError((s) => ({ ...s, [pollId]: e?.data?.error || "Could not add the option." })),
       },
     );
   };
@@ -106,9 +134,11 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
   const handleEdit = async () => {
     if (!editTarget) return;
     const cleanQuestion = editTarget.question.trim();
-    const cleanOptions = editTarget.options.map((option) => ({ ...option, label: option.label.trim() }));
     if (!cleanQuestion) return setEditError("Please enter a question.");
-    if (cleanOptions.some((option) => !option.label)) return setEditError("Option labels cannot be blank.");
+    const errs = editTarget.options.map(validateOptionDraft);
+    setEditOptionErrors(errs);
+    if (errs.some(hasErrors)) return setEditError("Fix the highlighted options.");
+    const cleanOptions = editTarget.options.map((option) => ({ id: option.id, input: draftToInput(option) }));
     setEditError(null);
     try {
       await updatePoll.mutateAsync({
@@ -125,7 +155,7 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
             reunionId,
             pollId: editTarget.id,
             optionId: option.id,
-            data: { label: option.label },
+            data: option.input,
           }),
         ),
       );
@@ -190,11 +220,12 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                       className="rounded-lg text-xs"
                       onClick={() => {
                         setEditError(null);
+                        setEditOptionErrors([]);
                         setEditTarget({
                           id: poll.id,
                           question: poll.question,
                           maxVotesPerMember: poll.maxVotesPerMember,
-                          options: poll.options.map((option) => ({ id: option.id, label: option.label })),
+                          options: poll.options.map((option) => ({ id: option.id, ...draftFromOption(option) })),
                         });
                       }}
                     >
@@ -225,17 +256,19 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
 
                 <div className="flex flex-col gap-2">
                   {results.map((r) => {
+                    const optionInfo = poll.options.find((o) => o.id === r.optionId);
                     const pct = totalVotes ? Math.round((r.voteCount / totalVotes) * 100) : 0;
                     return (
                       <div key={r.optionId} className="border rounded-xl p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium">{r.label}</div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="font-medium min-w-0 break-words">{r.label}</div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-sm font-bold">{r.voteCount}</span>
                             <span className="text-xs text-muted-foreground w-10 text-right">{pct}%</span>
                             {poll.options.length > 2 && (
                               <button
                                 title="Remove option"
+                                aria-label={`Remove option ${r.label}`}
                                 className="text-muted-foreground hover:text-destructive transition-colors"
                                 onClick={() =>
                                   deleteOption.mutate({ reunionId, pollId: poll.id, optionId: r.optionId }, { onSuccess: invalidate })
@@ -246,6 +279,7 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                             )}
                           </div>
                         </div>
+                        {optionInfo && <PollOptionDetails option={optionInfo} className="mt-1" />}
                         <div className="h-2 bg-muted rounded-full mt-2 overflow-hidden">
                           <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
                         </div>
@@ -259,17 +293,21 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                   })}
                 </div>
 
-                <div className="flex gap-2">
-                  <Input
+                <div className="flex flex-col gap-2">
+                  <PollOptionFields
+                    labelText="Add another option"
                     placeholder="Add another option…"
-                    className="rounded-xl"
-                    value={newOptionByPoll[poll.id] || ""}
-                    onChange={(e) => setNewOptionByPoll((s) => ({ ...s, [poll.id]: e.target.value }))}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddOption(poll.id)}
+                    value={newOptionByPoll[poll.id] || emptyOptionDraft()}
+                    errors={newOptionErrors[poll.id]}
+                    onChange={(next) => setNewOptionByPoll((s) => ({ ...s, [poll.id]: next }))}
+                    onLabelEnter={() => handleAddOption(poll.id)}
+                    trailing={
+                      <Button variant="outline" className="rounded-xl shrink-0" onClick={() => handleAddOption(poll.id)} disabled={addOption.isPending || !(newOptionByPoll[poll.id]?.label || "").trim()}>
+                        <Plus className="w-4 h-4 mr-1" /> Add
+                      </Button>
+                    }
                   />
-                  <Button variant="outline" className="rounded-xl shrink-0" onClick={() => handleAddOption(poll.id)} disabled={addOption.isPending || !(newOptionByPoll[poll.id] || "").trim()}>
-                    <Plus className="w-4 h-4 mr-1" /> Add
-                  </Button>
+                  {newOptionServerError[poll.id] && <div className="p-3 bg-destructive/10 text-destructive text-sm font-medium rounded-xl">{newOptionServerError[poll.id]}</div>}
                 </div>
               </div>
             );
@@ -279,7 +317,7 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
 
       {/* Create poll dialog */}
       <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">New Poll</DialogTitle>
             <DialogDescription>
@@ -299,16 +337,20 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
               <Label className="mb-2 block">Options</Label>
               <div className="flex flex-col gap-2">
                 {options.map((opt, i) => (
-                  <div key={i} className="flex gap-2">
-                    <Input className="rounded-xl" placeholder={`Option ${i + 1}`} value={opt} onChange={(e) => setOptions((s) => s.map((o, j) => (j === i ? e.target.value : o)))} />
-                    {options.length > 2 && (
-                      <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setOptions((s) => s.filter((_, j) => j !== i))}>
+                  <PollOptionFields
+                    key={i}
+                    labelText={`Option ${i + 1}`}
+                    value={opt}
+                    errors={optionErrors[i]}
+                    onChange={(next) => setOptions((s) => s.map((o, j) => (j === i ? next : o)))}
+                    trailing={options.length > 2 ? (
+                      <Button variant="ghost" size="icon" aria-label={`Remove option ${i + 1}`} className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => { setOptions((s) => s.filter((_, j) => j !== i)); setOptionErrors((s) => s.filter((_, j) => j !== i)); }}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
-                  </div>
+                    ) : undefined}
+                  />
                 ))}
-                <Button variant="outline" className="rounded-xl border-dashed" onClick={() => setOptions((s) => [...s, ""])}>
+                <Button variant="outline" className="rounded-xl border-dashed" onClick={() => setOptions((s) => [...s, emptyOptionDraft()])}>
                   <Plus className="w-4 h-4 mr-1" /> Add Option
                 </Button>
               </div>
@@ -325,10 +367,10 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
       </Dialog>
 
       <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
-        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl">Edit Poll</DialogTitle>
-            <DialogDescription>Update the question, vote limit, or option names. Existing votes remain attached to their options.</DialogDescription>
+            <DialogDescription>Update the question, vote limit, option names, descriptions, or links. Existing votes remain attached to their options.</DialogDescription>
           </DialogHeader>
           {editTarget && (
             <div className="flex flex-col gap-4 mt-2">
@@ -344,13 +386,14 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
                 <Label className="mb-2 block">Options</Label>
                 <div className="flex flex-col gap-2">
                   {editTarget.options.map((option, index) => (
-                    <Input
+                    <PollOptionFields
                       key={option.id}
-                      className="rounded-xl"
-                      value={option.label}
-                      onChange={(event) => setEditTarget({
+                      labelText={`Option ${index + 1}`}
+                      value={option}
+                      errors={editOptionErrors[index]}
+                      onChange={(next) => setEditTarget({
                         ...editTarget,
-                        options: editTarget.options.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item),
+                        options: editTarget.options.map((item, itemIndex) => itemIndex === index ? { ...item, ...next } : item),
                       })}
                     />
                   ))}

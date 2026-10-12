@@ -1391,6 +1391,22 @@ export interface CheckInInput {
   checkedIn: boolean;
 }
 
+export interface PollOptionInput {
+  detailsEnabled?: boolean;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  linkUrl?: string | null;
+  /** @minLength 1 */
+  label: string;
+}
+
 export interface PollInput {
   /** @minLength 1 */
   question: string;
@@ -1399,11 +1415,8 @@ export interface PollInput {
      * @maximum 20
      */
   maxVotesPerMember: number;
-  /**
-     * @minItems 2
-     * @items.minLength 1
-     */
-  options: string[];
+  /** @minItems 2 */
+  options: (string | PollOptionInput)[];
 }
 
 export interface PollUpdateInput {
@@ -1419,12 +1432,12 @@ export interface PollUpdateInput {
   liveResults?: boolean;
 }
 
-export interface PollOptionInput {
-  /** @minLength 1 */
-  label: string;
-}
-
 export interface PollOption {
+  detailsEnabled?: boolean;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  linkUrl?: string | null;
   id: number;
   pollId: number;
   label: string;

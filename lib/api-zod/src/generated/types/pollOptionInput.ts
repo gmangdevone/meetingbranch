@@ -7,6 +7,17 @@
  */
 
 export interface PollOptionInput {
+  detailsEnabled?: boolean;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  linkUrl?: string | null;
   /** @minLength 1 */
   label: string;
 }

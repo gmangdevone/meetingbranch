@@ -4301,8 +4301,10 @@ components:
         options:
           type: array
           items:
-            type: string
-            minLength: 1
+            oneOf:
+              - type: string
+                minLength: 1
+              - $ref: "#/components/schemas/PollOptionInput"
           minItems: 2
 
     PollUpdateInput:
@@ -4326,6 +4328,14 @@ components:
       type: object
       required: [label]
       properties:
+        detailsEnabled:
+          type: boolean
+        description:
+          type: [string, "null"]
+          maxLength: 2000
+        linkUrl:
+          type: [string, "null"]
+          maxLength: 2048
         label:
           type: string
           minLength: 1
@@ -4334,6 +4344,12 @@ components:
       type: object
       required: [id, pollId, label, position]
       properties:
+        detailsEnabled:
+          type: boolean
+        description:
+          type: [string, "null"]
+        linkUrl:
+          type: [string, "null"]
         id:
           type: integer
         pollId:

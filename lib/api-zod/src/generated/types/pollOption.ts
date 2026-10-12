@@ -7,6 +7,11 @@
  */
 
 export interface PollOption {
+  detailsEnabled?: boolean;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  linkUrl?: string | null;
   id: number;
   pollId: number;
   label: string;

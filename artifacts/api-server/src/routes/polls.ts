@@ -26,6 +26,7 @@ import {
   CastPollVotesResponse,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
+import { normalizePollOption, pollOptionError } from "../lib/pollOptionDetails";
 import { attachAuth } from "../middlewares/requireAdmin";
 import {
   requireReunionManager,
@@ -121,6 +122,9 @@ router.post("/reunions/:reunionId/polls", ...manage, async (req, res): Promise<v
   }
   const reunionId = req.managedReunion!.id;
   const { question, maxVotesPerMember, options } = body.data;
+  const normalizedOptions = options.map(normalizePollOption);
+  const optionError = normalizedOptions.map(pollOptionError).find(Boolean);
+  if (optionError) { res.status(400).json({ error: optionError }); return; }
 
   const poll = await db.transaction(async (tx) => {
     const [created] = await tx
@@ -128,7 +132,7 @@ router.post("/reunions/:reunionId/polls", ...manage, async (req, res): Promise<v
       .values({ reunionId, question: question.trim(), maxVotesPerMember })
       .returning();
     await tx.insert(pollOptionsTable).values(
-      options.map((label, i) => ({ pollId: created.id, label: label.trim(), position: i })),
+      normalizedOptions.map((option, i) => ({ pollId: created.id, ...option, position: i })),
     );
     return created;
   });
@@ -238,6 +242,9 @@ router.post("/reunions/:reunionId/polls/:pollId/options", ...manage, async (req,
     return;
   }
   const reunionId = req.managedReunion!.id;
+  const option = normalizePollOption(body.data);
+  const optionError = pollOptionError(option);
+  if (optionError) { res.status(400).json({ error: optionError }); return; }
   const pollId = Number(req.params.pollId);
   const existing = await getPollWithOptions(reunionId, pollId);
   if (!existing) {
@@ -249,7 +256,7 @@ router.post("/reunions/:reunionId/polls/:pollId/options", ...manage, async (req,
     : 0;
   const [created] = await db
     .insert(pollOptionsTable)
-    .values({ pollId, label: body.data.label.trim(), position: nextPosition })
+    .values({ pollId, ...option, position: nextPosition })
     .returning();
   res.status(201).json(AddPollOptionResponse.parse(created));
 });
@@ -271,9 +278,13 @@ router.patch(
       res.status(404).json({ error: "Option not found" });
       return;
     }
+    const option = normalizePollOption(body.data);
+    const previous = existing.options.find((item) => item.id === optionId)!;
+    const optionError = pollOptionError({ ...previous, ...option });
+    if (optionError) { res.status(400).json({ error: optionError }); return; }
     const [updated] = await db
       .update(pollOptionsTable)
-      .set({ label: body.data.label.trim() })
+      .set(option)
       .where(eq(pollOptionsTable.id, optionId))
       .returning();
     res.json(UpdatePollOptionResponse.parse(updated));

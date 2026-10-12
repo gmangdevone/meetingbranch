@@ -12,7 +12,7 @@ import { useState } from "react";
 import { Vote, ArrowLeft, CheckCircle2, Info } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { eventCodePath } from "../lib/eventCode";
-import { Button } from "../components/ui/button";
+import { PollOptionDetails } from "../components/polls/PollOptionFields";
 
 export function ReunionPolls({ params }: { params: { code: string } }) {
   const code = params.code.toUpperCase();
@@ -136,16 +136,18 @@ export function ReunionPolls({ params }: { params: { code: string } }) {
                       const result = results?.find((r) => r.optionId === opt.id);
                       const pct = result && totalVotes ? Math.round((result.voteCount / totalVotes) * 100) : 0;
                       return (
+                        <div key={opt.id} className="flex flex-col gap-1">
                         <button
-                          key={opt.id}
+                          type="button"
+                          aria-pressed={isMine}
                           disabled={!canVote || castVotes.isPending}
                           onClick={() => toggleVote(poll.id, myOptionIds, opt.id, poll.maxVotesPerMember)}
-                          className={`text-left border rounded-xl p-4 transition-all ${
+                          className={`w-full text-left border rounded-xl p-4 transition-all ${
                             isMine ? "border-primary bg-primary/5 ring-1 ring-primary/40" : "hover:border-primary/40"
                           } ${!canVote ? "cursor-default" : "cursor-pointer"}`}
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <div className="font-medium flex items-center gap-2">
+                            <div className="font-medium flex items-center gap-2 min-w-0 break-words">
                               {isMine && <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />}
                               {opt.label}
                             </div>
@@ -162,6 +164,8 @@ export function ReunionPolls({ params }: { params: { code: string } }) {
                             </div>
                           )}
                         </button>
+                        <PollOptionDetails option={opt} className="px-4" />
+                        </div>
                       );
                     })}
                   </div>

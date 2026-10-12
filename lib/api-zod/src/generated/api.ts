@@ -2126,6 +2126,9 @@ export const ListMemberPollsResponse = zod.object({
   "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
@@ -2155,6 +2158,11 @@ export const CreatePollParams = zod.object({
 export const createPollBodyMaxVotesPerMemberMax = 20;
 
 
+export const createPollBodyOptionsItemTwoDescriptionMax = 2000;
+
+export const createPollBodyOptionsItemTwoLinkUrlMax = 2048;
+
+
 export const createPollBodyOptionsMin = 2;
 
 
@@ -2162,7 +2170,12 @@ export const createPollBodyOptionsMin = 2;
 export const CreatePollBody = zod.object({
   "question": zod.string().min(1),
   "maxVotesPerMember": zod.number().min(1).max(createPollBodyMaxVotesPerMemberMax),
-  "options": zod.array(zod.string().min(1)).min(createPollBodyOptionsMin)
+  "options": zod.array(zod.union([zod.string().min(1),zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().max(createPollBodyOptionsItemTwoDescriptionMax).nullish(),
+  "linkUrl": zod.string().max(createPollBodyOptionsItemTwoLinkUrlMax).nullish(),
+  "label": zod.string().min(1)
+})])).min(createPollBodyOptionsMin)
 })
 
 export const CreatePollResponse = zod.object({
@@ -2175,6 +2188,9 @@ export const CreatePollResponse = zod.object({
   "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
@@ -2201,6 +2217,9 @@ export const ListManagePollsResponseItem = zod.object({
   "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
@@ -2249,6 +2268,9 @@ export const UpdatePollResponse = zod.object({
   "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
@@ -2276,14 +2298,24 @@ export const AddPollOptionParams = zod.object({
   "pollId": zod.coerce.number()
 })
 
+export const addPollOptionBodyDescriptionMax = 2000;
+
+export const addPollOptionBodyLinkUrlMax = 2048;
+
 
 
 
 export const AddPollOptionBody = zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().max(addPollOptionBodyDescriptionMax).nullish(),
+  "linkUrl": zod.string().max(addPollOptionBodyLinkUrlMax).nullish(),
   "label": zod.string().min(1)
 })
 
 export const AddPollOptionResponse = zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
@@ -2300,14 +2332,24 @@ export const UpdatePollOptionParams = zod.object({
   "optionId": zod.coerce.number()
 })
 
+export const updatePollOptionBodyDescriptionMax = 2000;
+
+export const updatePollOptionBodyLinkUrlMax = 2048;
+
 
 
 
 export const UpdatePollOptionBody = zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().max(updatePollOptionBodyDescriptionMax).nullish(),
+  "linkUrl": zod.string().max(updatePollOptionBodyLinkUrlMax).nullish(),
   "label": zod.string().min(1)
 })
 
 export const UpdatePollOptionResponse = zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
@@ -2350,6 +2392,9 @@ export const CastPollVotesResponse = zod.object({
   "liveResults": zod.boolean(),
   "createdAt": zod.coerce.date(),
   "options": zod.array(zod.object({
+  "detailsEnabled": zod.boolean().optional(),
+  "description": zod.string().nullish(),
+  "linkUrl": zod.string().nullish(),
   "id": zod.number(),
   "pollId": zod.number(),
   "label": zod.string(),
