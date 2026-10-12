@@ -488,6 +488,9 @@ export const CreateReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "fundName": zod.string().nullish(),
+  "fundDescription": zod.string().nullish(),
+  "fundButtonLabel": zod.string().nullish(),
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
@@ -577,6 +580,9 @@ export const ListMyReunionsResponseItem = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "fundName": zod.string().nullish(),
+  "fundDescription": zod.string().nullish(),
+  "fundButtonLabel": zod.string().nullish(),
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
@@ -704,6 +710,9 @@ export const GetReunionByCodeResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "fundName": zod.string().nullish(),
+  "fundDescription": zod.string().nullish(),
+  "fundButtonLabel": zod.string().nullish(),
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
@@ -797,6 +806,9 @@ export const GetReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "fundName": zod.string().nullish(),
+  "fundDescription": zod.string().nullish(),
+  "fundButtonLabel": zod.string().nullish(),
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
@@ -858,6 +870,12 @@ export const UpdateReunionParams = zod.object({
   "reunionId": zod.coerce.number()
 })
 
+export const updateReunionBodyFundNameMax = 100;
+
+export const updateReunionBodyFundDescriptionMax = 2000;
+
+export const updateReunionBodyFundButtonLabelMax = 60;
+
 export const updateReunionBodyCodeMin = 7;
 export const updateReunionBodyCodeMax = 32;
 
@@ -874,6 +892,9 @@ export const updateReunionBodyHeroRotationSecondsMax = 8;
 
 
 export const UpdateReunionBody = zod.object({
+  "fundName": zod.string().max(updateReunionBodyFundNameMax).nullish(),
+  "fundDescription": zod.string().max(updateReunionBodyFundDescriptionMax).nullish(),
+  "fundButtonLabel": zod.string().max(updateReunionBodyFundButtonLabelMax).nullish(),
   "code": zod.string().min(updateReunionBodyCodeMin).max(updateReunionBodyCodeMax).regex(updateReunionBodyCodeRegExp).optional().describe('Unique event code. Letters are normalized to uppercase.'),
   "name": zod.string().min(1).optional(),
   "startDate": zod.string().min(1).optional(),
@@ -929,6 +950,9 @@ export const UpdateReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "fundName": zod.string().nullish(),
+  "fundDescription": zod.string().nullish(),
+  "fundButtonLabel": zod.string().nullish(),
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
@@ -3751,6 +3775,9 @@ export const AdminListReunionsResponseItem = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "fundName": zod.string().nullish(),
+  "fundDescription": zod.string().nullish(),
+  "fundButtonLabel": zod.string().nullish(),
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),

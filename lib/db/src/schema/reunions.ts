@@ -26,6 +26,9 @@ export const reunionsTable = pgTable(
     hotelDescription: text("hotel_description"),
     hotelBookingUrl: text("hotel_booking_url"),
     hotelImageUrl: text("hotel_image_url"),
+    fundName: text("fund_name"),
+    fundDescription: text("fund_description"),
+    fundButtonLabel: text("fund_button_label"),
     // Ordered hero slideshow images (object paths, max 5 enforced at the API).
     // Empty array means "use heroImageUrl (legacy single image) or the default look".
     heroImageUrls: text("hero_image_urls").array().notNull().default([]),

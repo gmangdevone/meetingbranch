@@ -568,8 +568,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                     <Heart className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="font-serif text-2xl font-bold">Sponsorship Fund</h2>
-                    <p className="text-muted-foreground text-sm">Help cover costs for family members who need a little assistance. (Anonymous)</p>
+                    <h2 className="font-serif text-2xl font-bold break-words">{reunion.fundName || "Sponsorship Fund"}</h2>
+                    <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">{reunion.fundDescription || "Help cover costs for family members who need a little assistance."}{"\n"}(Anonymous)</p>
                   </div>
                 </div>
                 <FormField

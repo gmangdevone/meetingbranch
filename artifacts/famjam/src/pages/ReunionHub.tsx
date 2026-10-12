@@ -637,7 +637,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                       <div className="text-center py-8 text-muted-foreground">
                         <Heart className="w-10 h-10 mx-auto mb-3 opacity-30" />
                         <p className="font-medium">You haven't contributed to the fund yet.</p>
-                        <p className="text-sm mt-1">Use the "Chip in to Fund" button to make your first contribution.</p>
+                        <p className="text-sm mt-1">Use the "{reunion.fundButtonLabel || "Chip in to Fund"}" button to make your first contribution.</p>
                       </div>
                     ) : (
                       <div className="divide-y">
@@ -751,8 +751,8 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <div className="mt-6 pt-6 border-t">
                 <Dialog open={isSponsorDialogOpen} onOpenChange={setIsSponsorDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full rounded-xl bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 hover:text-white dark:bg-blue-600 dark:border-blue-500 dark:hover:bg-blue-500">
-                      <Heart className="w-4 h-4 mr-2" /> Chip in to Fund
+                    <Button className="w-full h-auto min-h-10 whitespace-normal break-words rounded-xl bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 hover:text-white dark:bg-blue-600 dark:border-blue-500 dark:hover:bg-blue-500">
+                      <Heart className="w-4 h-4 mr-2 shrink-0" /> {reunion.fundButtonLabel || "Chip in to Fund"}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-md">
@@ -767,9 +767,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                     ) : (
                       <>
                         <DialogHeader>
-                          <DialogTitle className="font-serif text-2xl">Sponsorship Fund</DialogTitle>
-                          <DialogDescription>
-                            Help cover costs for family members who need a little assistance. Your contribution amount is kept private from other members.
+                          <DialogTitle className="font-serif text-2xl break-words">{reunion.fundName || "Sponsorship Fund"}</DialogTitle>
+                          <DialogDescription className="whitespace-pre-wrap break-words">
+                            {reunion.fundDescription || "Help cover costs for family members who need a little assistance."}{"\n"}Your contribution amount is kept private from other members.
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">

@@ -11,6 +11,21 @@
  */
 export interface ReunionUpdateInput {
   /**
+     * @maxLength 100
+     * @nullable
+     */
+  fundName?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  fundDescription?: string | null;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  fundButtonLabel?: string | null;
+  /**
      * Unique event code. Letters are normalized to uppercase.
      * @minLength 7
      * @maxLength 32

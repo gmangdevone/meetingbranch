@@ -1086,6 +1086,12 @@ export interface Reunion {
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
   /** @nullable */
+  fundName?: string | null;
+  /** @nullable */
+  fundDescription?: string | null;
+  /** @nullable */
+  fundButtonLabel?: string | null;
+  /** @nullable */
   welcomeHeading?: string | null;
   /** @nullable */
   welcomeDescription?: string | null;
@@ -1259,6 +1265,21 @@ export interface ReunionInput {
  * Partial update — only provided fields are changed.
  */
 export interface ReunionUpdateInput {
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  fundName?: string | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  fundDescription?: string | null;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  fundButtonLabel?: string | null;
   /**
      * Unique event code. Letters are normalized to uppercase.
      * @minLength 7

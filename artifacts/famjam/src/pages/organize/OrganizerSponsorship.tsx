@@ -13,11 +13,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useToast } from "../../hooks/use-toast";
 import { format } from "date-fns";
 import { money } from "../../components/payments/money";
+import { FundContentEditor } from "../../components/FundContentEditor";
+import { useGetReunion, getGetReunionQueryKey } from "@workspace/api-client-react";
 
 export function OrganizerSponsorship({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { data: summary } = useGetReunion(reunionId, {
+    query: { enabled: Number.isFinite(reunionId), queryKey: getGetReunionQueryKey(reunionId) }
+  });
   
   const { data: fund, isLoading } = useGetSponsorshipFund(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getGetSponsorshipFundQueryKey(reunionId) }
@@ -88,11 +93,12 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
   return (
     <OrganizerLayout reunionId={reunionId} requiredRole="power_user">
       <div className="flex flex-col gap-6">
+        <FundContentEditor reunionId={reunionId} />
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="font-serif text-3xl font-bold flex items-center gap-3">
               <Heart className="w-8 h-8 text-rose-500" />
-              Sponsorship Fund
+              {summary?.reunion.fundName || "Sponsorship Fund"}
             </h1>
             <p className="text-muted-foreground flex items-center gap-1.5 mt-1">
               <Info className="w-4 h-4" /> Sponsorship details are confidential to organizers.

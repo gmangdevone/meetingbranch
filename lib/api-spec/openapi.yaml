@@ -3848,6 +3848,12 @@ components:
         allowRegistrantEdits:
           type: boolean
           description: "When true, registrants may edit their own active registrations."
+        fundName:
+          type: [string, "null"]
+        fundDescription:
+          type: [string, "null"]
+        fundButtonLabel:
+          type: [string, "null"]
         welcomeHeading:
           type: [string, "null"]
         welcomeDescription:
@@ -4130,6 +4136,15 @@ components:
       type: object
       description: "Partial update — only provided fields are changed."
       properties:
+        fundName:
+          type: [string, "null"]
+          maxLength: 100
+        fundDescription:
+          type: [string, "null"]
+          maxLength: 2000
+        fundButtonLabel:
+          type: [string, "null"]
+          maxLength: 60
         code:
           type: string
           minLength: 7

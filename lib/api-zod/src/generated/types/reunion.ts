@@ -38,6 +38,12 @@ export interface Reunion {
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
   /** @nullable */
+  fundName?: string | null;
+  /** @nullable */
+  fundDescription?: string | null;
+  /** @nullable */
+  fundButtonLabel?: string | null;
+  /** @nullable */
   welcomeHeading?: string | null;
   /** @nullable */
   welcomeDescription?: string | null;

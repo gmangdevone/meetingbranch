@@ -457,6 +457,9 @@ router.put(
   // Partial update: only fields present in the request body are changed, so
   // concurrent editors can't clobber each other's unrelated settings.
   const updates = {
+    ...(body.data.fundName === undefined ? {} : { fundName: body.data.fundName?.trim() || null }),
+    ...(body.data.fundDescription === undefined ? {} : { fundDescription: body.data.fundDescription?.trim() || null }),
+    ...(body.data.fundButtonLabel === undefined ? {} : { fundButtonLabel: body.data.fundButtonLabel?.trim() || null }),
     ...(code === undefined ? {} : { code }),
     ...(name === undefined ? {} : { name }),
     ...(startDate === undefined ? {} : { startDate }),
