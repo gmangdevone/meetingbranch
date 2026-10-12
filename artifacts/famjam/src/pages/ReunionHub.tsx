@@ -21,7 +21,7 @@ import { ZelleRecipientCard } from "../components/payments/ZelleRecipientCard";
 import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 import { SubmitPayment } from "../components/SubmitPayment";
 import { memberBalance } from "../lib/memberBalance";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { money } from "../components/payments/money";
 import { PlainText } from "../components/PlainText";
 import { HotelBlock } from "../components/HotelBlock";
@@ -150,15 +150,10 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const myOutstandingCents = myBalance.outstandingCents;
   const myOutstandingTotal = myOutstandingCents / 100;
   const myFirstUnpaidRegistration = myUnpaidRegistrations[0];
-  // Members who owe money should land on the payment form, not a collapsed panel.
-  const owesBranchFee = payableBranchFees.length > 0;
-  const autoOpenedPayments = useRef(false);
+  // Every event visit starts collapsed, regardless of outstanding balances.
   useEffect(() => {
-    if (!autoOpenedPayments.current && isSignedIn && (myOutstandingCents > 0 || owesBranchFee)) {
-      autoOpenedPayments.current = true;
-      setShowPayments(true);
-    }
-  }, [isSignedIn, myOutstandingCents, owesBranchFee]);
+    setShowPayments(false);
+  }, [code]);
 
   // Remember the last successfully visited reunion so the Home nav can return here;
   // forget it if the code turns out to be invalid.
@@ -367,14 +362,15 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               type="button"
               onClick={() => setShowPayments((v) => !v)}
               aria-expanded={showPayments}
+              aria-controls="payments-content"
               className="w-full flex items-center justify-between bg-card border shadow-sm rounded-3xl px-8 py-5 font-serif text-xl font-bold hover:bg-muted/50 transition-colors"
             >
-              <span>{showPayments ? "Hide" : "Update/Show"} Payments and Contributions</span>
+              <span>{showPayments ? "Hide" : "Show"} Payments and Contributions</span>
               <ChevronDown className={`w-5 h-5 transition-transform ${showPayments ? "rotate-180" : ""}`} />
             </button>
 
             {showPayments && (
-              <div className="flex flex-col gap-6 mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div id="payments-content" className="flex flex-col gap-6 mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div className="bg-muted/50 border rounded-3xl p-6">
                   <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-6">Payment Info</h3>
                   {reunion.fees.length === 0 && myPendingChipIns.length === 0 && myElections.length === 0 ? (
