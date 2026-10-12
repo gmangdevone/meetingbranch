@@ -24,6 +24,8 @@ vi.mock("@workspace/api-client-react", () => {
   const emptyList = () => ({ data: [], isLoading: false });
   return {
     // Layout + Settings + Branches
+    useAdminListReunions: () => ({ data: undefined }),
+    getAdminListReunionsQueryKey: () => ["adminReunions"],
     useGetReunion: () => ({
       data: hoisted.summary,
       isLoading: false,

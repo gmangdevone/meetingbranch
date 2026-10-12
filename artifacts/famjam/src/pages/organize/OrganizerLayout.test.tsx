@@ -21,6 +21,8 @@ vi.mock("wouter", () => ({
 }));
 
 vi.mock("@workspace/api-client-react", () => ({
+  useAdminListReunions: () => ({ data: undefined }),
+  getAdminListReunionsQueryKey: () => ["adminReunions"],
   useGetReunion: () => ({
     data: hoisted.summary,
     isLoading: hoisted.isLoading,

@@ -2439,8 +2439,8 @@ export const ListMemberActivityChoicesResponse = zod.object({
   "position": zod.number(),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish()
 }))
 }),
   "myOptionIds": zod.array(zod.number()),
@@ -2478,8 +2478,8 @@ export const CreateActivityChoiceGroupBody = zod.object({
   "label": zod.string().min(1),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish().describe('Optional absolute HTTP(S) map link. Null or blank clears the value.'),
+  "websiteUrl": zod.string().nullish().describe('Optional absolute HTTP(S) website link. Null or blank clears the value.')
 })])).min(1)
 })
 
@@ -2500,8 +2500,8 @@ export const CreateActivityChoiceGroupResponse = zod.object({
   "position": zod.number(),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish()
 }))
 })
 
@@ -2531,8 +2531,8 @@ export const ListManageActivityChoicesResponseItem = zod.object({
   "position": zod.number(),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish()
 }))
 }),
   "totalRegistrants": zod.number(),
@@ -2585,8 +2585,8 @@ export const UpdateActivityChoiceGroupResponse = zod.object({
   "position": zod.number(),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish()
 }))
 })
 
@@ -2617,8 +2617,8 @@ export const AddActivityChoiceOptionBody = zod.object({
   "label": zod.string().min(1),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish().describe('Optional absolute HTTP(S) map link. Null or blank clears the value.'),
+  "websiteUrl": zod.string().nullish().describe('Optional absolute HTTP(S) website link. Null or blank clears the value.')
 })
 
 export const AddActivityChoiceOptionResponse = zod.object({
@@ -2628,8 +2628,8 @@ export const AddActivityChoiceOptionResponse = zod.object({
   "position": zod.number(),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish()
 })
 
 
@@ -2649,8 +2649,8 @@ export const UpdateActivityChoiceOptionBody = zod.object({
   "label": zod.string().min(1),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish().describe('Optional absolute HTTP(S) map link. Null or blank clears the value.'),
+  "websiteUrl": zod.string().nullish().describe('Optional absolute HTTP(S) website link. Null or blank clears the value.')
 })
 
 export const UpdateActivityChoiceOptionResponse = zod.object({
@@ -2660,8 +2660,8 @@ export const UpdateActivityChoiceOptionResponse = zod.object({
   "position": zod.number(),
   "description": zod.string().nullish(),
   "address": zod.string().nullish(),
-  "websiteUrl": zod.string().nullish(),
-  "mapUrl": zod.string().nullish()
+  "mapUrl": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish()
 })
 
 

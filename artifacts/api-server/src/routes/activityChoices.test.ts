@@ -30,7 +30,7 @@ vi.mock("@workspace/db", () => {
     reunion_organizers: ["reunionId", "userId", "roles"],
     registrations: ["id", "reunionId", "userId", "status"],
     activity_choice_groups: ["id", "reunionId", "title", "description", "maxSelectionsPerRegistrant", "isOpen", "resultsRevealed", "liveResults", "createdAt"],
-    activity_choice_options: ["id", "groupId", "label", "position"],
+    activity_choice_options: ["id", "groupId", "label", "position", "description", "address", "mapUrl", "websiteUrl"],
     activity_choice_selections: ["id", "groupId", "optionId", "userId"],
   };
   const table = (name: string) => Object.fromEntries([
@@ -92,21 +92,21 @@ vi.mock("@workspace/db", () => {
     }
   }
   class Update {
-    private values: Record<string, unknown> = {};
+    private data: Record<string, unknown> = {};
     private condition: unknown;
     constructor(private source: string) {}
-    set(values: Record<string, unknown>) { this.values = values; return this; }
+    set(data: Record<string, unknown>) { this.data = data; return this; }
     where(condition: unknown) { this.condition = condition; return this; }
     returning() {
-      const rows = state.rows[this.source].filter(row => matches(this.condition, { [this.source]: row }));
-      rows.forEach(row => Object.assign(row, this.values));
-      return Promise.resolve(rows);
+      const rows = (state.rows[this.source] ?? []).filter(row => matches(this.condition, { [this.source]: row }));
+      rows.forEach(row => Object.assign(row, this.data));
+      return Promise.resolve(rows.map(row => ({ ...row })));
     }
   }
   const db = {
-    update: (token: any) => new Update(token.__table),
     select: (projection?: Record<string, unknown>) => new Select(projection),
     insert: (token: any) => new Insert(token.__table),
+    update: (token: any) => new Update(token.__table),
     delete: (token: any) => new Delete(token.__table),
     transaction: async (callback: (tx: any) => Promise<unknown>) => callback(db),
   };
@@ -210,30 +210,32 @@ describe("retired activity selections", () => {
 });
 
 describe("activity choice organizer creation", () => {
-  it("saves activity links and details, returns them to members, and allows clearing them", async () => {
+  it("round-trips item details and clears them without changing historical identities", async () => {
     authenticate(OWNER);
-    const details = { label: "Museum", description: "Local history", address: "123 Main St", websiteUrl: "https://example.com", mapUrl: "https://maps.google.com/?q=museum" };
-    const created = await request(app()).post(`/api/reunions/${REUNION}/activities`).send({ title: "Visit", options: [details] });
+    const details = { label: "Walk", description: " Riverside ", address: "123 Main St", mapUrl: "https://maps.example/walk", websiteUrl: "https://example.com" };
+    const created = await request(app()).post(`/api/reunions/${REUNION}/activities`).send({ title: "Local", options: ["Legacy", details] });
     expect(created.status).toBe(201);
-    expect(created.body.options[0]).toMatchObject(details);
+    expect(created.body.options[1]).toMatchObject({ ...details, description: "Riverside" });
+    const added = await request(app()).post(`/api/reunions/${REUNION}/activities/${GROUP}/options`).send(details);
+    expect(added.status).toBe(201);
+    expect(added.body.address).toBe(details.address);
+    const path = `/api/reunions/${REUNION}/activities/${GROUP}/options/${added.body.id}`;
+    const renamed = await request(app()).patch(path).send({ label: "Long walk" });
+    expect(renamed.body.mapUrl).toBe(details.mapUrl);
+    const cleared = await request(app()).patch(path).send({ label: "Long walk", description: "", address: null, mapUrl: "", websiteUrl: null });
+    expect(cleared.body).toMatchObject({ id: added.body.id, description: null, address: null, mapUrl: null, websiteUrl: null });
     const member = await request(app()).get(`/api/reunions/${REUNION}/activities`);
-    expect(member.body.groups.find((item: any) => item.group.id === created.body.id).group.options[0]).toMatchObject(details);
-    const optionId = created.body.options[0].id;
-    const url = `/api/reunions/${REUNION}/activities/${created.body.id}/options/${optionId}`;
-    const renamed = await request(app()).patch(url).send({ label: "History museum" });
-    expect(renamed.body.websiteUrl).toBe(details.websiteUrl);
-    const cleared = await request(app()).patch(url).send({ label: "History museum", websiteUrl: null, mapUrl: null });
-    expect(cleared.status).toBe(200);
-    expect(cleared.body.websiteUrl).toBeNull();
-    expect(cleared.body.mapUrl).toBeNull();
+    expect(member.body.groups.find((item: any) => item.group.id === created.body.id).group.options[1].description).toBe("Riverside");
   });
-  it("rejects unsafe links before creating or editing activities", async () => {
+  it("rejects unsafe links on every write and preserves organizer boundaries", async () => {
     authenticate(OWNER);
-    const res = await request(app()).post(`/api/reunions/${REUNION}/activities`).send({ title: "Visit", options: [{ label: "Museum", websiteUrl: "javascript:alert(1)" }] });
-    expect(res.status).toBe(400);
-    expect(state.rows.activity_choice_groups).toHaveLength(2);
-    expect((await request(app()).post(`/api/reunions/${REUNION}/activities/${GROUP}/options`).send({ label: "Park", mapUrl: "invalid" })).status).toBe(400);
-    expect((await request(app()).patch(`/api/reunions/${REUNION}/activities/${GROUP}/options/${OPTION_A}`).send({ label: "Park", websiteUrl: "data:text/html,hi" })).status).toBe(400);
+    const data = { label: "Walk", mapUrl: "javascript:alert(1)" };
+    expect((await request(app()).post(`/api/reunions/${REUNION}/activities`).send({ title: "Bad", options: [data] })).status).toBe(400);
+    expect((await request(app()).post(`/api/reunions/${REUNION}/activities/${GROUP}/options`).send(data)).status).toBe(400);
+    expect((await request(app()).patch(`/api/reunions/${REUNION}/activities/${GROUP}/options/${OPTION_A}`).send(data)).status).toBe(400);
+    expect((await request(app()).patch(`/api/reunions/${REUNION}/activities/${GROUP}/options/${OTHER_OPTION}`).send({ label: "Wrong" })).status).toBe(404);
+    authenticate(OUTSIDER);
+    expect((await request(app()).patch(`/api/reunions/${REUNION}/activities/${GROUP}/options/${OPTION_A}`).send({ label: "Wrong", address: "Elsewhere" })).status).toBe(403);
   });
   it("creates a list with one activity and no polling settings", async () => {
     authenticate(OWNER);

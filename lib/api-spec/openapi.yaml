@@ -4502,10 +4502,12 @@ components:
           type: ["string", "null"]
         address:
           type: ["string", "null"]
-        websiteUrl:
-          type: ["string", "null"]
         mapUrl:
           type: ["string", "null"]
+          description: Optional absolute HTTP(S) map link. Null or blank clears the value.
+        websiteUrl:
+          type: ["string", "null"]
+          description: Optional absolute HTTP(S) website link. Null or blank clears the value.
 
     ActivityChoiceOption:
       type: object
@@ -4523,9 +4525,9 @@ components:
           type: ["string", "null"]
         address:
           type: ["string", "null"]
-        websiteUrl:
-          type: ["string", "null"]
         mapUrl:
+          type: ["string", "null"]
+        websiteUrl:
           type: ["string", "null"]
 
     ActivityChoiceGroup:

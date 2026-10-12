@@ -13,8 +13,14 @@ export interface ActivityChoiceOptionInput {
   description?: string | null;
   /** @nullable */
   address?: string | null;
-  /** @nullable */
-  websiteUrl?: string | null;
-  /** @nullable */
+  /**
+     * Optional absolute HTTP(S) map link. Null or blank clears the value.
+     * @nullable
+     */
   mapUrl?: string | null;
+  /**
+     * Optional absolute HTTP(S) website link. Null or blank clears the value.
+     * @nullable
+     */
+  websiteUrl?: string | null;
 }

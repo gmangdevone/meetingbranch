@@ -25,6 +25,8 @@ vi.mock("wouter", () => ({
 vi.mock("@workspace/api-client-react", () => {
   const noopMutation = () => ({ mutate: vi.fn(), isPending: false });
   return {
+  useAdminListReunions: () => ({ data: undefined }),
+  getAdminListReunionsQueryKey: () => ["adminReunions"],
   useGetReunion: () => ({
     data: hoisted.summary,
     isLoading: false,

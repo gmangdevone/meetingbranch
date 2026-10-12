@@ -1,15 +1,31 @@
-import { ExternalLink, Globe, MapPin } from "lucide-react";
-import { mapHref, safeHttpUrl, type ActivityDetails } from "../../lib/activityDetails";
-
-export type DirectoryActivity = { id: number; label: string } & ActivityDetails;
+import { MapPin } from "lucide-react";
+import { safeHttpUrl } from "../../lib/homeContent";
+import type { ActivityChoiceOptionInput } from "@workspace/api-client-react";
 
 export type DirectoryCategory = {
   id: number;
   title: string;
   description?: string | null;
-  activities: DirectoryActivity[];
+  activities: (ActivityChoiceOptionInput & { id: number })[];
 };
 
+export function ActivityDetails({ activity }: { activity: ActivityChoiceOptionInput }) {
+  const mapUrl = safeHttpUrl(activity.mapUrl) || (activity.address?.trim()
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activity.address.trim())}`
+    : null);
+  const websiteUrl = safeHttpUrl(activity.websiteUrl);
+  return (
+    <div className="min-w-0 break-words space-y-2">
+      <h3 className="font-medium flex gap-2 items-center"><MapPin aria-hidden="true" className="w-4 h-4 text-primary shrink-0" />{activity.label}</h3>
+      {activity.description && <p className="text-sm text-muted-foreground whitespace-pre-line">{activity.description}</p>}
+      {activity.address && <p className="text-sm whitespace-pre-line">{activity.address}</p>}
+      <div className="flex flex-wrap gap-4 text-sm">
+        {mapUrl && <a className="text-primary underline rounded focus-visible:outline focus-visible:outline-2" href={mapUrl} target="_blank" rel="noopener noreferrer" aria-label={`View map for ${activity.label} (opens in new tab)`}>View map<span className="sr-only"> (opens in new tab)</span></a>}
+        {websiteUrl && <a className="text-primary underline rounded focus-visible:outline focus-visible:outline-2" href={websiteUrl} target="_blank" rel="noopener noreferrer" aria-label={`Visit website for ${activity.label} (opens in new tab)`}>Visit website<span className="sr-only"> (opens in new tab)</span></a>}
+      </div>
+    </div>
+  );
+}
 /** Read-only list of things to do, grouped by category. No selection controls. */
 export function ActivityDirectory({ categories }: { categories: DirectoryCategory[] }) {
   if (!categories.length) {
@@ -29,37 +45,11 @@ export function ActivityDirectory({ categories }: { categories: DirectoryCategor
             {category.description && <p className="text-muted-foreground mt-2 whitespace-pre-line">{category.description}</p>}
           </div>
           <ul className="flex flex-col gap-2">
-            {category.activities.map((activity) => {
-              const site = safeHttpUrl(activity.websiteUrl);
-              const map = mapHref(activity);
-              const address = activity.address?.trim();
-              return (
-                <li key={activity.id} className="border rounded-xl p-4 flex flex-col gap-1.5">
-                  <span className="font-medium">{activity.label}</span>
-                  {activity.description?.trim() && <p className="text-sm text-muted-foreground whitespace-pre-line">{activity.description}</p>}
-                  {address && (
-                    <p className="text-sm flex items-start gap-1.5">
-                      <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" aria-hidden="true" />
-                      <span>{address}</span>
-                    </p>
-                  )}
-                  {(site || map) && (
-                    <div className="flex flex-wrap gap-3 mt-1 text-sm">
-                      {site && (
-                        <a href={site} target="_blank" rel="noopener noreferrer" aria-label={`Website for ${activity.label} (opens in new tab)`} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-                          <Globe className="w-4 h-4" aria-hidden="true" /> Website
-                        </a>
-                      )}
-                      {map && (
-                        <a href={map} target="_blank" rel="noopener noreferrer" aria-label={`View map for ${activity.label} (opens in new tab)`} className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-                          <ExternalLink className="w-4 h-4" aria-hidden="true" /> View map
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+            {category.activities.map((activity) => (
+              <li key={activity.id} className="border rounded-xl p-4">
+                <ActivityDetails activity={activity} />
+              </li>
+            ))}
           </ul>
         </section>
       ))}

@@ -16,7 +16,7 @@ export interface ActivityChoiceOption {
   /** @nullable */
   address?: string | null;
   /** @nullable */
-  websiteUrl?: string | null;
-  /** @nullable */
   mapUrl?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
 }
