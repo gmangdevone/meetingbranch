@@ -31,6 +31,23 @@ import { requireReunionManager } from "../middlewares/requireReunionManager";
 const router: IRouter = Router();
 const manage = [attachAuth, requireReunionManager] as const;
 
+type ActivityInput = { label: string; description?: string | null; address?: string | null; websiteUrl?: string | null; mapUrl?: string | null };
+function activityDetails(input: ActivityInput) {
+  const details: ActivityInput = { label: input.label.trim() };
+  if (!details.label) throw new Error("Activity name cannot be blank.");
+  for (const field of ["description", "address", "websiteUrl", "mapUrl"] as const) {
+    if (input[field] === undefined) continue;
+    const value = input[field]?.trim() || null;
+    if (value && (field === "websiteUrl" || field === "mapUrl")) {
+      let url: URL;
+      try { url = new URL(value); } catch { throw new Error("Website and map links must be valid HTTP or HTTPS URLs."); }
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error("Website and map links must use HTTP or HTTPS.");
+    }
+    details[field] = value;
+  }
+  return details;
+}
+
 async function getGroupWithOptions(reunionId: number, groupId: number) {
   const [group] = await db
     .select()
@@ -63,10 +80,13 @@ router.post("/reunions/:reunionId/activities", ...manage, async (req, res): Prom
   }
   const reunionId = req.managedReunion!.id;
   const { title, description, options } = body.data;
-  if (!title.trim() || options.some((label) => !label.trim())) {
+  if (!title.trim()) {
     res.status(400).json({ error: "List title and activity names cannot be blank." });
     return;
   }
+  let normalized: ActivityInput[];
+  try { normalized = options.map((option) => activityDetails(typeof option === "string" ? { label: option } : option)); }
+  catch (error) { res.status(400).json({ error: (error as Error).message }); return; }
   const group = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(activityChoiceGroupsTable)
@@ -78,9 +98,9 @@ router.post("/reunions/:reunionId/activities", ...manage, async (req, res): Prom
       })
       .returning();
     await tx.insert(activityChoiceOptionsTable).values(
-      options.map((label, position) => ({
+      normalized.map((details, position) => ({
         groupId: created.id,
-        label: label.trim(),
+        ...details,
         position,
       })),
     );
@@ -210,9 +230,12 @@ router.post(
     const position = existing.options.length
       ? Math.max(...existing.options.map((option) => option.position)) + 1
       : 0;
+    let details: ActivityInput;
+    try { details = activityDetails(body.data); }
+    catch (error) { res.status(400).json({ error: (error as Error).message }); return; }
     const [created] = await db
       .insert(activityChoiceOptionsTable)
-      .values({ groupId, label: body.data.label.trim(), position })
+      .values({ groupId, ...details, position })
       .returning();
     res.status(201).json(AddActivityChoiceOptionResponse.parse(created));
   },
@@ -239,9 +262,12 @@ router.patch(
       res.status(404).json({ error: "Activity choice option not found" });
       return;
     }
+    let details: ActivityInput;
+    try { details = activityDetails(body.data); }
+    catch (error) { res.status(400).json({ error: (error as Error).message }); return; }
     const [updated] = await db
       .update(activityChoiceOptionsTable)
-      .set({ label: body.data.label.trim() })
+      .set(details)
       .where(eq(activityChoiceOptionsTable.id, optionId))
       .returning();
     res.json(UpdateActivityChoiceOptionResponse.parse(updated));

@@ -11,4 +11,12 @@ export interface ActivityChoiceOption {
   groupId: number;
   label: string;
   position: number;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
+  /** @nullable */
+  mapUrl?: string | null;
 }

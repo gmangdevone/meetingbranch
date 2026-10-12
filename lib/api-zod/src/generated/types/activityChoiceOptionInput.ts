@@ -9,4 +9,12 @@
 export interface ActivityChoiceOptionInput {
   /** @minLength 1 */
   label: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
+  /** @nullable */
+  mapUrl?: string | null;
 }

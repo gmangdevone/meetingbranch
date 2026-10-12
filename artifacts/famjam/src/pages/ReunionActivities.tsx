@@ -47,7 +47,14 @@ export function ReunionActivities({ params }: { params: { code: string } }) {
     id: group.id,
     title: group.title,
     description: group.description,
-    activities: group.options.map((option) => ({ id: option.id, label: option.label })),
+    activities: group.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      description: option.description ?? null,
+      address: option.address ?? null,
+      websiteUrl: option.websiteUrl ?? null,
+      mapUrl: option.mapUrl ?? null,
+    })),
   }));
 
   return (

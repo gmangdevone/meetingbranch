@@ -24,6 +24,10 @@ export const activityChoiceOptionsTable = pgTable("activity_choice_options", {
     .notNull()
     .references(() => activityChoiceGroupsTable.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
+  description: text("description"),
+  address: text("address"),
+  websiteUrl: text("website_url"),
+  mapUrl: text("map_url"),
   position: integer("position").notNull().default(0),
 });
 

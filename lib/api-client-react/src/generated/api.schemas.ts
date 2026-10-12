@@ -1491,6 +1491,19 @@ export interface CastVotesInput {
   optionIds: number[];
 }
 
+export interface ActivityChoiceOptionInput {
+  /** @minLength 1 */
+  label: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
+  /** @nullable */
+  mapUrl?: string | null;
+}
+
 export interface ActivityChoiceGroupInput {
   /** @minLength 1 */
   title: string;
@@ -1502,11 +1515,8 @@ export interface ActivityChoiceGroupInput {
      * @maximum 20
      */
   maxSelectionsPerRegistrant?: number;
-  /**
-     * @minItems 1
-     * @items.minLength 1
-     */
-  options: string[];
+  /** @minItems 1 */
+  options: (string | ActivityChoiceOptionInput)[];
 }
 
 export interface ActivityChoiceGroupUpdateInput {
@@ -1524,16 +1534,19 @@ export interface ActivityChoiceGroupUpdateInput {
   liveResults?: boolean;
 }
 
-export interface ActivityChoiceOptionInput {
-  /** @minLength 1 */
-  label: string;
-}
-
 export interface ActivityChoiceOption {
   id: number;
   groupId: number;
   label: string;
   position: number;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  websiteUrl?: string | null;
+  /** @nullable */
+  mapUrl?: string | null;
 }
 
 export interface ActivityChoiceGroup {

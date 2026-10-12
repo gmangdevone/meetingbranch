@@ -5,6 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { ActivityChoiceOptionInput } from './activityChoiceOptionInput';
 
 export interface ActivityChoiceGroupInput {
   /** @minLength 1 */
@@ -17,9 +18,6 @@ export interface ActivityChoiceGroupInput {
      * @maximum 20
      */
   maxSelectionsPerRegistrant?: number;
-  /**
-     * @minItems 1
-     * @items.minLength 1
-     */
-  options: string[];
+  /** @minItems 1 */
+  options: (string | ActivityChoiceOptionInput)[];
 }

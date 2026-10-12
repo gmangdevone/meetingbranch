@@ -2436,7 +2436,11 @@ export const ListMemberActivityChoicesResponse = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),
-  "position": zod.number()
+  "position": zod.number(),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 }))
 }),
   "myOptionIds": zod.array(zod.number()),
@@ -2465,11 +2469,18 @@ export const createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax = 20;
 
 
 
+
 export const CreateActivityChoiceGroupBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().nullish(),
   "maxSelectionsPerRegistrant": zod.number().min(1).max(createActivityChoiceGroupBodyMaxSelectionsPerRegistrantMax).optional(),
-  "options": zod.array(zod.string().min(1)).min(1)
+  "options": zod.array(zod.union([zod.string().min(1),zod.object({
+  "label": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
+})])).min(1)
 })
 
 export const CreateActivityChoiceGroupResponse = zod.object({
@@ -2486,7 +2497,11 @@ export const CreateActivityChoiceGroupResponse = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),
-  "position": zod.number()
+  "position": zod.number(),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 }))
 })
 
@@ -2513,7 +2528,11 @@ export const ListManageActivityChoicesResponseItem = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),
-  "position": zod.number()
+  "position": zod.number(),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 }))
 }),
   "totalRegistrants": zod.number(),
@@ -2563,7 +2582,11 @@ export const UpdateActivityChoiceGroupResponse = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),
-  "position": zod.number()
+  "position": zod.number(),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 }))
 })
 
@@ -2591,14 +2614,22 @@ export const AddActivityChoiceOptionParams = zod.object({
 
 
 export const AddActivityChoiceOptionBody = zod.object({
-  "label": zod.string().min(1)
+  "label": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 })
 
 export const AddActivityChoiceOptionResponse = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),
-  "position": zod.number()
+  "position": zod.number(),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 })
 
 
@@ -2615,14 +2646,22 @@ export const UpdateActivityChoiceOptionParams = zod.object({
 
 
 export const UpdateActivityChoiceOptionBody = zod.object({
-  "label": zod.string().min(1)
+  "label": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 })
 
 export const UpdateActivityChoiceOptionResponse = zod.object({
   "id": zod.number(),
   "groupId": zod.number(),
   "label": zod.string(),
-  "position": zod.number()
+  "position": zod.number(),
+  "description": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "websiteUrl": zod.string().nullish(),
+  "mapUrl": zod.string().nullish()
 })
 
 

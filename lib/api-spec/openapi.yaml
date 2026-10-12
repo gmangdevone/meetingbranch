@@ -4466,8 +4466,10 @@ components:
         options:
           type: array
           items:
-            type: string
-            minLength: 1
+            oneOf:
+              - type: string
+                minLength: 1
+              - $ref: "#/components/schemas/ActivityChoiceOptionInput"
           minItems: 1
 
     ActivityChoiceGroupUpdateInput:
@@ -4496,6 +4498,14 @@ components:
         label:
           type: string
           minLength: 1
+        description:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        websiteUrl:
+          type: ["string", "null"]
+        mapUrl:
+          type: ["string", "null"]
 
     ActivityChoiceOption:
       type: object
@@ -4509,6 +4519,14 @@ components:
           type: string
         position:
           type: integer
+        description:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        websiteUrl:
+          type: ["string", "null"]
+        mapUrl:
+          type: ["string", "null"]
 
     ActivityChoiceGroup:
       type: object
