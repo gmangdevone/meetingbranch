@@ -747,7 +747,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               <div className="mt-6 pt-6 border-t">
                 <Dialog open={isSponsorDialogOpen} onOpenChange={setIsSponsorDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="w-full h-auto min-h-10 whitespace-normal break-words rounded-xl bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 hover:text-white dark:bg-blue-600 dark:border-blue-500 dark:hover:bg-blue-500">
+                    <Button className="w-full h-auto min-h-10 whitespace-normal break-words rounded-xl bg-gradient-to-r from-orange-800 to-orange-600 text-white border border-orange-700 hover:from-orange-900 hover:to-orange-700 hover:text-white">
                       <Heart className="w-4 h-4 mr-2 shrink-0" /> {reunion.fundButtonLabel || "Chip in to Fund"}
                     </Button>
                   </DialogTrigger>
