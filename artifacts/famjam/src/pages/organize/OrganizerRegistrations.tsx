@@ -40,6 +40,7 @@ import { OrganizerLayout } from "./OrganizerLayout";
 import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
 import { computeTotal, feeApplies, isDinnerFee } from "../../lib/fees";
+import { registrationAddOns, attendeeAddOns } from "../../lib/registrationAddOns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { LedgerHistory, LedgerStatusBadge } from "../../components/payments/LedgerPanel";
 import { RecordPaymentDialog, type PayableRegistration, type RecordPaymentPreset } from "../../components/payments/RecordPaymentDialog";
@@ -150,6 +151,10 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     () => registrations?.find((r) => r.id === checkInRegId) ?? null,
     [registrations, checkInRegId],
   );
+  const householdAddOns = checkInReg
+    ? registrationAddOns(reunion?.fees ?? [], checkInReg.selectedFeeIds ?? [], checkInReg.attendees)
+      .filter(item => item.fee.chargeType === "flat")
+    : [];
 
   const handleMarkChipInPaid = (contributionId: number) => {
     updateContributionPayment.mutate(
@@ -408,6 +413,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   <th className="px-4 py-3 rounded-tl-xl">Registrant</th>
                   <th className="px-4 py-3">Branch</th>
                   <th className="px-4 py-3">Attendees</th>
+                  <th className="px-4 py-3">Add-ons</th>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Check-in</th>
                   <th className="px-4 py-3">Balance</th>
@@ -417,12 +423,15 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
               </thead>
               <tbody className="divide-y">
                 {isLoading ? (
-                  <tr><td colSpan={8} className="text-center py-8">Loading...</td></tr>
+                  <tr><td colSpan={9} className="text-center py-8">Loading...</td></tr>
                 ) : filteredRegistrations.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
+                  <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
                 ) : (
                   filteredRegistrations.map((reg) => {
                     const isCancelled = reg.status === 'cancelled';
+                    const addOns = registrationAddOns(reunion?.fees ?? [], reg.selectedFeeIds ?? [], reg.attendees);
+                    const addOnQuantity = addOns.reduce((sum, item) => sum + item.quantity, 0);
+                    const shirtSizes = reg.attendees.filter(a => a.shirtSize).length;
                     const registrationTotal = computeTotal(
                       reunion?.fees ?? [],
                       reg.attendees,
@@ -446,11 +455,20 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                       </td>
                       <td className="px-4 py-4 font-medium">{reg.branchName}</td>
                       <td className="px-4 py-4">
+                        <div className="font-bold">{reg.attendeeCount}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[150px]" title={reg.attendees.map(a => a.name).join(", ")}>
+                          {reg.attendees.map(a => a.name).join(", ")}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="flex flex-col">
-                          <span className="font-bold">{reg.attendeeCount}</span>
-                          <span className="text-xs text-muted-foreground truncate max-w-[150px]" title={reg.attendees.map(a=>a.name).join(', ')}>
-                            {reg.attendees.map(a=>a.name).join(', ')}
-                          </span>
+                          <span className="font-bold">{addOnQuantity} {addOnQuantity === 1 ? "add-on" : "add-ons"}</span>
+                          {addOns.map(({ fee, quantity }) => (
+                            <span key={fee.id} className="text-xs text-muted-foreground">
+                              {fee.label} × {quantity}{fee.chargeType === "flat" ? " (household)" : ""}
+                            </span>
+                          ))}
+                          {shirtSizes > 0 && <span className="text-xs text-muted-foreground">{shirtSizes} T-shirt {shirtSizes === 1 ? "size" : "sizes"} recorded</span>}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-muted-foreground text-xs">
@@ -1108,7 +1126,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
 
       {/* Check-in Dialog */}
       <Dialog open={!!checkInReg} onOpenChange={(open) => !open && setCheckInRegId(null)}>
-        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-md">
+        <DialogContent className="rounded-3xl p-6 sm:p-8 max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif text-2xl flex items-center gap-2">
               <ClipboardCheck className="w-6 h-6 text-primary" /> Check In Attendees
@@ -1120,6 +1138,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           <div className="flex flex-col gap-2 mt-2">
             {checkInReg?.attendees.map((a) => {
               const isIn = !!a.checkedInAt;
+              const addOns = attendeeAddOns(reunion?.fees ?? [], checkInReg.selectedFeeIds ?? [], a);
               return (
                 <label
                   key={a.id}
@@ -1133,6 +1152,10 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                     />
                     <div>
                       <div className="font-medium">{a.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {addOns.length ? `Add-ons: ${addOns.join(", ")}` : "No individual add-ons"}
+                      </div>
+                      {a.shirtSize && <div className="text-xs text-muted-foreground">T-Shirt Size: {a.shirtSize}</div>}
                       {isIn && a.checkedInAt && (
                         <div className="text-xs text-muted-foreground">
                           Checked in {format(new Date(a.checkedInAt), 'MMM d, h:mm a')}
@@ -1144,6 +1167,13 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
               );
             })}
           </div>
+          {householdAddOns.length > 0 && (
+            <div className="rounded-xl border p-3 text-sm">
+              <h3 className="font-medium">Household add-ons</h3>
+              <p className="text-xs text-muted-foreground">Shared with this registration; not assigned to an individual.</p>
+              {householdAddOns.map(({ fee, quantity }) => <div key={fee.id}>{fee.label} × {quantity}</div>)}
+            </div>
+          )}
           <div className="flex justify-between items-center gap-3 pt-4 border-t mt-2">
             <Button
               variant="outline"

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReunionRole, ReunionViewerPermissions } from "@workspace/api-client-react";
 
 // Each organizer page is responsible for passing the RIGHT `requiredRole` into
@@ -10,7 +10,7 @@ import type { ReunionRole, ReunionViewerPermissions } from "@workspace/api-clien
 //
 // `summary` must be a STABLE reference across renders (OrganizerSettings resets
 // a form in an effect keyed on it), so each test assigns it once via setSummary.
-const hoisted = vi.hoisted(() => ({ summary: null as unknown }));
+const hoisted = vi.hoisted(() => ({ summary: null as unknown, registrations: [] as unknown[] }));
 
 vi.mock("wouter", () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -33,7 +33,7 @@ vi.mock("@workspace/api-client-react", () => {
     }),
     getGetReunionQueryKey: (id: number) => ["getReunion", id],
     // Registrations
-    useListReunionRegistrations: emptyList,
+    useListReunionRegistrations: () => ({ data: hoisted.registrations, isLoading: false }),
     getListReunionRegistrationsQueryKey: (id: number) => ["registrations", id],
     useListPaymentSubmissions: emptyList,
     getListPaymentSubmissionsQueryKey: (id: number) => ["payment-submissions", id],
@@ -150,6 +150,37 @@ function setSummary(viewer: ReunionViewerPermissions) {
 }
 
 const DENIED_TEXT = "You don't have access to this area";
+
+it("shows add-on quantities and the correct recipients in the check-in dialog", () => {
+  setSummary(makeViewer({ roles: ["registration"] }));
+  (hoisted.summary as any).reunion.fees = [
+    { id: 2, label: "Dinner", chargeType: "per_person", isOptional: true, isDinner: true, amount: 20, ageTiers: [] },
+    { id: 3, label: "Photo package", chargeType: "flat", isOptional: true, amount: 10, ageTiers: [] },
+  ];
+  hoisted.registrations = [{
+    id: 10, status: "active", branchName: "Test", userName: "Alex", userEmail: "alex@example.test",
+    createdAt: "2027-01-01T00:00:00Z", paymentStatus: "pending", attendeeCount: 2, selectedFeeIds: [2, 3],
+    attendees: [
+      { id: 20, name: "Alex Adult", age: 40, includeDinner: true, shirtSize: "L", checkedInAt: null },
+      { id: 21, name: "Sam Child", age: 8, includeDinner: false, shirtSize: "S", checkedInAt: null },
+    ],
+  }];
+  try {
+    render(<OrganizerRegistrations params={{ reunionId: "1" }} />);
+    expect(screen.getByText("2 add-ons")).toBeInTheDocument();
+    expect(screen.getByText("Dinner × 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /0\/2/ }));
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Add-ons: Dinner");
+    expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("T-Shirt Size: L");
+    expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("No individual add-ons");
+    expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("T-Shirt Size: S");
+    expect(dialog.getByText("Household add-ons")).toBeInTheDocument();
+    expect(dialog.getByText("Photo package × 1")).toBeInTheDocument();
+  } finally {
+    hoisted.registrations = [];
+  }
+});
 
 // Every organize page, the role it must require, and the heading that proves
 // the real page content rendered.
