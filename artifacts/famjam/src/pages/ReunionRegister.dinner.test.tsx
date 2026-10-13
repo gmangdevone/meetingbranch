@@ -95,6 +95,9 @@ describe("registration dinner opt-out", () => {
     fireEvent.click(screen.getByText("Pick Lacey"));
     fill(0, "Ann Adult", "40");
     expect(screen.getByText("T-Shirt Size")).toBeInTheDocument();
+    expect(screen.getByText("T-Shirt Size").compareDocumentPosition(
+      screen.getByRole("button", { name: /Add Another Person/ }),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
     await waitFor(() => expect(screen.getByText("Please select a T-shirt size")).toBeInTheDocument());
     expect(h.create).not.toHaveBeenCalled();
@@ -124,6 +127,8 @@ describe("registration dinner opt-out", () => {
     fireEvent.click(screen.getByText("Pick Lacey"));
     fill(0, "Ann Adult", "40");
     expect(screen.queryByTestId("include-dinner-0")).toBeNull();
+    expect(screen.getByText("Optional Add-ons")).toBeInTheDocument();
+    expect(screen.queryByText("Choose any extras for your household.")).toBeNull();
     fireEvent.click(screen.getByLabelText(/Sunday Dinner/));
     expect(screen.getByTestId("include-dinner-0")).toBeInTheDocument();
   });

@@ -438,20 +438,6 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                       />
                       
                       
-                      {reunion.collectShirtSizes && <FormField
-                        control={form.control}
-                        name={`attendees.${index}.shirtSize`}
-                        render={({ field: inputField }) => (
-                          <FormItem>
-                            <FormLabel>T-Shirt Size</FormLabel>
-                            <Select value={inputField.value ?? ""} onValueChange={inputField.onChange}>
-                              <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
-                              <SelectContent>{SHIRT_SIZES.map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}</SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />}
                       <FormField
                         control={form.control}
                         name={`attendees.${index}.age`}
@@ -519,6 +505,20 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                           }}
                         />
                       )}
+                      {reunion.collectShirtSizes && <FormField
+                        control={form.control}
+                        name={`attendees.${index}.shirtSize`}
+                        render={({ field: inputField }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>T-Shirt Size</FormLabel>
+                            <Select value={inputField.value ?? ""} onValueChange={inputField.onChange}>
+                              <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
+                              <SelectContent>{SHIRT_SIZES.map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />}
                     </div>
                   </div>
                 ))}
@@ -537,7 +537,6 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                 <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
                   <div>
                     <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
-                    <p className="text-muted-foreground text-sm">Choose any extras for your household.</p>
                   </div>
                   <div className="space-y-3">
                     {optionalFees.map((fee) => (
