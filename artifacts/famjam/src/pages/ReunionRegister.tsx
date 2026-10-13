@@ -523,14 +523,6 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   </div>
                 ))}
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true })}
-                  className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
-                >
-                  <Plus className="mr-2 w-5 h-5" /> Add Another Person
-                </Button>
               </div>
 
               {optionalFees.length > 0 && (
@@ -561,6 +553,15 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   </div>
                 </div>
               )}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true })}
+                className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
+              >
+                <Plus className="mr-2 w-5 h-5" /> Add Another Person
+              </Button>
 
               {!isEdit && (
               <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">

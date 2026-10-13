@@ -128,6 +128,9 @@ describe("registration dinner opt-out", () => {
     fill(0, "Ann Adult", "40");
     expect(screen.queryByTestId("include-dinner-0")).toBeNull();
     expect(screen.getByText("Optional Add-ons")).toBeInTheDocument();
+    expect(screen.getByText("Optional Add-ons").compareDocumentPosition(
+      screen.getByRole("button", { name: /Add Another Person/ }),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("Choose any extras for your household.")).toBeNull();
     fireEvent.click(screen.getByLabelText(/Sunday Dinner/));
     expect(screen.getByTestId("include-dinner-0")).toBeInTheDocument();
