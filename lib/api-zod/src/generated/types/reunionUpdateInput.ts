@@ -10,6 +10,7 @@
  * Partial update — only provided fields are changed.
  */
 export interface ReunionUpdateInput {
+  collectShirtSizes?: boolean;
   /**
      * @maxLength 100
      * @nullable

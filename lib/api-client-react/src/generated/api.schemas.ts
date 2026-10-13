@@ -1105,6 +1105,7 @@ export interface ReunionFee {
 }
 
 export interface Reunion {
+  collectShirtSizes?: boolean;
   id: number;
   /**
      * Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.
@@ -1312,6 +1313,7 @@ export interface ReunionInput {
  * Partial update — only provided fields are changed.
  */
 export interface ReunionUpdateInput {
+  collectShirtSizes?: boolean;
   /**
      * @maxLength 100
      * @nullable

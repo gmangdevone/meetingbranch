@@ -321,7 +321,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
         <HubImagesManager reunionId={reunionId} reunion={summary.reunion} />
 
-        <FeesManager reunionId={reunionId} fees={summary.reunion.fees} />
+        <FeesManager reunionId={reunionId} fees={summary.reunion.fees} collectShirtSizes={summary.reunion.collectShirtSizes ?? false} />
 
         {summary.viewer?.canManageOrganizers && <CoOrganizers reunionId={reunionId} />}
         {/* CoOrganizers is only shown to owner/admin (canManageOrganizers), so all
@@ -820,8 +820,20 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
   };
 }
 
-function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[] }) {
+function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number; fees: ReunionFee[]; collectShirtSizes: boolean }) {
   const queryClient = useQueryClient();
+  const shirtMutation = useUpdateReunion();
+  const [shirtFeedback, setShirtFeedback] = useState("");
+  const toggleShirts = async (checked: boolean) => {
+    setShirtFeedback("");
+    try {
+      await shirtMutation.mutateAsync({ reunionId, data: { collectShirtSizes: checked } });
+      await queryClient.invalidateQueries();
+      setShirtFeedback(checked ? "T-shirt sizes enabled for registration." : "T-shirt sizes hidden from registration. Saved sizes are preserved.");
+    } catch {
+      setShirtFeedback("Could not save the T-shirt setting. Please try again.");
+    }
+  };
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<FeeFormState>(EMPTY_FEE);
@@ -946,6 +958,14 @@ function FeesManager({ reunionId, fees }: { reunionId: number; fees: ReunionFee[
     <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-5">
       <div>
         <h2 className="font-serif text-2xl font-bold">Fees &amp; Dues</h2>
+        <div className="my-4 border rounded-xl p-4 space-y-2">
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="collect-shirt-sizes" className="font-medium">Collect T-shirt sizes</label>
+            <Switch id="collect-shirt-sizes" checked={collectShirtSizes} disabled={shirtMutation.isPending} onCheckedChange={toggleShirts} />
+          </div>
+          <p className="text-sm text-muted-foreground">Show a size selector for each attendee during registration. Turning this off hides it and preserves saved sizes. This does not add a charge.</p>
+          {shirtFeedback && <p role="status" className="text-sm">{shirtFeedback}</p>}
+        </div>
         <p className="text-sm text-muted-foreground mt-1">
           Add every charge for this reunion — registration fees, dues, T-shirts, and more. Choose how
           each is charged, whether it's optional, and set an age-based price if you like.

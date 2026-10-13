@@ -3821,6 +3821,8 @@ components:
       required:
         [id, code, name, startDate, endDate, registrationsOpen, createdAt, branches, fees, paymentRecipient]
       properties:
+        collectShirtSizes:
+          type: boolean
         id:
           type: integer
         code:
@@ -4138,6 +4140,8 @@ components:
       type: object
       description: "Partial update — only provided fields are changed."
       properties:
+        collectShirtSizes:
+          type: boolean
         fundName:
           type: [string, "null"]
           maxLength: 100

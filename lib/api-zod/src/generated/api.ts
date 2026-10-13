@@ -468,6 +468,7 @@ export const createReunionResponseFeesItemAgeTiersItemAmountMin = 0;
 
 
 export const CreateReunionResponse = zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "id": zod.number(),
   "code": zod.string().min(createReunionResponseCodeMin).max(createReunionResponseCodeMax).regex(createReunionResponseCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
@@ -560,6 +561,7 @@ export const listMyReunionsResponseReunionFeesItemAgeTiersItemAmountMin = 0;
 
 export const ListMyReunionsResponseItem = zod.object({
   "reunion": zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "id": zod.number(),
   "code": zod.string().min(listMyReunionsResponseReunionCodeMin).max(listMyReunionsResponseReunionCodeMax).regex(listMyReunionsResponseReunionCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
@@ -690,6 +692,7 @@ export const getReunionByCodeResponseFeesItemAgeTiersItemAmountMin = 0;
 
 
 export const GetReunionByCodeResponse = zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "id": zod.number(),
   "code": zod.string().min(getReunionByCodeResponseCodeMin).max(getReunionByCodeResponseCodeMax).regex(getReunionByCodeResponseCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
@@ -786,6 +789,7 @@ export const getReunionResponseReunionFeesItemAgeTiersItemAmountMin = 0;
 
 export const GetReunionResponse = zod.object({
   "reunion": zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "id": zod.number(),
   "code": zod.string().min(getReunionResponseReunionCodeMin).max(getReunionResponseReunionCodeMax).regex(getReunionResponseReunionCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
@@ -893,6 +897,7 @@ export const updateReunionBodyHeroRotationSecondsMax = 8;
 
 
 export const UpdateReunionBody = zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "fundName": zod.string().max(updateReunionBodyFundNameMax).nullish(),
   "fundDescription": zod.string().max(updateReunionBodyFundDescriptionMax).nullish(),
   "fundButtonLabel": zod.string().max(updateReunionBodyFundButtonLabelMax).nullish(),
@@ -930,6 +935,7 @@ export const updateReunionResponseFeesItemAgeTiersItemAmountMin = 0;
 
 
 export const UpdateReunionResponse = zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "id": zod.number(),
   "code": zod.string().min(updateReunionResponseCodeMin).max(updateReunionResponseCodeMax).regex(updateReunionResponseCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),
@@ -3816,6 +3822,7 @@ export const adminListReunionsResponseReunionFeesItemAgeTiersItemAmountMin = 0;
 
 export const AdminListReunionsResponseItem = zod.object({
   "reunion": zod.object({
+  "collectShirtSizes": zod.boolean().optional(),
   "id": zod.number(),
   "code": zod.string().min(adminListReunionsResponseReunionCodeMin).max(adminListReunionsResponseReunionCodeMax).regex(adminListReunionsResponseReunionCodeRegExp).describe('Unique Event Code. Read responses may contain a safe uppercase alphanumeric legacy code created before 2026-08-27; all modern codes also contain a URL-safe special character.'),
   "name": zod.string(),

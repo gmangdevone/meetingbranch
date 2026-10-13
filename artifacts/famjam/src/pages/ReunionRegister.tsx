@@ -202,6 +202,16 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     if (!reunion) return;
+    if (reunion.collectShirtSizes) {
+      let missing = false;
+      values.attendees.forEach((attendee, index) => {
+        if (!attendee.shirtSize) {
+          missing = true;
+          form.setError(`attendees.${index}.shirtSize`, { message: "Please select a T-shirt size" });
+        }
+      });
+      if (missing) return;
+    }
     if (asksFee && feeChoice === null && !isEdit) {
       setFlowError({ title: "One quick question", detail: `Let us know above if you'll pay the ${feeOption!.label}.` });
       return;
@@ -428,6 +438,20 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                       />
                       
                       
+                      {reunion.collectShirtSizes && <FormField
+                        control={form.control}
+                        name={`attendees.${index}.shirtSize`}
+                        render={({ field: inputField }) => (
+                          <FormItem>
+                            <FormLabel>T-Shirt Size</FormLabel>
+                            <Select value={inputField.value ?? ""} onValueChange={inputField.onChange}>
+                              <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
+                              <SelectContent>{SHIRT_SIZES.map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}</SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />}
                       <FormField
                         control={form.control}
                         name={`attendees.${index}.age`}

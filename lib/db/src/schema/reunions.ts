@@ -18,6 +18,7 @@ export const reunionsTable = pgTable(
     paymentUrl: text("payment_url"),
     // When false, new registrations are rejected (organizers can toggle anytime).
     registrationsOpen: boolean("registrations_open").notNull().default(true),
+    collectShirtSizes: boolean("collect_shirt_sizes").notNull().default(false),
     allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
     heroImageUrl: text("hero_image_url"),
     welcomeHeading: text("welcome_heading"),

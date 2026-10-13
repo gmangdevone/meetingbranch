@@ -100,6 +100,10 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     });
     return;
   }
+  if (reunion.collectShirtSizes && attendees.some(a => !a.shirtSize)) {
+    res.status(400).json({ error: "Please select a T-shirt size for every attendee." });
+    return;
+  }
 
   // Load this reunion's fees; only its OWN optional fees may be selected.
   const fees = await db
@@ -309,6 +313,10 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
   }
 
   const { branchName, attendees, selectedFeeIds } = body.data;
+  if (reunion.collectShirtSizes && attendees.some(a => !a.shirtSize)) {
+    res.status(400).json({ error: "Please select a T-shirt size for every attendee." });
+    return;
+  }
 
   // Branch must be one of the reunion's configured branches (when it has any)
   const branches = await db

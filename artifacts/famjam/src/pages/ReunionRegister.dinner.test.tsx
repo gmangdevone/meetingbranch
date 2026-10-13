@@ -7,6 +7,7 @@ import { getGetRegistrationLedgerQueryKey, getGetRegistrationQueryKey, getGetReu
 
 // Per-attendee dinner opt-out in the registration form.
 const h = vi.hoisted(() => ({
+  collectShirtSizes: false,
   options: [] as unknown[],
   fees: [] as unknown[],
   existing: undefined as unknown,
@@ -25,6 +26,7 @@ vi.mock("@workspace/api-client-react", async (orig) => ({
     data: {
       id: 7, code: "LACEY", name: "Lacey Reunion", registrationsOpen: true, paymentRecipient: null,
       fees: h.fees,
+      collectShirtSizes: h.collectShirtSizes,
       branches: [{ id: 11, name: "Lacey", sortOrder: 0 }, { id: 12, name: "Goudy", sortOrder: 1 }],
     },
   }),
@@ -65,6 +67,7 @@ const fill = (i: number, name: string, age: string) => {
 };
 
 beforeEach(() => {
+  h.collectShirtSizes = false;
   vi.clearAllMocks();
   h.options = [];
   h.fees = [REG, DINNER];
@@ -84,6 +87,17 @@ describe("registration dinner opt-out", () => {
     await waitFor(() => expect(total()).toBe("$50"));
     fireEvent.click(box);
     await waitFor(() => expect(total()).toBe("$80"));
+  });
+
+  it("shows T-shirt sizes when enabled and blocks submission until selected", async () => {
+    h.collectShirtSizes = true;
+    renderIt();
+    fireEvent.click(screen.getByText("Pick Lacey"));
+    fill(0, "Ann Adult", "40");
+    expect(screen.getByText("T-Shirt Size")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
+    await waitFor(() => expect(screen.getByText("Please select a T-shirt size")).toBeInTheDocument());
+    expect(h.create).not.toHaveBeenCalled();
   });
 
   it("mixed household: exact tiers and the submitted includeDinner flags", async () => {
