@@ -517,6 +517,25 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                     <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
                   </div>
                   <div className="space-y-3">
+                    {optionalFees.map((fee) => (
+                      <label
+                        key={fee.id}
+                        htmlFor={`fee-${fee.id}`}
+                        className="flex items-start gap-3 p-4 rounded-2xl bg-muted/40 border border-transparent hover:border-primary/40 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          id={`fee-${fee.id}`}
+                          checked={selectedFeeIds.includes(fee.id)}
+                          onCheckedChange={(v) => toggleFee(fee.id, v === true)}
+                          className="mt-0.5"
+                        />
+                        <span className="flex-1">
+                          <span className="font-bold block">{fee.label}</span>
+                          <span className="text-sm text-muted-foreground">{describeFee(fee)}</span>
+                        </span>
+                        <span className="font-bold">${computeFeeAmount(fee, feeAttendees)}</span>
+                      </label>
+                    ))}
                     {reunion.collectShirtSizes && fields.map((attendee, index) => (
                       <FormField
                         key={attendee.id}
@@ -536,25 +555,6 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                           </FormItem>
                         )}
                       />
-                    ))}
-                    {optionalFees.map((fee) => (
-                      <label
-                        key={fee.id}
-                        htmlFor={`fee-${fee.id}`}
-                        className="flex items-start gap-3 p-4 rounded-2xl bg-muted/40 border border-transparent hover:border-primary/40 cursor-pointer transition-colors"
-                      >
-                        <Checkbox
-                          id={`fee-${fee.id}`}
-                          checked={selectedFeeIds.includes(fee.id)}
-                          onCheckedChange={(v) => toggleFee(fee.id, v === true)}
-                          className="mt-0.5"
-                        />
-                        <span className="flex-1">
-                          <span className="font-bold block">{fee.label}</span>
-                          <span className="text-sm text-muted-foreground">{describeFee(fee)}</span>
-                        </span>
-                        <span className="font-bold">${computeFeeAmount(fee, feeAttendees)}</span>
-                      </label>
                     ))}
                   </div>
                 </div>

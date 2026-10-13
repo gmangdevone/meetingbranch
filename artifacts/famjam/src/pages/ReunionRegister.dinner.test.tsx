@@ -91,6 +91,7 @@ describe("registration dinner opt-out", () => {
 
   it("shows T-shirt sizes when enabled and blocks submission until selected", async () => {
     h.collectShirtSizes = true;
+    h.fees = [{ ...DINNER, isOptional: true }];
     renderIt();
     fireEvent.click(screen.getByText("Pick Lacey"));
     fill(0, "Ann Adult", "40");
@@ -98,6 +99,9 @@ describe("registration dinner opt-out", () => {
     const addOnsCard = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
     expect(addOnsCard).toContainElement(screen.getByText("T-Shirt Size"));
     expect(addOnsCard).toHaveTextContent("Ann Adult");
+    expect(screen.getByText("Sunday Dinner").compareDocumentPosition(
+      screen.getByText("T-Shirt Size"),
+    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText("T-Shirt Size").compareDocumentPosition(
       screen.getByRole("button", { name: /Add Another Person/ }),
     ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
