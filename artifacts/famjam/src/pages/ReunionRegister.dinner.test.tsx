@@ -95,12 +95,29 @@ describe("registration dinner opt-out", () => {
     fireEvent.click(screen.getByText("Pick Lacey"));
     fill(0, "Ann Adult", "40");
     expect(screen.getByText("T-Shirt Size")).toBeInTheDocument();
+    const addOnsCard = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
+    expect(addOnsCard).toContainElement(screen.getByText("T-Shirt Size"));
+    expect(addOnsCard).toHaveTextContent("Ann Adult");
     expect(screen.getByText("T-Shirt Size").compareDocumentPosition(
       screen.getByRole("button", { name: /Add Another Person/ }),
     ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
     await waitFor(() => expect(screen.getByText("Please select a T-shirt size")).toBeInTheDocument());
     expect(h.create).not.toHaveBeenCalled();
+  });
+
+  it("shows the add-ons card for size collection without fees and adds a selector for each person", () => {
+    h.collectShirtSizes = true;
+    h.fees = [];
+    renderIt();
+    fireEvent.click(screen.getByText("Pick Lacey"));
+    expect(screen.getByText("Optional Add-ons")).toBeInTheDocument();
+    expect(screen.getAllByText("T-Shirt Size")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /Add Another Person/ }));
+    const card = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
+    expect(screen.getAllByText("T-Shirt Size")).toHaveLength(2);
+    for (const label of screen.getAllByText("T-Shirt Size")) expect(card).toContainElement(label);
+    expect(card).toHaveTextContent("Person 2");
   });
 
   it("mixed household: exact tiers and the submitted includeDinner flags", async () => {

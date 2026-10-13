@@ -505,12 +505,29 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                           }}
                         />
                       )}
-                      {reunion.collectShirtSizes && <FormField
+                    </div>
+                  </div>
+                ))}
+
+              </div>
+
+              {(optionalFees.length > 0 || reunion.collectShirtSizes) && (
+                <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
+                  <div>
+                    <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
+                  </div>
+                  <div className="space-y-3">
+                    {reunion.collectShirtSizes && fields.map((attendee, index) => (
+                      <FormField
+                        key={attendee.id}
                         control={form.control}
                         name={`attendees.${index}.shirtSize`}
                         render={({ field: inputField }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel>T-Shirt Size</FormLabel>
+                          <FormItem>
+                            <FormLabel>
+                              <span>T-Shirt Size</span>
+                              {" — "}{watchAttendees[index]?.name?.trim() || `Person ${index + 1}`}
+                            </FormLabel>
                             <Select value={inputField.value ?? ""} onValueChange={inputField.onChange}>
                               <FormControl><SelectTrigger className="rounded-xl"><SelectValue placeholder="Select a size" /></SelectTrigger></FormControl>
                               <SelectContent>{SHIRT_SIZES.map(size => <SelectItem key={size} value={size}>{size}</SelectItem>)}</SelectContent>
@@ -518,19 +535,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                             <FormMessage />
                           </FormItem>
                         )}
-                      />}
-                    </div>
-                  </div>
-                ))}
-
-              </div>
-
-              {optionalFees.length > 0 && (
-                <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
-                  <div>
-                    <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
-                  </div>
-                  <div className="space-y-3">
+                      />
+                    ))}
                     {optionalFees.map((fee) => (
                       <label
                         key={fee.id}
