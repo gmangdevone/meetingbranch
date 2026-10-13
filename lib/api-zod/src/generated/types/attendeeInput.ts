@@ -8,6 +8,8 @@
 import type { AttendeeInputShirtSize } from './attendeeInputShirtSize';
 
 export interface AttendeeInput {
+  /** Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion. */
+  includeShirt?: boolean;
   /** @minLength 1 */
   name: string;
   /** @nullable */

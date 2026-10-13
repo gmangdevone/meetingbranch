@@ -1449,6 +1449,7 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -1483,6 +1484,7 @@ export const CreateManagedRegistrationBody = zod.object({
   "memberLastName": zod.string().optional(),
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion.'),
   "name": zod.string().min(1),
   "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullish(),
   "dietaryRestrictions": zod.string().optional(),
@@ -1526,6 +1528,7 @@ export const CreateManagedRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -1595,6 +1598,7 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -2076,6 +2080,7 @@ export const CancelRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -2102,6 +2107,7 @@ export const SetAttendeeCheckInBody = zod.object({
 })
 
 export const SetAttendeeCheckInResponse = zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -3083,6 +3089,7 @@ export const CreateRegistrationBody = zod.object({
   "reunionId": zod.number(),
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion.'),
   "name": zod.string().min(1),
   "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullish(),
   "dietaryRestrictions": zod.string().optional(),
@@ -3126,6 +3133,7 @@ export const CreateRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -3175,6 +3183,7 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -3229,6 +3238,7 @@ export const GetRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -3260,6 +3270,7 @@ export const updateRegistrationBodyAttendeesItemIncludeDinnerDefault = true;
 export const UpdateRegistrationBody = zod.object({
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion.'),
   "name": zod.string().min(1),
   "shirtSize": zod.union([zod.literal('XS'),zod.literal('S'),zod.literal('M'),zod.literal('L'),zod.literal('XL'),zod.literal('2XL'),zod.literal('3XL'),zod.literal(null)]).nullish(),
   "dietaryRestrictions": zod.string().optional(),
@@ -3302,6 +3313,7 @@ export const UpdateRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),
@@ -3367,6 +3379,7 @@ export const TransferRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
   "includeDinner": zod.boolean().describe('Whether this attendee is charged dinner-classified fees.'),
   "registrationId": zod.number(),

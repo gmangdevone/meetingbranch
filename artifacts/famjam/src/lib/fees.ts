@@ -1,9 +1,15 @@
 import type { ReunionFee, FeeAgeTier } from "@workspace/api-client-react";
 
 export interface FeeAttendee {
+  includeShirt?: boolean | null;
   age?: number | null;
   /** false = opted out of dinner-classified fees. Missing means included. */
   includeDinner?: boolean | null;
+}
+
+/** Per-person shirt charges follow the attendee's shirt choice; flat fees remain household-wide. */
+export function isShirtFee(fee: { chargeType: string; label?: string | null }): boolean {
+  return fee.chargeType === "per_person" && /\b(t[\s-]?shirts?|tee(?:[\s-]?shirts?)?)\b/i.test(fee.label ?? "");
 }
 
 /**
@@ -50,7 +56,10 @@ export function computeFeeAmount(
   if (fee.chargeType === "flat") return fee.amount;
   const tiers = fee.ageTiers ?? [];
   // Dinner fees skip attendees who opted out; every other fee charges everyone.
-  const charged = isDinnerFee(fee) ? attendees.filter((a) => a.includeDinner !== false) : attendees;
+  const charged = attendees.filter(a =>
+    (!isDinnerFee(fee) || a.includeDinner !== false) &&
+    (!isShirtFee(fee) || a.includeShirt !== false),
+  );
   return charged.reduce(
     (sum, a) => sum + (tierForAge(tiers, a.age)?.amount ?? fee.amount),
     0,

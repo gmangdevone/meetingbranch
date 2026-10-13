@@ -156,4 +156,32 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     expect(csv.text.split("\n")[0]).toMatch(/,Dinner Included$/);
     expect(csv.text).toContain('"Yes; No; Yes; No"');
   });
+  it("persists individual shirt choices, validates only opted-in sizes, and prices the ledger correctly", async () => {
+    await db.update(reunionsTable).set({ collectShirtSizes: true }).where(eq(reunionsTable.id, R));
+    const [shirt] = await db.insert(reunionFeesTable).values({
+      reunionId: R, label: "T-Shirt", chargeType: "per_person", amount: 20, isOptional: true,
+    }).returning();
+    const attendees = [
+      { name: "James", age: 40, includeDinner: false, includeShirt: true, shirtSize: "L" },
+      { name: "Charlette", age: 35, includeDinner: false, includeShirt: false, shirtSize: null },
+    ];
+    const missing = await as(AMY).post("/api/registrations").send({
+      reunionId: R, branchName: "Lacey", selectedFeeIds: [shirt.id], attendees: [{ ...attendees[0], shirtSize: null }, attendees[1]],
+    });
+    expect(missing.status).toBe(400);
+    const created = await as(AMY).post("/api/registrations").send({
+      reunionId: R, branchName: "Lacey", selectedFeeIds: [shirt.id], attendees,
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+    expect(created.body.attendees.map((a: any) => [a.includeShirt, a.shirtSize])).toEqual([[true, "L"], [false, null]]);
+    expect((await ledger(created.body.id)).chargeCents).toBe(12000);
+    const saved = await as(REGMGR).put(`/api/registrations/${created.body.id}`).send({
+      branchName: "Lacey", selectedFeeIds: [shirt.id],
+      attendees: attendees.map(a => ({ ...a, includeShirt: false })),
+    });
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+    expect((await ledger(created.body.id)).chargeCents).toBe(10000);
+    const rows = await db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, created.body.id));
+    expect(rows.every(a => !a.includeShirt && a.shirtSize === null)).toBe(true);
+  });
 });

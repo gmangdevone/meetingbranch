@@ -1,5 +1,5 @@
 import type { ReunionFee } from "@workspace/api-client-react";
-import { isDinnerFee, type FeeAttendee } from "./fees";
+import { isDinnerFee, isShirtFee, type FeeAttendee } from "./fees";
 
 /** Selections are household-wide; only dinner supports individual opt-outs. */
 export function registrationAddOns(
@@ -12,7 +12,8 @@ export function registrationAddOns(
     .map(fee => ({
       fee,
       quantity: fee.chargeType === "flat" ? 1 : attendees.filter(
-        attendee => !isDinnerFee(fee) || attendee.includeDinner !== false,
+        attendee => (!isDinnerFee(fee) || attendee.includeDinner !== false) &&
+          (!isShirtFee(fee) || attendee.includeShirt !== false),
       ).length,
     }));
 }

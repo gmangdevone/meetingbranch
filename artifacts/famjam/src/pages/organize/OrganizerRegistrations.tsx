@@ -39,7 +39,7 @@ import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
-import { computeTotal, feeApplies, isDinnerFee } from "../../lib/fees";
+import { computeTotal, feeApplies, isDinnerFee, isShirtFee } from "../../lib/fees";
 import { registrationAddOns, attendeeAddOns } from "../../lib/registrationAddOns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
 import { LedgerHistory, LedgerStatusBadge } from "../../components/payments/LedgerPanel";
@@ -55,7 +55,8 @@ const managedRegistrationSchema = z.object({
   branchName: z.string().min(1, "Please select a branch"),
   attendees: z.array(z.object({
     name: z.string().min(1, "Name is required"),
-    shirtSize: z.enum(SHIRT_SIZES, { required_error: "Shirt size is required" }),
+    shirtSize: z.enum(SHIRT_SIZES).nullable().optional(),
+    includeShirt: z.boolean(),
     dietaryRestrictions: z.string().optional(),
     age: z.preprocess((val) => {
       if (val === "" || val === undefined || val === null) return undefined;
@@ -185,7 +186,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       memberFirstName: "",
       memberLastName: "",
       branchName: "",
-      attendees: [{ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined, includeDinner: true }],
+      attendees: [{ name: "", shirtSize: null, dietaryRestrictions: "", age: undefined, includeDinner: true, includeShirt: false }],
       selectedFeeIds: [],
     },
   });
@@ -215,6 +216,21 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   }, [firstName, lastName, fields.length]);
 
   const onSubmitManaged = (values: z.infer<typeof managedRegistrationSchema>) => {
+    if (reunion?.collectShirtSizes) {
+      let missing = false;
+      values.attendees.forEach((attendee, index) => {
+        if (attendee.includeShirt && !attendee.shirtSize) {
+          form.setError(`attendees.${index}.shirtSize`, { message: "Please select a T-shirt size" });
+          missing = true;
+        }
+      });
+      if (missing) return;
+    }
+    const shirtFees = (reunion?.fees ?? []).filter(fee => fee.isOptional && isShirtFee(fee));
+    const chosenFees = [
+      ...(values.selectedFeeIds ?? []).filter(id => !shirtFees.some(fee => fee.id === id)),
+      ...(values.attendees.some(a => a.includeShirt) ? shirtFees.map(fee => fee.id) : []),
+    ];
     createManagedRegistration.mutate({
       reunionId,
       data: {
@@ -224,11 +240,12 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         attendees: values.attendees.map(a => ({
           name: a.name,
           shirtSize: a.shirtSize,
+          includeShirt: a.includeShirt,
           dietaryRestrictions: a.dietaryRestrictions || undefined,
           age: a.age,
           includeDinner: a.includeDinner !== false,
         })),
-        selectedFeeIds: values.selectedFeeIds && values.selectedFeeIds.length > 0 ? values.selectedFeeIds : undefined,
+        selectedFeeIds: chosenFees,
       }
     }, {
       onSuccess: () => {
@@ -244,7 +261,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   };
 
   const optionalFees = useMemo(() => {
-    return reunion?.fees?.filter(f => f.isOptional) || [];
+    return reunion?.fees?.filter(f => f.isOptional && !isShirtFee(f)) || [];
   }, [reunion?.fees]);
 
   const filteredRegistrations = useMemo(() => {
@@ -970,14 +987,28 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                           </FormItem>
                         )}
                       />
-                      
-                      <FormField
+                      {(reunion?.collectShirtSizes || reunion?.fees.some(isShirtFee)) && <FormField
+                        control={form.control}
+                        name={`attendees.${index}.includeShirt`}
+                        render={({ field: inputField }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Checkbox checked={inputField.value} onCheckedChange={checked => {
+                                inputField.onChange(checked === true);
+                                if (checked !== true) form.setValue(`attendees.${index}.shirtSize`, null);
+                              }} />
+                              Include T-shirt
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />}
+                      {reunion?.collectShirtSizes && watchAttendees[index]?.includeShirt && <FormField
                         control={form.control}
                         name={`attendees.${index}.shirtSize`}
                         render={({ field: inputField }) => (
                           <FormItem>
                             <FormLabel>T-Shirt Size</FormLabel>
-                            <Select onValueChange={inputField.onChange} defaultValue={inputField.value}>
+                            <Select onValueChange={inputField.onChange} value={inputField.value ?? ""}>
                               <FormControl>
                                 <SelectTrigger className="rounded-xl">
                                   <SelectValue placeholder="Size" />
@@ -992,8 +1023,8 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                             <FormMessage />
                           </FormItem>
                         )}
-                      />
-                      
+                      />}
+
                       <FormField
                         control={form.control}
                         name={`attendees.${index}.age`}
@@ -1055,7 +1086,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ name: "", shirtSize: "M", dietaryRestrictions: "", age: undefined, includeDinner: true })}
+                  onClick={() => append({ name: "", shirtSize: null, dietaryRestrictions: "", age: undefined, includeDinner: true, includeShirt: false })}
                   className="w-full py-4 border-dashed rounded-2xl text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="mr-2 w-4 h-4" /> Add Another Person

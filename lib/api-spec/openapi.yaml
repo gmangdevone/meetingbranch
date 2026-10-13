@@ -4247,6 +4247,9 @@ components:
       type: object
       required: [name]
       properties:
+        includeShirt:
+          type: boolean
+          description: "Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion."
         name:
           type: string
           minLength: 1
@@ -4267,6 +4270,9 @@ components:
       type: object
       required: [id, registrationId, name, shirtSize, includeDinner]
       properties:
+        includeShirt:
+          type: boolean
+          description: Whether this attendee wants a T-shirt.
         id:
           type: integer
         includeDinner:

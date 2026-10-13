@@ -8,6 +8,8 @@
 import type { AttendeeShirtSize } from './attendeeShirtSize';
 
 export interface Attendee {
+  /** Whether this attendee wants a T-shirt. */
+  includeShirt?: boolean;
   id: number;
   /** Whether this attendee is charged dinner-classified fees. */
   includeDinner: boolean;

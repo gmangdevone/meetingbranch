@@ -100,7 +100,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     });
     return;
   }
-  if (reunion.collectShirtSizes && attendees.some(a => !a.shirtSize)) {
+  if (reunion.collectShirtSizes && attendees.some(a => a.includeShirt !== false && !a.shirtSize)) {
     res.status(400).json({ error: "Please select a T-shirt size for every attendee." });
     return;
   }
@@ -140,7 +140,8 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     attendees.map((a) => ({
       registrationId: registration.id,
       name: a.name,
-      shirtSize: a.shirtSize,
+      shirtSize: a.includeShirt === false ? null : a.shirtSize,
+      includeShirt: a.includeShirt ?? true,
       dietaryRestrictions: a.dietaryRestrictions ?? null,
       age: a.age ?? null,
       includeDinner: a.includeDinner ?? true,
@@ -313,7 +314,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
   }
 
   const { branchName, attendees, selectedFeeIds } = body.data;
-  if (reunion.collectShirtSizes && attendees.some(a => !a.shirtSize)) {
+  if (reunion.collectShirtSizes && attendees.some(a => a.includeShirt !== false && !a.shirtSize)) {
     res.status(400).json({ error: "Please select a T-shirt size for every attendee." });
     return;
   }
@@ -369,7 +370,8 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
       attendees.map((a) => ({
         registrationId: registration.id,
         name: a.name,
-        shirtSize: a.shirtSize,
+        shirtSize: a.includeShirt === false ? null : a.shirtSize,
+        includeShirt: a.includeShirt ?? true,
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
         includeDinner: a.includeDinner ?? true,

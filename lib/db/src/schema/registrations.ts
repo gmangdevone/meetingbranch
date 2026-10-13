@@ -70,6 +70,7 @@ export const attendeesTable = pgTable("attendees", {
   // False opts this attendee out of dinner-classified fees only. Default true
   // keeps legacy totals identical.
   includeDinner: boolean("include_dinner").notNull().default(true),
+  includeShirt: boolean("include_shirt").notNull().default(true),
 });
 
 /**

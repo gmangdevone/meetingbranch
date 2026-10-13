@@ -11,6 +11,7 @@ interface AttendeeInfo {
   dietaryRestrictions?: string | null;
   age?: number | null;
   includeDinner?: boolean | null;
+  includeShirt?: boolean | null;
 }
 
 interface ReunionInfo {

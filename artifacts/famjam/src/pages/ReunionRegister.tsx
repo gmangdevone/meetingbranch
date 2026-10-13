@@ -18,7 +18,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
 import { eventCodePath } from "../lib/eventCode";
-import { computeTotal, computeFeeAmount, feeApplies, describeFee, isDinnerFee } from "../lib/fees";
+import { computeTotal, computeFeeAmount, feeApplies, describeFee, isDinnerFee, isShirtFee } from "../lib/fees";
 import { registrationPricingReady } from "../lib/registrationReadiness";
 import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 
@@ -29,6 +29,7 @@ const formSchema = z.object({
   attendees: z.array(z.object({
     name: z.string().trim().min(1, "Name is required"),
     shirtSize: z.enum(SHIRT_SIZES).nullable().optional(),
+    includeShirt: z.boolean(),
     dietaryRestrictions: z.string().optional(),
     age: z.preprocess((value) => value == null || String(value).trim() === "" ? undefined : value,
       z.coerce.number({ invalid_type_error: "Enter an age" }).int().min(0, "Enter a valid age").max(120, "Enter a valid age")),
@@ -56,7 +57,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   const registerMutation = useCreateRegistration();
   const updateMutation = useUpdateRegistration();
 
-  const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
+  const [householdSelectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
   // Branch special fee: asked right after the branch, before attendees.
   const [feeChoice, setFeeChoice] = useState<FeeChoice>(null);
   const [feeOnly, setFeeOnly] = useState(false);
@@ -73,7 +74,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
     resolver: zodResolver(formSchema),
     defaultValues: {
       branchName: "",
-      attendees: [{ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true }],
+      attendees: [{ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true, includeShirt: false }],
     },
   });
 
@@ -84,19 +85,25 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
 
   // Prefill the form when editing an existing registration
   useEffect(() => {
-    if (!isEdit || !existingReg) return;
+    if (!isEdit || !existingReg || !reunion) return;
+    const savedShirtFees = reunion.fees.filter(isShirtFee);
     form.reset({
       branchName: existingReg.branchName,
       attendees: existingReg.attendees.map((a) => ({
         name: a.name,
         shirtSize: a.shirtSize,
+        // Legacy records may have a default size without ever buying a shirt.
+        // Do not opt them into a previously unselected fee just by opening Edit.
+        includeShirt: a.includeShirt !== false && (savedShirtFees.length > 0
+          ? savedShirtFees.some(fee => feeApplies(fee, existingReg.selectedFeeIds ?? []))
+          : !!a.shirtSize),
         dietaryRestrictions: a.dietaryRestrictions ?? "",
         age: (a.age ?? undefined) as unknown as number,
         includeDinner: a.includeDinner ?? true,
       })),
     });
     setSelectedFeeIds(existingReg.selectedFeeIds ?? []);
-  }, [isEdit, existingReg, form]);
+  }, [isEdit, existingReg, reunion?.id, form]);
 
   const watchBranch = form.watch("branchName");
   const feeOption = branchFeeOptionFor(reunion?.branches ?? [], feeOptionsData?.options ?? [], watchBranch);
@@ -125,11 +132,17 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   // every render rather than memoizing on that array's identity.
   const feeAttendees = watchAttendees.map((a) => {
     const n = Number(a?.age);
-    return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n, includeDinner: a?.includeDinner !== false };
+      return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n, includeDinner: a?.includeDinner !== false, includeShirt: a?.includeShirt === true };
   });
 
   const fees = reunion?.fees ?? [];
-  const optionalFees = useMemo(() => fees.filter((f) => f.isOptional), [fees]);
+  const optionalFees = useMemo(() => fees.filter((f) => f.isOptional && !isShirtFee(f)), [fees]);
+  const shirtFees = fees.filter(isShirtFee);
+  const showShirtChoices = reunion?.collectShirtSizes || shirtFees.length > 0;
+  const selectedFeeIds = [
+    ...householdSelectedFeeIds.filter(id => !shirtFees.some(fee => fee.id === id)),
+    ...(watchAttendees.some(a => a.includeShirt) ? shirtFees.filter(fee => fee.isOptional).map(fee => fee.id) : []),
+  ];
   // Dinner fees this household is charged (an optional dinner must be opted into first).
   const dinnerFees = fees.filter((f) => isDinnerFee(f) && feeApplies(f, selectedFeeIds));
   const dinnerCostFor = (age: number | null) =>
@@ -205,7 +218,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
     if (reunion.collectShirtSizes) {
       let missing = false;
       values.attendees.forEach((attendee, index) => {
-        if (!attendee.shirtSize) {
+        if (attendee.includeShirt && !attendee.shirtSize) {
           missing = true;
           form.setError(`attendees.${index}.shirtSize`, { message: "Please select a T-shirt size" });
         }
@@ -511,7 +524,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
 
               </div>
 
-              {(optionalFees.length > 0 || reunion.collectShirtSizes) && (
+              {(optionalFees.length > 0 || showShirtChoices) && (
                 <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
                   <div>
                     <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
@@ -536,9 +549,30 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                         <span className="font-bold">${computeFeeAmount(fee, feeAttendees)}</span>
                       </label>
                     ))}
-                    {reunion.collectShirtSizes && fields.map((attendee, index) => (
-                      <FormField
-                        key={attendee.id}
+                    {showShirtChoices && fields.map((attendee, index) => (
+                      <div key={attendee.id} className="rounded-xl border p-3 space-y-3">
+                        <FormField
+                          control={form.control}
+                          name={`attendees.${index}.includeShirt`}
+                          render={({ field: inputField }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-3 cursor-pointer">
+                                <FormControl>
+                                  <Checkbox checked={inputField.value} onCheckedChange={checked => {
+                                    inputField.onChange(checked === true);
+                                    if (checked !== true) {
+                                      form.setValue(`attendees.${index}.shirtSize`, null);
+                                      form.clearErrors(`attendees.${index}.shirtSize`);
+                                    }
+                                  }} />
+                                </FormControl>
+                                <span>T-Shirt — {watchAttendees[index]?.name?.trim() || `Person ${index + 1}`}</span>
+                                {shirtFees.length > 0 && <span className="ml-auto">${shirtFees.reduce((sum, fee) => sum + computeFeeAmount(fee, [{ ...feeAttendees[index], includeShirt: true }]), 0)}</span>}
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                      {reunion.collectShirtSizes && watchAttendees[index]?.includeShirt && <FormField
                         control={form.control}
                         name={`attendees.${index}.shirtSize`}
                         render={({ field: inputField }) => (
@@ -554,7 +588,8 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                             <FormMessage />
                           </FormItem>
                         )}
-                      />
+                      />}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -563,7 +598,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true })}
+                onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true, includeShirt: false })}
                 className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
               >
                 <Plus className="mr-2 w-5 h-5" /> Add Another Person

@@ -935,6 +935,10 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
   }
   const reunion = req.managedReunion!;
   const { memberFirstName, memberLastName, branchName, attendees, selectedFeeIds } = body.data;
+  if (reunion.collectShirtSizes && attendees.some(a => a.includeShirt !== false && !a.shirtSize)) {
+    res.status(400).json({ error: "Please select a T-shirt size for each attendee who wants one." });
+    return;
+  }
 
   // Same validations as self-service registration: branch + optional fees.
   const branches = await db
@@ -983,7 +987,8 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
       attendees.map((a) => ({
         registrationId: registration.id,
         name: a.name,
-        shirtSize: a.shirtSize,
+        shirtSize: a.includeShirt === false ? null : a.shirtSize,
+        includeShirt: a.includeShirt ?? true,
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
         includeDinner: a.includeDinner ?? true,

@@ -95,6 +95,7 @@ describe("registration dinner opt-out", () => {
     renderIt();
     fireEvent.click(screen.getByText("Pick Lacey"));
     fill(0, "Ann Adult", "40");
+    fireEvent.click(screen.getByLabelText("T-Shirt — Ann Adult"));
     expect(screen.getByText("T-Shirt Size")).toBeInTheDocument();
     const addOnsCard = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
     expect(addOnsCard).toContainElement(screen.getByText("T-Shirt Size"));
@@ -116,12 +117,34 @@ describe("registration dinner opt-out", () => {
     renderIt();
     fireEvent.click(screen.getByText("Pick Lacey"));
     expect(screen.getByText("Optional Add-ons")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("T-Shirt — Person 1"));
     expect(screen.getAllByText("T-Shirt Size")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: /Add Another Person/ }));
+    fireEvent.click(screen.getByLabelText("T-Shirt — Person 2"));
     const card = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
     expect(screen.getAllByText("T-Shirt Size")).toHaveLength(2);
     for (const label of screen.getAllByText("T-Shirt Size")) expect(card).toContainElement(label);
     expect(card).toHaveTextContent("Person 2");
+  });
+
+  it("charges and saves a shirt only for James, not Charlette", async () => {
+    h.collectShirtSizes = true;
+    h.fees = [{ ...REG, id: 9, label: "T-Shirt", amount: 20, ageTiers: [], isOptional: true }];
+    renderIt();
+    fireEvent.click(screen.getByText("Pick Lacey"));
+    fill(0, "James", "40");
+    fireEvent.click(screen.getByRole("button", { name: /Add Another Person/ }));
+    fill(1, "Charlette", "35");
+    fireEvent.click(screen.getByLabelText(/T-Shirt — James/));
+    fireEvent.click(screen.getByText("Pick L"));
+    expect(screen.getAllByText("T-Shirt Size")).toHaveLength(1);
+    await waitFor(() => expect(total()).toBe("$20"));
+    fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
+    await waitFor(() => expect(h.create).toHaveBeenCalled());
+    expect(h.create.mock.calls[0][0].data).toMatchObject({
+      selectedFeeIds: [9],
+      attendees: [{ name: "James", includeShirt: true, shirtSize: "L" }, { name: "Charlette", includeShirt: false }],
+    });
   });
 
   it("mixed household: exact tiers and the submitted includeDinner flags", async () => {
@@ -170,6 +193,16 @@ describe("editing an existing registration (regressions)", () => {
     { id: 1, name: "Ann Adult", shirtSize: "L", age: 40, dietaryRestrictions: null, includeDinner: true },
     { id: 2, name: "Ben Adult", shirtSize: "M", age: 35, dietaryRestrictions: null, includeDinner: true },
   ] };
+
+  it("does not opt legacy size records into an unselected T-shirt fee on edit", async () => {
+    h.collectShirtSizes = true;
+    h.fees = [{ ...REG, id: 9, label: "T-Shirt", amount: 20, ageTiers: [], isOptional: true }];
+    h.existing = existing;
+    render(<QueryClientProvider client={new QueryClient()}><ReunionRegister params={{ code: "LACEY", editId: "55" }} /></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByLabelText(/T-Shirt — Ann Adult/)).toHaveAttribute("aria-checked", "false"));
+    expect(screen.queryByText("T-Shirt Size")).toBeNull();
+    expect(total()).toBe("$0");
+  });
 
   it("shows the saved branch's attendee controls without reselecting the branch, even when a branch fee is open", async () => {
     h.existing = existing;
