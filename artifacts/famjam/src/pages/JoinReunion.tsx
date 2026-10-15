@@ -70,7 +70,7 @@ export function JoinReunion() {
         </Button>
 
         {isError && (
-          <div className="mt-6 p-4 bg-destructive/10 text-destructive-foreground border border-destructive/20 rounded-xl text-center text-sm font-medium animate-in slide-in-from-top-2">
+          <div role="alert" className="mt-6 p-4 bg-red-700 text-white border border-red-800 rounded-xl text-center text-sm font-medium animate-in slide-in-from-top-2">
             Event not found. Please check the Event Code and try again.
           </div>
         )}
