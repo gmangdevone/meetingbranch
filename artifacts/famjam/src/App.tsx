@@ -257,10 +257,10 @@ function ClerkProviderWithRoutes() {
           <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
           <Route path="/create" component={() => <ProtectedRoute component={CreateReunion} />} />
           
-          <Route path="/join" component={() => <Layout><JoinReunion /></Layout>} />
+          <Route path="/join" component={() => <ProtectedRoute component={JoinReunion} />} />
           
           <Route path="/r/:code">
-            {(params) => <Layout><ReunionHub params={params} /></Layout>}
+            {(params) => <ProtectedRoute component={() => <ReunionHub params={params} />} />}
           </Route>
           <Route path="/r/:code/register">
             {(params) => <ProtectedRoute component={() => <ReunionRegister params={params} />} />}
@@ -269,16 +269,16 @@ function ClerkProviderWithRoutes() {
             {(params) => <ProtectedRoute component={() => <ReunionRegister params={params} />} />}
           </Route>
           <Route path="/r/:code/schedule">
-            {(params) => <Layout><ReunionSchedule params={params} /></Layout>}
+            {(params) => <ProtectedRoute component={() => <ReunionSchedule params={params} />} />}
           </Route>
           <Route path="/r/:code/announcements">
-            {(params) => <Layout><ReunionAnnouncements params={params} /></Layout>}
+            {(params) => <ProtectedRoute component={() => <ReunionAnnouncements params={params} />} />}
           </Route>
           <Route path="/r/:code/polls">
-            {(params) => <Layout><ReunionPolls params={params} /></Layout>}
+            {(params) => <ProtectedRoute component={() => <ReunionPolls params={params} />} />}
           </Route>
           <Route path="/r/:code/activities">
-            {(params) => <Layout><ReunionActivities params={params} /></Layout>}
+            {(params) => <ProtectedRoute component={() => <ReunionActivities params={params} />} />}
           </Route>
 
           <Route path="/registrations/:id">

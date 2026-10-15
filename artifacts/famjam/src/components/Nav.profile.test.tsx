@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Nav } from "./Nav";
+import { saveLastReunionCode, clearLastReunionCode } from "../lib/lastReunion";
 
 const auth = vi.hoisted(() => ({
   signedIn: true,
@@ -23,6 +24,7 @@ vi.mock("@workspace/api-client-react", () => ({
 }));
 
 beforeEach(() => {
+  clearLastReunionCode();
   auth.signedIn = true;
   auth.firstName = "";
   caps.admin = false;
@@ -32,6 +34,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("account profile menu", () => {
+  it("ignores remembered event codes for Home after sign-out", () => {
+    saveLastReunionCode("FAMILY-2027");
+    const view = render(<Nav />);
+    expect(screen.getAllByRole("link", { name: "Home" })[0]).toHaveAttribute("href", "/r/FAMILY-2027");
+    auth.signedIn = false;
+    view.rerender(<Nav />);
+    for (const link of screen.getAllByRole("link", { name: "Home" })) {
+      expect(link).toHaveAttribute("href", "/");
+    }
+  });
   it.each([0, 1])("opens the profile editor and closes account menu %i", (index) => {
     render(<Nav />);
     fireEvent.click(screen.getAllByRole("button", { name: "Account" })[index]);

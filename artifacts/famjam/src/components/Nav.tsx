@@ -87,7 +87,7 @@ export function Nav() {
 
   // If the user has entered a valid RSVP code, "Home" returns to that reunion hub
   const lastCode = useLastReunionCode();
-  const homeHref = lastCode ? eventCodePath(lastCode) : "/";
+  const homeHref = isSignedIn && lastCode ? eventCodePath(lastCode) : "/";
 
   // Mobile nav items
   const mobileLinks = [

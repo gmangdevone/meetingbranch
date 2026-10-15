@@ -14,8 +14,13 @@ import profileRouter from "./profile";
 import paymentRecipientsRouter from "./paymentRecipients";
 import ledgerRouter from "./ledger";
 import branchFeeElectionsRouter from "./branchFeeElections";
+import { requireAuth } from "../middlewares/requireAuth";
 
 const router: IRouter = Router();
+
+// Event codes locate an event; they do not replace authentication.
+// Apply before every event router so numeric-id reads cannot bypass the gate.
+router.use("/reunions", requireAuth);
 
 router.use(healthRouter);
 // Owner-only payment recipients: mounted early and independent of the admin
