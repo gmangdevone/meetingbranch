@@ -592,7 +592,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                     branchFees={payableBranchFees}
                     registrations={myUnpaidRegistrations.map((r) => ({
                       id: r.id,
-                      label: `${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,
+                      label: `Branch - ${r.branchName} (${r.attendeeCount} ${r.attendeeCount === 1 ? "attendee" : "attendees"})`,
                       // A registration's line includes any fund chip-in pledged with it,
                       // so selecting it pays both together.
                       amount: remainingFor(r),
