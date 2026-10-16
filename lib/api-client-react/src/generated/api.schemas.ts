@@ -1050,6 +1050,17 @@ export interface BranchFeePaymentInput {
 }
 
 /**
+ * Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.
+ */
+export type ReunionFeeShirtClassification = typeof ReunionFeeShirtClassification[keyof typeof ReunionFeeShirtClassification];
+
+
+export const ReunionFeeShirtClassification = {
+  explicit: 'explicit',
+  detected: 'detected',
+} as const;
+
+/**
  * explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'.
  */
 export type ReunionFeeDinnerClassification = typeof ReunionFeeDinnerClassification[keyof typeof ReunionFeeDinnerClassification];
@@ -1090,6 +1101,10 @@ export interface FeeAgeTier {
 }
 
 export interface ReunionFee {
+  /** Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee's share. */
+  isShirt: boolean;
+  /** Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording. */
+  shirtClassification: ReunionFeeShirtClassification;
   /** Effective dinner classification. Only per_person fees can be dinner fees; each attendee's includeDinner opt-out removes just their share of dinner fees. */
   isDinner: boolean;
   /** explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'. */
@@ -1213,6 +1228,11 @@ export interface FeeInput {
      * @nullable
      */
   isDinner?: boolean | null;
+  /**
+     * Classify as a T-shirt fee (per_person only; true with flat is rejected). Null or omitted preserves the existing effective classification when updating.
+     * @nullable
+     */
+  isShirt?: boolean | null;
 }
 
 /**

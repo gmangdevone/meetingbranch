@@ -8,8 +8,10 @@ export interface FeeAttendee {
 }
 
 /** Per-person shirt charges follow the attendee's shirt choice; flat fees remain household-wide. */
-export function isShirtFee(fee: { chargeType: string; label?: string | null }): boolean {
-  return fee.chargeType === "per_person" && /\b(t[\s-]?shirts?|tee(?:[\s-]?shirts?)?)\b/i.test(fee.label ?? "");
+export function isShirtFee(fee: { chargeType: string; label?: string | null; isShirt?: boolean | null }): boolean {
+  if (fee.chargeType !== "per_person") return false;
+  if (fee.isShirt != null) return fee.isShirt;
+  return /\b(t[\s-]?shirts?|tee(?:[\s-]?shirts?)?)\b/i.test(fee.label ?? "");
 }
 
 /**
@@ -50,7 +52,7 @@ export function tierForAge(
  *   A null age always pays the base amount.
  */
 export function computeFeeAmount(
-  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & { label?: string | null; isDinner?: boolean | null },
+  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & { label?: string | null; isDinner?: boolean | null; isShirt?: boolean | null },
   attendees: FeeAttendee[],
 ): number {
   if (fee.chargeType === "flat") return fee.amount;

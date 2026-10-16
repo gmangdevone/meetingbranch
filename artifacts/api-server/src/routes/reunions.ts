@@ -70,7 +70,7 @@ import {
   isUniqueConstraintViolation,
   normalizeEventCode,
 } from "../lib/reunionCode";
-import { computeTotal, serializeFee } from "../lib/fees";
+import { computeTotal, serializeFee, isShirtFee } from "../lib/fees";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
 import {
@@ -124,9 +124,11 @@ function normalizeFeeInput(data: {
   ageTiers?: { minAge?: number | null; maxAge?: number | null; amount: number }[];
   sortOrder: number;
   isDinner?: boolean | null;
+  isShirt?: boolean | null;
 }) {
   // A flat fee can't be split per attendee, so it can never be a dinner fee.
   if (data.chargeType === "flat" && data.isDinner === true) return "flat_dinner" as const;
+  if (data.chargeType === "flat" && data.isShirt === true) return "flat_shirt" as const;
   const rawTiers = data.chargeType === "per_person" ? (data.ageTiers ?? []) : [];
   const tiers = rawTiers.map((t) => ({
     minAge: t.minAge ?? null,
@@ -154,6 +156,7 @@ function normalizeFeeInput(data: {
     // Flat => explicitly not dinner. Null/omitted leaves the stored value alone
     // (undefined is skipped by drizzle), so legacy detection keeps working.
     isDinner: data.chargeType === "flat" ? false : (data.isDinner ?? undefined),
+    isShirt: data.chargeType === "flat" ? false : (data.isShirt ?? undefined),
   };
 }
 
@@ -657,6 +660,10 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
     return;
   }
   const normalized = normalizeFeeInput(body.data);
+  if (normalized === "flat_shirt") {
+    res.status(400).json({ error: "Only per-person fees can be T-shirt fees. Flat fees apply to the household." });
+    return;
+  }
   if (normalized === "flat_dinner") {
     res.status(400).json({ error: FLAT_DINNER_ERROR });
     return;
@@ -683,6 +690,10 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
     return;
   }
   const normalizedUpdate = normalizeFeeInput(body.data);
+  if (normalizedUpdate === "flat_shirt") {
+    res.status(400).json({ error: "Only per-person fees can be T-shirt fees. Flat fees apply to the household." });
+    return;
+  }
   if (normalizedUpdate === "flat_dinner") {
     res.status(400).json({ error: FLAT_DINNER_ERROR });
     return;
@@ -691,16 +702,26 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
     res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
     return;
   }
-  const [updated] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
-    .update(reunionFeesTable)
-    .set(normalizedUpdate)
+  const [updated] = await withChargeChange(req.managedReunion!.id, req.userId!, async (tx) => {
+    const [existing] = await tx.select().from(reunionFeesTable).where(and(
+      eq(reunionFeesTable.id, feeId),
+      eq(reunionFeesTable.reunionId, req.managedReunion!.id),
+    )).for("update");
+    if (!existing) return [];
+    return tx.update(reunionFeesTable)
+    .set({
+      ...normalizedUpdate,
+      // Lock legacy treatment using the OLD label, including older API clients.
+      isShirt: normalizedUpdate.isShirt ?? isShirtFee(existing),
+    })
     .where(
       and(
         eq(reunionFeesTable.id, feeId),
         eq(reunionFeesTable.reunionId, req.managedReunion!.id),
       ),
     )
-    .returning());
+    .returning();
+  });
   if (!updated) {
     res.status(404).json({ error: "Fee not found" });
     return;

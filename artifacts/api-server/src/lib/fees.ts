@@ -8,8 +8,10 @@ export interface FeeAttendee {
 }
 
 /** Mirrors the frontend: flat fees are not divisible among attendees. */
-export function isShirtFee(fee: { chargeType: string; label?: string | null }): boolean {
-  return fee.chargeType === "per_person" && /\b(t[\s-]?shirts?|tee(?:[\s-]?shirts?)?)\b/i.test(fee.label ?? "");
+export function isShirtFee(fee: { chargeType: string; label?: string | null; isShirt?: boolean | null }): boolean {
+  if (fee.chargeType !== "per_person") return false;
+  if (fee.isShirt != null) return fee.isShirt;
+  return /\b(t[\s-]?shirts?|tee(?:[\s-]?shirts?)?)\b/i.test(fee.label ?? "");
 }
 
 /** Fields needed to classify a fee as dinner. */
@@ -17,6 +19,7 @@ export interface DinnerClassifiable {
   chargeType: string;
   label?: string | null;
   isDinner?: boolean | null;
+  isShirt?: boolean | null;
 }
 
 /**
@@ -31,8 +34,8 @@ export function isDinnerFee(fee: DinnerClassifiable): boolean {
 }
 
 /** API shape: resolved isDinner plus where it came from. */
-export function serializeFee<T extends DinnerClassifiable>(fee: T): Omit<T, "isDinner"> & { isDinner: boolean; dinnerClassification: "explicit" | "detected" } {
-  return { ...fee, isDinner: isDinnerFee(fee), dinnerClassification: fee.isDinner == null ? "detected" : "explicit" };
+export function serializeFee<T extends DinnerClassifiable>(fee: T): Omit<T, "isDinner" | "isShirt"> & { isDinner: boolean; dinnerClassification: "explicit" | "detected"; isShirt: boolean; shirtClassification: "explicit" | "detected" } {
+  return { ...fee, isDinner: isDinnerFee(fee), dinnerClassification: fee.isDinner == null ? "detected" : "explicit", isShirt: isShirtFee(fee), shirtClassification: fee.isShirt == null ? "detected" : "explicit" };
 }
 
 /** A mandatory fee always applies; an optional fee applies only if it was selected. */
@@ -62,7 +65,7 @@ export function tierForAge(
  *   A null age always pays the base amount.
  */
 export function computeFeeAmount(
-  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & { label?: string | null; isDinner?: boolean | null },
+  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & DinnerClassifiable,
   attendees: FeeAttendee[],
 ): number {
   if (fee.chargeType === "flat") return fee.amount;
@@ -80,7 +83,7 @@ export function computeFeeAmount(
 
 /** Total across every applicable fee for this household. */
 export function computeTotal(
-  fees: (Pick<ReunionFee, "id" | "isOptional" | "chargeType" | "amount" | "ageTiers"> & { label?: string | null; isDinner?: boolean | null })[],
+  fees: (Pick<ReunionFee, "id" | "isOptional" | "chargeType" | "amount" | "ageTiers"> & DinnerClassifiable)[],
   attendees: FeeAttendee[],
   selectedFeeIds: number[],
 ): number {

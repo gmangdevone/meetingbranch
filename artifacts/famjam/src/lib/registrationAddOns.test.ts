@@ -28,7 +28,7 @@ describe("registration add-on quantities and recipients", () => {
     expect(registrationAddOns([freeDinner], [2], [{ age: 3 }])[0].quantity).toBe(1);
   });
   it("counts and assigns T-shirts only to opted-in attendees", () => {
-    const shirt = { ...fees[2], label: "T-Shirt" };
+    const shirt = { ...fees[2], label: "Keepsake", isShirt: true };
     expect(registrationAddOns([shirt], [3], [{ includeShirt: true }, { includeShirt: false }])[0].quantity).toBe(1);
     expect(attendeeAddOns([shirt], [3], { includeShirt: false })).toEqual([]);
   });

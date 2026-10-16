@@ -22,4 +22,9 @@ export interface FeeInput {
      * @nullable
      */
   isDinner?: boolean | null;
+  /**
+     * Classify as a T-shirt fee (per_person only; true with flat is rejected). Null or omitted preserves the existing effective classification when updating.
+     * @nullable
+     */
+  isShirt?: boolean | null;
 }

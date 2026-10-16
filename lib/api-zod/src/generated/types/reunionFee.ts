@@ -8,8 +8,13 @@
 import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
 import type { ReunionFeeDinnerClassification } from './reunionFeeDinnerClassification';
+import type { ReunionFeeShirtClassification } from './reunionFeeShirtClassification';
 
 export interface ReunionFee {
+  /** Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee's share. */
+  isShirt: boolean;
+  /** Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording. */
+  shirtClassification: ReunionFeeShirtClassification;
   /** Effective dinner classification. Only per_person fees can be dinner fees; each attendee's includeDinner opt-out removes just their share of dinner fees. */
   isDinner: boolean;
   /** explicit: set by an organizer (survives renames). detected: legacy fee never classified; inferred from a per_person label containing 'dinner'. */

@@ -175,6 +175,21 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     expect(created.status, JSON.stringify(created.body)).toBe(201);
     expect(created.body.attendees.map((a: any) => [a.includeShirt, a.shirtSize])).toEqual([[true, "L"], [false, null]]);
     expect((await ledger(created.body.id)).chargeCents).toBe(12000);
+    // Older clients omit classification; renaming must lock the old label's treatment.
+    const renamed = await as(ORG).put(`/api/reunions/${R}/fees/${shirt.id}`).send({
+      label: "Family Keepsake", chargeType: "per_person", amount: 20, isOptional: true,
+    });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body).toMatchObject({ isShirt: true, shirtClassification: "explicit" });
+    expect((await ledger(created.body.id)).chargeCents).toBe(12000);
+    const reloaded = await as(ORG).get(`/api/reunions/${R}`);
+    expect(reloaded.body.reunion.fees.find((f: any) => f.id === shirt.id)).toMatchObject({ label: "Family Keepsake", isShirt: true });
+    expect((await as(ORG).post(`/api/reunions/${R}/fees`).send({
+      label: "Household bundle", chargeType: "flat", amount: 20, isShirt: true,
+    })).status).toBe(400);
+    expect((await as(ORG).put(`/api/reunions/${R}/fees/${shirt.id}`).send({
+      label: "Household bundle", chargeType: "flat", amount: 20, isShirt: true,
+    })).status).toBe(400);
     const saved = await as(REGMGR).put(`/api/registrations/${created.body.id}`).send({
       branchName: "Lacey", selectedFeeIds: [shirt.id],
       attendees: attendees.map(a => ({ ...a, includeShirt: false })),
@@ -183,5 +198,10 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     expect((await ledger(created.body.id)).chargeCents).toBe(10000);
     const rows = await db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, created.body.id));
     expect(rows.every(a => !a.includeShirt && a.shirtSize === null)).toBe(true);
+    const flat = await as(ORG).put(`/api/reunions/${R}/fees/${shirt.id}`).send({
+      label: "Household bundle", chargeType: "flat", amount: 20, isOptional: true,
+    });
+    expect(flat.body.isShirt).toBe(false);
+    expect((await ledger(created.body.id)).chargeCents).toBe(12000);
   });
 });

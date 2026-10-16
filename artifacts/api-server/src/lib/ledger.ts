@@ -101,7 +101,7 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
   const [regs, fees, attendees, selected, sponsored, allocs, contribs, pending] = await Promise.all([
     rows<{ id: number; reunion_id: number; payment_status: string; ledger_initialized_at: Date | null }>(
       ex, sql`SELECT id, reunion_id, payment_status, ledger_initialized_at FROM registrations WHERE id IN (${L})`),
-    rows<{ id: number; reunion_id: number; label: string; amount: number; charge_type: string; is_optional: boolean; age_tiers: unknown; is_dinner: boolean | null }>(
+    rows<{ id: number; reunion_id: number; label: string; amount: number; charge_type: string; is_optional: boolean; age_tiers: unknown; is_dinner: boolean | null; is_shirt: boolean | null }>(
       ex, sql`SELECT f.* FROM reunion_fees f WHERE f.reunion_id IN (SELECT reunion_id FROM registrations WHERE id IN (${L}))`),
     rows<{ registration_id: number; age: number | null; include_dinner: boolean; include_shirt: boolean }>(ex, sql`SELECT registration_id, age, include_dinner, include_shirt FROM attendees WHERE registration_id IN (${L})`),
     rows<{ registration_id: number; fee_id: number }>(ex, sql`SELECT registration_id, fee_id FROM registration_fees WHERE registration_id IN (${L})`),
@@ -126,7 +126,7 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
   for (const reg of regs) {
     const regFees = fees
       .filter((f) => f.reunion_id === reg.reunion_id)
-      .map((f) => ({ id: f.id, label: f.label, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers, isDinner: f.is_dinner }));
+      .map((f) => ({ id: f.id, label: f.label, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers, isDinner: f.is_dinner, isShirt: f.is_shirt }));
     const chargeCents =
       computeTotal(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

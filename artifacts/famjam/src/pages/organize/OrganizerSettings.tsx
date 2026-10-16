@@ -791,6 +791,7 @@ type FeeFormState = {
   chargeType: "per_person" | "flat";
   isOptional: boolean;
   isDinner: boolean;
+  isShirt: boolean;
   amount: string;
   tiers: TierFormRow[];
 };
@@ -800,6 +801,7 @@ const EMPTY_FEE: FeeFormState = {
   chargeType: "per_person",
   isOptional: false,
   isDinner: false,
+  isShirt: false,
   amount: "",
   tiers: [],
 };
@@ -810,6 +812,7 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
     chargeType: fee.chargeType,
     isOptional: fee.isOptional,
     isDinner: fee.isDinner,
+    isShirt: fee.isShirt,
     amount: String(fee.amount),
     tiers: (fee.ageTiers ?? []).map((t) => ({
       kind: (t.maxAge == null ? "above" : t.minAge == null ? "below" : "range") as TierKind,
@@ -919,6 +922,7 @@ function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number
       ageTiers: useTiers ? ageTiers : [],
       // Saved explicitly so a rename never changes dinner treatment. Flat fees can't be dinner.
       isDinner: draft.chargeType === "per_person" ? draft.isDinner : false,
+      isShirt: draft.chargeType === "per_person" ? draft.isShirt : false,
     };
   };
 
@@ -995,6 +999,12 @@ function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number
                       {fee.isOptional && (
                         <span className="text-xs font-bold text-secondary-foreground bg-secondary/30 rounded-full px-2 py-0.5">
                           Optional
+                        </span>
+                      )}
+                      {fee.isShirt && (
+                        <span className="text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5"
+                          title="Edit and save to keep T-shirt pricing unchanged when renaming">
+                          {fee.shirtClassification === "detected" ? "T-shirt (detected)" : "T-shirt"}
                         </span>
                       )}
                       {fee.isDinner && (
@@ -1169,6 +1179,18 @@ function FeeEditor({
         </label>
       ) : (
         <p className="text-xs text-muted-foreground">Flat fees can't be dinner fees: one household charge can't be removed for a single attendee.</p>
+      )}
+
+      {draft.chargeType === "per_person" ? (
+        <label className="flex items-center gap-3 cursor-pointer">
+          <Checkbox checked={draft.isShirt} onCheckedChange={(v) => set("isShirt", v === true)} data-testid="fee-is-shirt" />
+          <span className="text-sm">
+            <span className="font-medium">T-shirt fee</span>
+            <span className="text-muted-foreground"> — charge only attendees who choose a T-shirt, regardless of the fee name</span>
+          </span>
+        </label>
+      ) : (
+        <p className="text-xs text-muted-foreground">Flat fees remain household-wide and cannot be T-shirt fees.</p>
       )}
 
       {draft.chargeType === "per_person" && (

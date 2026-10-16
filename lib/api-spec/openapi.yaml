@@ -3920,8 +3920,15 @@ components:
 
     ReunionFee:
       type: object
-      required: [id, reunionId, label, chargeType, isOptional, amount, sortOrder, isDinner, dinnerClassification]
+      required: [id, reunionId, label, chargeType, isOptional, amount, sortOrder, isDinner, dinnerClassification, isShirt, shirtClassification]
       properties:
+        isShirt:
+          type: boolean
+          description: "Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee's share."
+        shirtClassification:
+          type: string
+          enum: [explicit, detected]
+          description: "Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording."
         isDinner:
           type: boolean
           description: "Effective dinner classification. Only per_person fees can be dinner fees; each attendee's includeDinner opt-out removes just their share of dinner fees."
@@ -3991,6 +3998,9 @@ components:
         isDinner:
           type: ["boolean", "null"]
           description: "Classify as a dinner fee (per_person only; true with flat is rejected). Null or omitted keeps the existing classification (legacy detection for unclassified fees)."
+        isShirt:
+          type: ["boolean", "null"]
+          description: "Classify as a T-shirt fee (per_person only; true with flat is rejected). Null or omitted preserves the existing effective classification when updating."
 
     ReunionRole:
       type: string
