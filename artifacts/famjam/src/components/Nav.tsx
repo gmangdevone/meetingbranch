@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { Home, User, LogOut, Shield, Wallet, Plus, Key, ChevronDown, PenLine } from "lucide-react";
 import { useAuth, useUser, useClerk } from "@clerk/react";
 import { useAdminListReunions, getAdminListReunionsQueryKey, useGetSettings, useGetMyPaymentOwnerCapability, getGetMyPaymentOwnerCapabilityQueryKey } from "@workspace/api-client-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { useProfile, usableName } from "../lib/profile";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -32,7 +32,7 @@ function DevBadge() {
 import { useLastReunionCode } from "../lib/lastReunion";
 import { eventCodePath } from "../lib/eventCode";
 
-export function Nav() {
+export function Nav({ mobileNavRef }: { mobileNavRef?: Ref<HTMLDivElement> }) {
   const [location] = useLocation();
   const { isSignedIn } = useAuth();
   const { user } = useUser();
@@ -247,7 +247,7 @@ export function Nav() {
       )}
 
       {/* ── Mobile Bottom Nav ───────────────────────────────────────── */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50"
+      <div ref={mobileNavRef} className="md:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{
           background: "var(--fj-brand-gradient)",
           borderRadius: "20px 20px 0 0",
