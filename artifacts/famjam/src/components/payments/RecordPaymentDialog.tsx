@@ -16,6 +16,7 @@ export interface PayableRegistration {
   id: number;
   label: string;
   ledger: RegistrationLedger;
+  submittedCashAppTags?: string[];
 }
 
 export interface RecordPaymentPreset {
@@ -140,7 +141,12 @@ export function RecordPaymentDialog({
   const [amountTouched, setAmountTouched] = useState(!!preset?.amountCents);
   const [method, setMethod] = useState<string>(preset?.method && METHODS.some((m) => m.value === preset.method) ? preset.method : "");
   const [receivedDate, setReceivedDate] = useState(preset?.receivedDate ?? today());
-  const [reference, setReference] = useState(preset?.reference ?? "");
+  const [reference, setReference] = useState(preset?.method === "cashapp" ? "" : preset?.reference ?? "");
+  const submittedTags = registrations.flatMap((r) =>
+    (r.submittedCashAppTags ?? []).map((tag) => ({ label: r.label, tag })),
+  );
+  if (preset?.method === "cashapp" && preset.reference?.trim() && !submittedTags.some((t) => t.tag === preset.reference))
+    submittedTags.push({ label: "Reported payment", tag: preset.reference });
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -209,6 +215,10 @@ export function RecordPaymentDialog({
     if (alreadyRecorded) return;
     if (ambiguous) return retrySame();
     if (!canSave || displayedAmount == null) return;
+    const normalizeTag = (tag: string) => tag.trim().replace(/^\$/, "").toLowerCase();
+    if (method === "cashapp" && normalizeTag(reference) && submittedTags.length > 0 &&
+        !submittedTags.some(({ tag }) => normalizeTag(tag) === normalizeTag(reference)) &&
+        !window.confirm("This Cash App tag is different than the one entered during registration. Do you still want to record this new Cash App tag?")) return;
     frozen.current = {
           amountCents: displayedAmount,
           method: method as ReceiptInputMethod,
@@ -255,6 +265,16 @@ export function RecordPaymentDialog({
               </DialogDescription>
             </DialogHeader>
 
+            {submittedTags.length > 0 && (
+              <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1">
+                <p className="font-semibold">Cash App tags submitted with registration</p>
+                {submittedTags.map(({ label, tag }, i) => (
+                  <p key={`${label}-${i}`} className="break-words">{label}: <span className="font-mono font-semibold">${tag.trim().replace(/^\$/, "")}</span></p>
+                ))}
+                <p className="text-xs text-muted-foreground">For reference only. Enter the Cash App tag actually used for this payment below.</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
               <div className="space-y-1.5">
                 <Label htmlFor="rp-amount">Amount received ($)</Label>
@@ -295,7 +315,7 @@ export function RecordPaymentDialog({
                 <Input id="rp-date" type="date" max={today()} value={receivedDate} disabled={locked} onChange={(e) => setReceivedDate(e.target.value)} className="rounded-xl" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="rp-ref">Reference (optional)</Label>
+                <Label htmlFor="rp-ref">{method === "cashapp" ? "Cash App reference / tag (optional)" : "Reference (optional)"}</Label>
                 <Input id="rp-ref" value={reference} maxLength={120} disabled={locked} onChange={(e) => setReference(e.target.value)} placeholder="Check #, $cashtag, Zelle ID" className="rounded-xl" />
               </div>
             </div>

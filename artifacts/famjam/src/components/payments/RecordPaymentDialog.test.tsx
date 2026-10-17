@@ -31,6 +31,51 @@ const apiError = (status: number) => Object.assign(new Error(`HTTP ${status}`), 
 beforeEach(() => { vi.clearAllMocks(); h.mutate.mockReset(); });
 afterEach(cleanup);
 
+describe("Cash App registration reference", () => {
+  const setup = (method = "cashapp", tags = ["$FamilyTag"]) => render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RecordPaymentDialog reunionId={5}
+        registrations={[{ id: 1, label: "#1 Goudy", ledger, submittedCashAppTags: tags }]}
+        preset={{ method, reference: method === "cashapp" ? "$FamilyTag" : undefined }}
+        onClose={() => undefined} />
+    </QueryClientProvider>,
+  );
+  afterEach(() => vi.restoreAllMocks());
+  it("shows the submitted tag as reference without prefilling the input", () => {
+    setup();
+    expect(screen.getByText("$FamilyTag")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Cash App reference/)).toHaveValue("");
+  });
+  it("requires confirmation for a different tag, allows cancelling and then confirming", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    setup();
+    fireEvent.change(screen.getByLabelText(/Cash App reference/), { target: { value: "$OtherTag" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record $80.00" }));
+    expect(confirm).toHaveBeenCalledWith("This Cash App tag is different than the one entered during registration. Do you still want to record this new Cash App tag?");
+    expect(h.mutate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Cash App reference/)).toHaveValue("$OtherTag");
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Record $80.00" }));
+    expect(h.mutate.mock.calls[0][0].data.reference).toBe("$OtherTag");
+  });
+  it.each(["familytag", " $FAMILYTAG ", ""])("does not warn for equivalent or omitted tags: %s", (reference) => {
+    const confirm = vi.spyOn(window, "confirm");
+    setup();
+    fireEvent.change(screen.getByLabelText(/Cash App reference/), { target: { value: reference } });
+    fireEvent.click(screen.getByRole("button", { name: "Record $80.00" }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(h.mutate).toHaveBeenCalledOnce();
+  });
+  it("does not warn for other payment methods", () => {
+    const confirm = vi.spyOn(window, "confirm");
+    setup("check");
+    fireEvent.change(screen.getByLabelText("Reference (optional)"), { target: { value: "1234" } });
+    fireEvent.click(screen.getByRole("button", { name: "Record $80.00" }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(h.mutate).toHaveBeenCalledOnce();
+  });
+});
+
 describe("RecordPaymentDialog idempotency", () => {
   it("classifies only explicit server rejections as definite", () => {
     expect(isDefiniteRejection(apiError(409))).toBe(true);

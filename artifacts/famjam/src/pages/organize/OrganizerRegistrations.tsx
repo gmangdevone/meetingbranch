@@ -327,7 +327,12 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const payableFor = (ids: number[]): PayableRegistration[] =>
     (registrations ?? [])
       .filter((r) => ids.includes(r.id) && r.ledger && r.status !== "cancelled")
-      .map((r) => ({ id: r.id, label: `#${r.id} ${r.userName || r.branchName}`, ledger: r.ledger! }));
+      .map((r) => ({
+        id: r.id, label: `#${r.id} ${r.userName || r.branchName}`, ledger: r.ledger!,
+        submittedCashAppTags: [...new Set((submissionsByRegistration.get(r.id) ?? [])
+          .filter((s) => s.method === "cashapp" && s.reference?.trim())
+          .map((s) => s.reference!.trim()))],
+      }));
 
   const handleReceiptsExport = async () => {
     const res = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/reunions/${reunionId}/receipts/export`, { credentials: "include" });
