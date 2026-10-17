@@ -418,7 +418,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           </div>
         </div>
 
-        {reunion && (reunion.fees ?? []).some(isDinnerFee) && (
+        {reunion && (
           <DinnerModeControls reunionId={reunionId} fees={reunion.fees} />
         )}
 

@@ -2074,3 +2074,18 @@ export interface AdminSetupResult {
   userId: string;
 }
 
+export type ListDinnerHistory200Item = {
+  id: number;
+  reunionId: number;
+  actorId: string;
+  actorName: string;
+  createdAt: string;
+  kind: string;
+  feeId: number;
+  feeLabel: string;
+  registrationId: number | null;
+  attendeeName: string | null;
+  beforeChoice: string;
+  afterChoice: string;
+};
+

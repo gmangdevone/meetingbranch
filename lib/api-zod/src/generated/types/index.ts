@@ -71,6 +71,7 @@ export * from './ledgerEntry';
 export * from './ledgerEntryKind';
 export * from './ledgerReversal';
 export * from './ledgerStatus';
+export * from './listDinnerHistory200Item';
 export * from './manageActivityChoice';
 export * from './managedRegistrationInput';
 export * from './managePoll';

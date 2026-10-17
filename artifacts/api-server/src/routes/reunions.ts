@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, desc, asc, sql, and, inArray, isNull } from "drizzle-orm";
 import {
   db,
+  dinnerHistoryTable,
   reunionsTable,
   reunionBranchesTable,
   reunionFeesTable,
@@ -47,6 +48,7 @@ import {
   CreateFeeBody,
   UpdateFeeBody,
   UpdateDinnerModeBody,
+  ListDinnerHistoryResponse,
   CancelRegistrationBody,
   CreateSponsorshipAllocationBody,
   CreateSponsorshipContributionBody,
@@ -73,6 +75,7 @@ import {
 } from "../lib/reunionCode";
 import { computeTotal, serializeFee, isShirtFee, isDinnerFee } from "../lib/fees";
 import { resolveDinnerSelections } from "../lib/dinnerSelections";
+import { dinnerModeChoice, dinnerSelectionChanges, recordDinnerChanges } from "../lib/dinnerHistory";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
 import {
@@ -668,6 +671,13 @@ async function preserveDinnerSelections(tx: any, fee: typeof reunionFeesTable.$i
   `);
 }
 
+router.get("/reunions/:reunionId/dinner-history", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
+  const history = await db.select().from(dinnerHistoryTable)
+    .where(eq(dinnerHistoryTable.reunionId, req.managedReunion!.id))
+    .orderBy(desc(dinnerHistoryTable.id));
+  res.json(ListDinnerHistoryResponse.parse(history));
+});
+
 router.patch("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
   const body = UpdateDinnerModeBody.safeParse(req.body);
   const feeId = Number(req.params.feeId);
@@ -679,6 +689,9 @@ router.patch("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermis
     const [fee] = await tx.select().from(reunionFeesTable).where(and(eq(reunionFeesTable.id, feeId), eq(reunionFeesTable.reunionId, req.managedReunion!.id))).for("update");
     if (!fee || !isDinnerFee(fee)) return [];
     await preserveDinnerSelections(tx, fee);
+    await recordDinnerChanges(tx, fee.reunionId, req.userId!, "mode", [{
+      feeId: fee.id, feeLabel: fee.label, beforeChoice: dinnerModeChoice(fee), afterChoice: body.data.dinnerMode,
+    }]);
     return tx.update(reunionFeesTable).set({ dinnerMode: body.data.dinnerMode, isDinner: true })
       .where(eq(reunionFeesTable.id, feeId)).returning();
   });
@@ -712,13 +725,22 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
     res.status(400).json({ error: "Dinner availability only applies to a dinner fee." });
     return;
   }
-  const [created] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
+  const [created] = await withChargeChange(req.managedReunion!.id, req.userId!, async (tx) => {
+    const rows = await tx
     .insert(reunionFeesTable)
     .values({
       reunionId: req.managedReunion!.id,
       ...normalized,
     })
-    .returning());
+    .returning();
+    const fee = rows[0];
+    if (isDinnerFee(fee)) {
+      await recordDinnerChanges(tx, fee.reunionId, req.userId!, "mode", [{
+        feeId: fee.id, feeLabel: fee.label, beforeChoice: "Not offered", afterChoice: dinnerModeChoice(fee),
+      }]);
+    }
+    return rows;
+  });
   res.status(201).json(serializeFee(created));
 });
 
@@ -754,6 +776,17 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
       }
       await preserveDinnerSelections(tx, existing);
     }
+    const nextMode = normalizedUpdate.chargeType === "flat" || normalizedUpdate.isDinner === false
+      ? null : normalizedUpdate.dinnerMode ?? existing.dinnerMode;
+    const nextFee = { ...existing, ...normalizedUpdate, dinnerMode: nextMode,
+      isDinner: normalizedUpdate.isDinner ?? isDinnerFee(existing) };
+    if (isDinnerFee(existing) || isDinnerFee(nextFee)) {
+      await recordDinnerChanges(tx, existing.reunionId, req.userId!, "mode", [{
+        feeId: existing.id, feeLabel: existing.label,
+        beforeChoice: isDinnerFee(existing) ? dinnerModeChoice(existing) : "Not a dinner",
+        afterChoice: isDinnerFee(nextFee) ? dinnerModeChoice(nextFee) : "Not a dinner",
+      }]);
+    }
     return tx.update(reunionFeesTable)
     .set({
       ...normalizedUpdate,
@@ -783,7 +816,8 @@ router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermi
     res.status(400).json({ error: "Invalid fee id" });
     return;
   }
-  const [deleted] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
+  const [deleted] = await withChargeChange(req.managedReunion!.id, req.userId!, async (tx) => {
+    const rows = await tx
     .delete(reunionFeesTable)
     .where(
       and(
@@ -791,7 +825,15 @@ router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermi
         eq(reunionFeesTable.reunionId, req.managedReunion!.id),
       ),
     )
-    .returning());
+    .returning();
+    const fee = rows[0];
+    if (fee && isDinnerFee(fee)) {
+      await recordDinnerChanges(tx, fee.reunionId, req.userId!, "mode", [{
+        feeId: fee.id, feeLabel: fee.label, beforeChoice: dinnerModeChoice(fee), afterChoice: "Removed",
+      }]);
+    }
+    return rows;
+  });
   if (!deleted) {
     res.status(404).json({ error: "Fee not found" });
     return;
@@ -1071,6 +1113,8 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
         chosenFeeIds.map((feeId) => ({ registrationId: registration.id, feeId })),
       );
     }
+    await recordDinnerChanges(tx, reunion.id, req.userId!, "selection",
+      dinnerSelectionChanges(fees, dinner.attendees, dinner.previous, [], chosenFeeIds), registration.id);
     return registration;
   });
 

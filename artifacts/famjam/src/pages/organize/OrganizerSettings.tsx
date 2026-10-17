@@ -322,7 +322,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
         <HubImagesManager reunionId={reunionId} reunion={summary.reunion} />
 
-        <FeesManager reunionId={reunionId} fees={summary.reunion.fees} collectShirtSizes={summary.reunion.collectShirtSizes ?? false} />
+        <FeesManager reunionId={reunionId} fees={summary.reunion.fees} collectShirtSizes={summary.reunion.collectShirtSizes ?? false} canManageDinner={!!summary.viewer?.roles.includes("registration")} />
 
         {summary.viewer?.canManageOrganizers && <CoOrganizers reunionId={reunionId} />}
         {/* CoOrganizers is only shown to owner/admin (canManageOrganizers), so all
@@ -824,7 +824,7 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
   };
 }
 
-function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number; fees: ReunionFee[]; collectShirtSizes: boolean }) {
+function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { reunionId: number; fees: ReunionFee[]; collectShirtSizes: boolean; canManageDinner: boolean }) {
   const queryClient = useQueryClient();
   const shirtMutation = useUpdateReunion();
   const [shirtFeedback, setShirtFeedback] = useState("");
@@ -976,7 +976,7 @@ function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number
           <p className="text-sm text-muted-foreground">Show a size selector for each attendee during registration. Turning this off hides it and preserves saved sizes. This does not add a charge.</p>
           {shirtFeedback && <p role="status" className="text-sm">{shirtFeedback}</p>}
         </div>
-        {fees.some(isDinnerFee) && <div className="mb-4"><DinnerModeControls reunionId={reunionId} fees={fees} /></div>}
+        {canManageDinner && <div className="mb-4"><DinnerModeControls reunionId={reunionId} fees={fees} /></div>}
         <p className="text-sm text-muted-foreground mt-1">
           Add every charge for this reunion — registration fees, dues, T-shirts, and more. Choose how
           each is charged, whether it's optional, and set an age-based price if you like.

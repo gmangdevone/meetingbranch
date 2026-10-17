@@ -56,6 +56,7 @@ import type {
   FeeInput,
   HealthStatus,
   HomeContent,
+  ListDinnerHistory200Item,
   ManageActivityChoice,
   ManagePoll,
   ManagedRegistrationInput,
@@ -1793,6 +1794,83 @@ export const useUpdateReunion = <TError = ErrorType<ErrorResponse | void>,
       > => {
       return useMutation(getUpdateReunionMutationOptions(options));
     }
+
+export const getListDinnerHistoryUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/dinner-history`
+}
+
+/**
+ * @summary Dinner changes visible only to registration organizers
+ */
+export const listDinnerHistory = async (reunionId: number, options?: RequestInit): Promise<ListDinnerHistory200Item[]> => {
+
+  return customFetch<ListDinnerHistory200Item[]>(getListDinnerHistoryUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDinnerHistoryQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/dinner-history`
+    ] as const;
+    }
+
+
+export const getListDinnerHistoryQueryOptions = <TData = Awaited<ReturnType<typeof listDinnerHistory>>, TError = ErrorType<void>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDinnerHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDinnerHistoryQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDinnerHistory>>> = ({ signal }) => listDinnerHistory(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDinnerHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDinnerHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof listDinnerHistory>>>
+export type ListDinnerHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Dinner changes visible only to registration organizers
+ */
+
+export function useListDinnerHistory<TData = Awaited<ReturnType<typeof listDinnerHistory>>, TError = ErrorType<void>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDinnerHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDinnerHistoryQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetReunionSummaryUrl = (reunionId: number,) => {
 

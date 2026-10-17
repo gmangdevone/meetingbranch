@@ -77,6 +77,36 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     await db.delete(usersTable).where(inArray(usersTable.id, [ORG, REGMGR, AMY]));
   });
 
+  it("restricts dinner history to registration organizers in this reunion", async () => {
+    expect((await as(null).get(`/api/reunions/${R}/dinner-history`)).status).toBe(401);
+    expect((await as(AMY).get(`/api/reunions/${R}/dinner-history`)).status).toBe(403);
+    await db.insert(reunionOrganizersTable).values({ reunionId: R, userId: AMY, roles: ["power_user"] });
+    expect((await as(AMY).get(`/api/reunions/${R}/dinner-history`)).status).toBe(403);
+    await db.delete(reunionOrganizersTable).where(eq(reunionOrganizersTable.userId, AMY));
+    expect((await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).status).toBe(200);
+    expect((await as(ORG).get(`/api/reunions/${R}/dinner-history`)).body).toEqual([]);
+  });
+
+  it("records dinner creation, classification changes and deletion with retained labels", async () => {
+    const create = await as(ORG).post(`/api/reunions/${R}/fees`).send({
+      label: "Audit Dinner", chargeType: "per_person", amount: 5, isOptional: true, isDinner: true,
+    });
+    expect(create.status).toBe(201);
+    const feeId = create.body.id;
+    const update = (isDinner: boolean) => as(ORG).put(`/api/reunions/${R}/fees/${feeId}`).send({
+      label: "Audit Dinner", chargeType: "per_person", amount: 5, isOptional: true, isDinner,
+    });
+    expect((await update(false)).status).toBe(200);
+    expect((await update(true)).status).toBe(200);
+    expect((await as(ORG).delete(`/api/reunions/${R}/fees/${feeId}`)).status).toBe(204);
+    const history = (await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).body.filter((e: { feeId: number }) => e.feeId === feeId);
+    expect(history.map((e: { beforeChoice: string; afterChoice: string }) => [e.beforeChoice, e.afterChoice])).toEqual([
+      ["Legacy optional", "Removed"], ["Not a dinner", "Legacy optional"],
+      ["Legacy optional", "Not a dinner"], ["Not offered", "Legacy optional"],
+    ]);
+    expect(history.every((e: { actorId: string; feeLabel: string }) => e.actorId === ORG && e.feeLabel === "Audit Dinner")).toBe(true);
+  });
+
   it("legacy unclassified Sunday Dinner is detected; registration fee is not", async () => {
     const fees = (await as(ORG).get(`/api/reunions/${R}`)).body.reunion.fees as { id: number; isDinner: boolean; dinnerClassification: string }[];
     expect(fees.find((f) => f.id === DINNER)).toMatchObject({ isDinner: true, dinnerClassification: "detected" });
@@ -125,14 +155,34 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     expect(await ledger(regId)).toMatchObject({ chargeCents: 15500, confirmedCents: 20500, creditCents: 5000, balanceCents: 0 });
     const after = (await db.execute(sql`SELECT count(*)::int AS n, sum(amount_cents)::int AS c FROM payment_receipts WHERE reunion_id = ${R}`)) as unknown as { rows: { n: number; c: number }[] };
     expect(after.rows[0]).toEqual(before.rows[0]);
+    const history = (await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).body;
+    expect(history).toEqual(expect.arrayContaining([
+      expect.objectContaining({ actorId: REGMGR, registrationId: regId, attendeeName: "Cy Child",
+        feeId: DINNER, beforeChoice: "Included", afterChoice: "Excluded", kind: "selection" }),
+      expect.objectContaining({ actorId: REGMGR, registrationId: regId, attendeeName: "Ben Adult",
+        feeId: DINNER, beforeChoice: "Included", afterChoice: "Excluded", kind: "selection" }),
+    ]));
+    // Failed edits neither change the selection nor produce misleading history.
+    expect((await edit(REGMGR, regId, MIX, [999999999])).status).toBe(400);
+    expect((await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).body).toEqual(history);
   });
 
   it("an optional dinner needs the household opt-in first; opt-outs only remove dinner shares", async () => {
     // Opted in: Ann + Tot pay the $10 fish fry; Cy and Ben opted out.
     expect((await edit(REGMGR, regId, MIX, [OPT_DINNER])).status).toBe(200);
     expect((await ledger(regId)).chargeCents).toBe(15500 + 2000);
+    const includedHistory = (await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).body;
+    expect(includedHistory).toEqual(expect.arrayContaining([
+      expect.objectContaining({ actorId: REGMGR, registrationId: regId, attendeeName: "Ann Adult",
+        feeId: OPT_DINNER, beforeChoice: "Excluded", afterChoice: "Included" }),
+    ]));
     expect((await edit(REGMGR, regId, MIX, [])).status).toBe(200);
     expect((await ledger(regId)).chargeCents).toBe(15500);
+    const excludedHistory = (await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).body;
+    expect(excludedHistory).toEqual(expect.arrayContaining([
+      expect.objectContaining({ actorId: REGMGR, registrationId: regId, attendeeName: "Ann Adult",
+        feeId: OPT_DINNER, beforeChoice: "Included", afterChoice: "Excluded" }),
+    ]));
   });
 
   it("explicit classification survives a rename; flat dinner is rejected", async () => {
@@ -160,6 +210,11 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     const mode = (dinnerMode: string) => as(REGMGR).patch(`/api/reunions/${R}/fees/${DINNER}`).send({ dinnerMode });
     const before = await ledger(regId);
     expect((await mode("optional")).status).toBe(200);
+    const history = (await as(REGMGR).get(`/api/reunions/${R}/dinner-history`)).body;
+    expect(history[0]).toMatchObject({ actorId: REGMGR, feeId: DINNER, beforeChoice: "Legacy required", afterChoice: "optional", kind: "mode" });
+    expect(Number.isNaN(Date.parse(history[0].createdAt))).toBe(false);
+    expect((await mode("optional")).status).toBe(200);
+    expect((await as(ORG).get(`/api/reunions/${R}/dinner-history`)).body).toHaveLength(history.length);
     expect((await ledger(regId)).chargeCents).toBe(before.chargeCents);
     const create = (includeDinner?: boolean) => as(AMY).post("/api/registrations").send({
       reunionId: R, branchName: "Lacey", attendees: [{ name: "Default Adult", age: 40, includeShirt: false, ...(includeDinner === undefined ? {} : { includeDinner }) }],

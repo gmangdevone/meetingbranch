@@ -579,6 +579,60 @@ paths:
         "404":
           description: Not found
 
+  /reunions/{reunionId}/dinner-history:
+    get:
+      operationId: listDinnerHistory
+      tags: [manage]
+      summary: Dinner changes visible only to registration organizers
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Newest changes first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, reunionId, actorId, actorName, createdAt, kind, feeId, feeLabel, registrationId, attendeeName, beforeChoice, afterChoice]
+                  properties:
+                    id:
+                      type: integer
+                    reunionId:
+                      type: integer
+                    actorId:
+                      type: string
+                    actorName:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    kind:
+                      type: string
+                    feeId:
+                      type: integer
+                    feeLabel:
+                      type: string
+                    registrationId:
+                      type: integer
+                      nullable: true
+                    attendeeName:
+                      type: string
+                      nullable: true
+                    beforeChoice:
+                      type: string
+                    afterChoice:
+                      type: string
+        "401":
+          description: Not signed in
+        "403":
+          description: Registration organizer permission required
+        "404":
+          description: Reunion not found
+
   /reunions/{reunionId}/summary:
     get:
       operationId: getReunionSummary

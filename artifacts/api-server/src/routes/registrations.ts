@@ -35,6 +35,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { ensureLedgerInitialized, rows, isValidCents, isValidIsoDate, parseDollarsToCents, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { sendRegistrationConfirmation } from "../lib/email";
 import { resolveDinnerSelections } from "../lib/dinnerSelections";
+import { dinnerSelectionChanges, recordDinnerChanges } from "../lib/dinnerHistory";
 import { upsertUserFromClerk } from "../lib/users";
 
 import { findDestinationKeys, resolveRecipient, unavailableMethodError } from "../lib/paymentRecipients";
@@ -134,14 +135,15 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
   const { email: clerkEmail, firstName: clerkFirstName } =
     await upsertUserFromClerk(userId, req.log);
 
-  const [registration] = await db
+  const registration = await db.transaction(async tx => {
+  const [created] = await tx
     .insert(registrationsTable)
     .values({ reunionId, userId, branchName, attendeeCount: attendees.length })
     .returning();
 
-  await db.insert(attendeesTable).values(
+  await tx.insert(attendeesTable).values(
     dinner.attendees.map((a) => ({
-      registrationId: registration.id,
+      registrationId: created.id,
       name: a.name,
       shirtSize: a.includeShirt === false ? null : a.shirtSize,
       includeShirt: a.includeShirt ?? true,
@@ -153,10 +155,14 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
   );
 
   if (chosenFeeIds.length > 0) {
-    await db.insert(registrationFeesTable).values(
-      chosenFeeIds.map((feeId) => ({ registrationId: registration.id, feeId })),
+    await tx.insert(registrationFeesTable).values(
+      chosenFeeIds.map((feeId) => ({ registrationId: created.id, feeId })),
     );
   }
+  await recordDinnerChanges(tx, reunionId, userId, "selection",
+    dinnerSelectionChanges(fees, dinner.attendees, dinner.previous, [], chosenFeeIds), created.id);
+  return created;
+  });
 
   if (sponsorshipContribution && sponsorshipContribution > 0) {
     await db.insert(sponsorshipContributionsTable).values({
@@ -360,6 +366,9 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
       attendees: existing, selectedFeeIds: oldFees.map(f => f.feeId),
     });
     const chosenFeeIds = dinner.selectedFeeIds;
+    await recordDinnerChanges(tx, registration.reunionId, userId, "selection",
+      dinnerSelectionChanges(fees, dinner.attendees, dinner.previous, oldFees.map(f => f.feeId), chosenFeeIds),
+      registration.id);
     const checkInsByName = new Map<string, Date[]>();
     for (const a of existing) {
       if (!a.checkedInAt) continue;

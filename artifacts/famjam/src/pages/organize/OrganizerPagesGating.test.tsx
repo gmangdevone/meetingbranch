@@ -41,6 +41,8 @@ vi.mock("@workspace/api-client-react", () => {
     getListBranchFeesQueryKey: (id: number) => ["branch-fees", id],
     useUpdateRegistrationPayment: noopMutation,
     useUpdateDinnerMode: noopMutation,
+    useListDinnerHistory: () => ({ data: [], isLoading: false }),
+    getListDinnerHistoryQueryKey: (id: number) => ["dinner-history", id],
     useUpdateContributionPayment: noopMutation,
     useCancelRegistration: noopMutation,
     useTransferRegistration: noopMutation,

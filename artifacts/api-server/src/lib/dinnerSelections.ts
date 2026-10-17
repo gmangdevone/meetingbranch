@@ -76,5 +76,5 @@ export function resolveDinnerSelections<T extends Attendee>(
     }
     return { ...a, includeDinner, dinnerFeeIds: eligible };
   });
-  return { attendees: normalized, selectedFeeIds: [...chosen] };
+  return { attendees: normalized, selectedFeeIds: [...chosen], previous };
 }

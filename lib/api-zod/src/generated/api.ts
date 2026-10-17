@@ -1021,6 +1021,30 @@ export const UpdateReunionResponse = zod.object({
 
 
 /**
+ * @summary Dinner changes visible only to registration organizers
+ */
+export const ListDinnerHistoryParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const ListDinnerHistoryResponseItem = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "actorId": zod.string(),
+  "actorName": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "kind": zod.string(),
+  "feeId": zod.number(),
+  "feeLabel": zod.string(),
+  "registrationId": zod.number().nullable(),
+  "attendeeName": zod.string().nullable(),
+  "beforeChoice": zod.string(),
+  "afterChoice": zod.string()
+})
+export const ListDinnerHistoryResponse = zod.array(ListDinnerHistoryResponseItem)
+
+
+/**
  * @summary Public summary stats for a reunion – headcount, counts by branch
  */
 export const GetReunionSummaryParams = zod.object({

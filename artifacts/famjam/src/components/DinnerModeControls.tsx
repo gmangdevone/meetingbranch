@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateDinnerMode, type ReunionFee } from "@workspace/api-client-react";
 import { Utensils } from "lucide-react";
 import { isDinnerFee } from "../lib/fees";
+import { DinnerHistory } from "./DinnerHistory";
 
 type Mode = "hidden" | "optional" | "mandatory";
 
@@ -15,7 +16,6 @@ const MODES: { value: Mode; label: string; hint: string }[] = [
 /** Dinner visibility/requirement only. Never touches pricing. */
 export function DinnerModeControls({ reunionId, fees }: { reunionId: number; fees: ReunionFee[] }) {
   const dinners = fees.filter(isDinnerFee);
-  if (dinners.length === 0) return null;
   return (
     <section className="rounded-2xl border bg-muted/30 p-4 space-y-3" aria-label="Dinner settings">
       <div className="flex items-center gap-2">
@@ -26,6 +26,7 @@ export function DinnerModeControls({ reunionId, fees }: { reunionId: number; fee
         Choose whether each dinner is hidden, optional, or required. Changing this never removes dinners already saved on registrations.
       </p>
       {dinners.map((fee) => <DinnerModeRow key={fee.id} reunionId={reunionId} fee={fee} />)}
+      <DinnerHistory reunionId={reunionId} />
     </section>
   );
 }
