@@ -8,9 +8,15 @@
 import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
 import type { ReunionFeeDinnerClassification } from './reunionFeeDinnerClassification';
+import type { ReunionFeeDinnerMode } from './reunionFeeDinnerMode';
 import type { ReunionFeeShirtClassification } from './reunionFeeShirtClassification';
 
 export interface ReunionFee {
+  /**
+     * Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.
+     * @nullable
+     */
+  dinnerMode?: ReunionFeeDinnerMode;
   /** Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee's share. */
   isShirt: boolean;
   /** Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording. */

@@ -33,3 +33,17 @@ describe("registration add-on quantities and recipients", () => {
     expect(attendeeAddOns([shirt], [3], { includeShirt: false })).toEqual([]);
   });
 });
+
+describe("configured dinners", () => {
+  const sunday = { id: 9, label: "Sunday Dinner", isOptional: false, chargeType: "per_person", isDinner: true, dinnerMode: "mandatory", amount: 25 } as ReunionFee;
+  it("counts mandatory configured dinner only when selected, respecting eligibility snapshots", () => {
+    expect(registrationAddOns([sunday], [], [{}])).toEqual([]);
+    const items = registrationAddOns([sunday], [9], [{}, { includeDinner: false }, { dinnerFeeIds: [] }, { dinnerFeeIds: [9] }]);
+    expect(items[0].quantity).toBe(2);
+  });
+  it("reports Included / Not included per attendee", async () => {
+    const { attendeeDinnerStatus } = await import("./registrationAddOns");
+    expect(attendeeDinnerStatus([sunday], [9], { includeDinner: false })[0].included).toBe(false);
+    expect(attendeeDinnerStatus([{ ...sunday, dinnerMode: "hidden" }], [9], {})[0].included).toBe(true);
+  });
+});

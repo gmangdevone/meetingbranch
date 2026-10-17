@@ -46,6 +46,7 @@ import {
   TransferReunionOwnershipBody,
   CreateFeeBody,
   UpdateFeeBody,
+  UpdateDinnerModeBody,
   CancelRegistrationBody,
   CreateSponsorshipAllocationBody,
   CreateSponsorshipContributionBody,
@@ -70,7 +71,8 @@ import {
   isUniqueConstraintViolation,
   normalizeEventCode,
 } from "../lib/reunionCode";
-import { computeTotal, serializeFee, isShirtFee } from "../lib/fees";
+import { computeTotal, serializeFee, isShirtFee, isDinnerFee } from "../lib/fees";
+import { resolveDinnerSelections } from "../lib/dinnerSelections";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
 import {
@@ -125,6 +127,7 @@ function normalizeFeeInput(data: {
   sortOrder: number;
   isDinner?: boolean | null;
   isShirt?: boolean | null;
+  dinnerMode?: "hidden" | "optional" | "mandatory";
 }) {
   // A flat fee can't be split per attendee, so it can never be a dinner fee.
   if (data.chargeType === "flat" && data.isDinner === true) return "flat_dinner" as const;
@@ -157,6 +160,7 @@ function normalizeFeeInput(data: {
     // (undefined is skipped by drizzle), so legacy detection keeps working.
     isDinner: data.chargeType === "flat" ? false : (data.isDinner ?? undefined),
     isShirt: data.chargeType === "flat" ? false : (data.isShirt ?? undefined),
+    dinnerMode: data.dinnerMode,
   };
 }
 
@@ -653,6 +657,38 @@ router.get("/reunions/:reunionId/branch-fees", ...manage, async (req, res): Prom
 });
 
 // ── Fees & dues (manage) ──────────────────────────────────────────────────────
+// Materialize legacy mandatory selections before switching to explicit modes.
+// This is inside the charge-change transaction, after freezing legacy money.
+async function preserveDinnerSelections(tx: any, fee: typeof reunionFeesTable.$inferSelect) {
+  if (fee.dinnerMode != null || fee.isOptional) return;
+  await tx.execute(sql`
+    INSERT INTO registration_fees (registration_id, fee_id)
+    SELECT id, ${fee.id} FROM registrations WHERE reunion_id = ${fee.reunionId}
+    AND NOT EXISTS (SELECT 1 FROM registration_fees rf WHERE rf.registration_id = registrations.id AND rf.fee_id = ${fee.id})
+  `);
+}
+
+router.patch("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
+  const body = UpdateDinnerModeBody.safeParse(req.body);
+  const feeId = Number(req.params.feeId);
+  if (!body.success || !Number.isInteger(feeId) || Object.keys(req.body).some(k => k !== "dinnerMode")) {
+    res.status(400).json({ error: "Only dinner availability can be changed here." });
+    return;
+  }
+  const [updated] = await withChargeChange(req.managedReunion!.id, req.userId!, async tx => {
+    const [fee] = await tx.select().from(reunionFeesTable).where(and(eq(reunionFeesTable.id, feeId), eq(reunionFeesTable.reunionId, req.managedReunion!.id))).for("update");
+    if (!fee || !isDinnerFee(fee)) return [];
+    await preserveDinnerSelections(tx, fee);
+    return tx.update(reunionFeesTable).set({ dinnerMode: body.data.dinnerMode, isDinner: true })
+      .where(eq(reunionFeesTable.id, feeId)).returning();
+  });
+  if (!updated) {
+    res.status(404).json({ error: "Dinner fee not found." });
+    return;
+  }
+  res.json(serializeFee(updated));
+});
+
 router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("power_user"), async (req, res): Promise<void> => {
   const body = CreateFeeBody.safeParse(req.body);
   if (!body.success) {
@@ -670,6 +706,10 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
   }
   if (!normalized) {
     res.status(400).json({ error: "Age tiers must not overlap, and each tier's minimum age must not exceed its maximum age" });
+    return;
+  }
+  if (normalized.dinnerMode && !isDinnerFee(normalized)) {
+    res.status(400).json({ error: "Dinner availability only applies to a dinner fee." });
     return;
   }
   const [created] = await withChargeChange(req.managedReunion!.id, req.userId!, (tx) => tx
@@ -708,11 +748,19 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
       eq(reunionFeesTable.reunionId, req.managedReunion!.id),
     )).for("update");
     if (!existing) return [];
+    if (normalizedUpdate.dinnerMode) {
+      if (!isDinnerFee({ ...existing, ...normalizedUpdate, isDinner: normalizedUpdate.isDinner ?? isDinnerFee(existing) })) {
+        throw new LedgerError(400, "Dinner availability only applies to a dinner fee.");
+      }
+      await preserveDinnerSelections(tx, existing);
+    }
     return tx.update(reunionFeesTable)
     .set({
       ...normalizedUpdate,
       // Lock legacy treatment using the OLD label, including older API clients.
       isShirt: normalizedUpdate.isShirt ?? isShirtFee(existing),
+      isDinner: normalizedUpdate.isDinner ?? isDinnerFee(existing),
+      dinnerMode: normalizedUpdate.chargeType === "flat" || normalizedUpdate.isDinner === false ? null : normalizedUpdate.dinnerMode,
     })
     .where(
       and(
@@ -974,12 +1022,14 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
     .select()
     .from(reunionFeesTable)
     .where(eq(reunionFeesTable.reunionId, reunion.id));
-  const optionalFeeIds = new Set(fees.filter((f) => f.isOptional).map((f) => f.id));
-  const chosenFeeIds = [...new Set(selectedFeeIds ?? [])];
-  if (!chosenFeeIds.every((id) => optionalFeeIds.has(id))) {
-    res.status(400).json({ error: "One or more selected fees are not available for this reunion." });
+  let dinner;
+  try {
+    dinner = resolveDinnerSelections(fees, attendees, selectedFeeIds ?? [], true);
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
     return;
   }
+  const chosenFeeIds = dinner.selectedFeeIds;
 
   // Shared default contact email derived from the reunion's family name.
   const slug =
@@ -1005,7 +1055,7 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
       })
       .returning();
     await tx.insert(attendeesTable).values(
-      attendees.map((a) => ({
+      dinner.attendees.map((a) => ({
         registrationId: registration.id,
         name: a.name,
         shirtSize: a.includeShirt === false ? null : a.shirtSize,
@@ -1013,6 +1063,7 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
         includeDinner: a.includeDinner ?? true,
+        dinnerFeeIds: a.dinnerFeeIds,
       })),
     );
     if (chosenFeeIds.length > 0) {

@@ -34,6 +34,7 @@ import {
 import { requireAuth } from "../middlewares/requireAuth";
 import { ensureLedgerInitialized, rows, isValidCents, isValidIsoDate, parseDollarsToCents, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { sendRegistrationConfirmation } from "../lib/email";
+import { resolveDinnerSelections } from "../lib/dinnerSelections";
 import { upsertUserFromClerk } from "../lib/users";
 
 import { findDestinationKeys, resolveRecipient, unavailableMethodError } from "../lib/paymentRecipients";
@@ -110,12 +111,14 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     .select()
     .from(reunionFeesTable)
     .where(eq(reunionFeesTable.reunionId, reunionId));
-  const optionalFeeIds = new Set(fees.filter((f) => f.isOptional).map((f) => f.id));
-  const chosenFeeIds = [...new Set(selectedFeeIds ?? [])];
-  if (!chosenFeeIds.every((id) => optionalFeeIds.has(id))) {
-    res.status(400).json({ error: "One or more selected fees are not available for this reunion." });
+  let dinner;
+  try {
+    dinner = resolveDinnerSelections(fees, attendees, selectedFeeIds ?? [], await canManageRegistrations(userId, reunionId));
+  } catch (error) {
+    res.status(400).json({ error: (error as Error).message });
     return;
   }
+  const chosenFeeIds = dinner.selectedFeeIds;
 
   // Branch must be one of the reunion's configured branches (when it has any)
   const branches = await db
@@ -137,7 +140,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     .returning();
 
   await db.insert(attendeesTable).values(
-    attendees.map((a) => ({
+    dinner.attendees.map((a) => ({
       registrationId: registration.id,
       name: a.name,
       shirtSize: a.includeShirt === false ? null : a.shirtSize,
@@ -145,6 +148,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
       dietaryRestrictions: a.dietaryRestrictions ?? null,
       age: a.age ?? null,
       includeDinner: a.includeDinner ?? true,
+      dinnerFeeIds: a.dinnerFeeIds,
     })),
   );
 
@@ -228,7 +232,7 @@ router.get("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
-  res.json(GetRegistrationResponse.parse(full));
+  res.json(GetRegistrationResponse.parse({ ...full, canManageDinner: await canManageRegistrations(userId, full.reunionId) }));
 });
 
 // Can this user manage registrations for the reunion? (owner, platform
@@ -334,14 +338,8 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     .select()
     .from(reunionFeesTable)
     .where(eq(reunionFeesTable.reunionId, registration.reunionId));
-  const optionalFeeIds = new Set(fees.filter((f) => f.isOptional).map((f) => f.id));
-  const chosenFeeIds = [...new Set(selectedFeeIds ?? [])];
-  if (!chosenFeeIds.every((id) => optionalFeeIds.has(id))) {
-    res.status(400).json({ error: "One or more selected fees are not available for this reunion." });
-    return;
-  }
-
-  await db.transaction(async (tx) => {
+  try {
+    await db.transaction(async (tx) => {
     // Attendee/fee edits recalculate charges: freeze legacy paid money first,
     // and re-sync the status columns in the same transaction.
     await ensureLedgerInitialized(tx, registration.id, userId);
@@ -357,6 +355,11 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
       .select()
       .from(attendeesTable)
       .where(eq(attendeesTable.registrationId, registration.id));
+    const oldFees = await tx.select().from(registrationFeesTable).where(eq(registrationFeesTable.registrationId, registration.id));
+    const dinner = resolveDinnerSelections(fees, attendees, selectedFeeIds ?? [], isManager, {
+      attendees: existing, selectedFeeIds: oldFees.map(f => f.feeId),
+    });
+    const chosenFeeIds = dinner.selectedFeeIds;
     const checkInsByName = new Map<string, Date[]>();
     for (const a of existing) {
       if (!a.checkedInAt) continue;
@@ -367,7 +370,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     }
     await tx.delete(attendeesTable).where(eq(attendeesTable.registrationId, registration.id));
     await tx.insert(attendeesTable).values(
-      attendees.map((a) => ({
+      dinner.attendees.map((a) => ({
         registrationId: registration.id,
         name: a.name,
         shirtSize: a.includeShirt === false ? null : a.shirtSize,
@@ -375,6 +378,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
         includeDinner: a.includeDinner ?? true,
+        dinnerFeeIds: a.dinnerFeeIds,
         checkedInAt: checkInsByName.get(a.name.trim().toLowerCase())?.shift() ?? null,
       })),
     );
@@ -388,7 +392,14 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
       );
     }
     await syncLedgerStatus(tx, registration.id);
-  });
+    });
+  } catch (error) {
+    if (error instanceof Error && /dinner|attendee|selected fees/i.test(error.message)) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
 
   const full = await getFullRegistration(registration.id);
   res.json(UpdateRegistrationResponse.parse(full));

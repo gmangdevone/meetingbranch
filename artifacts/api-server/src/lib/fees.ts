@@ -1,6 +1,7 @@
 import type { ReunionFee, FeeAgeTier } from "@workspace/db";
 
 export interface FeeAttendee {
+  dinnerFeeIds?: number[] | null;
   includeShirt?: boolean | null;
   age?: number | null;
   /** false = opted out of dinner-classified fees. Missing means included. */
@@ -16,6 +17,8 @@ export function isShirtFee(fee: { chargeType: string; label?: string | null; isS
 
 /** Fields needed to classify a fee as dinner. */
 export interface DinnerClassifiable {
+  id?: number;
+  dinnerMode?: "hidden" | "optional" | "mandatory" | null;
   chargeType: string;
   label?: string | null;
   isDinner?: boolean | null;
@@ -40,10 +43,10 @@ export function serializeFee<T extends DinnerClassifiable>(fee: T): Omit<T, "isD
 
 /** A mandatory fee always applies; an optional fee applies only if it was selected. */
 export function feeApplies(
-  fee: Pick<ReunionFee, "id" | "isOptional">,
+  fee: Pick<ReunionFee, "id" | "isOptional"> & { dinnerMode?: string | null },
   selectedFeeIds: number[],
 ): boolean {
-  return !fee.isOptional || selectedFeeIds.includes(fee.id);
+  return fee.dinnerMode != null ? selectedFeeIds.includes(fee.id) : !fee.isOptional || selectedFeeIds.includes(fee.id);
 }
 
 /** The tier whose [minAge, maxAge] bracket contains this age, if any. */
@@ -72,7 +75,8 @@ export function computeFeeAmount(
   const tiers = fee.ageTiers ?? [];
   // Dinner fees skip attendees who opted out; every other fee charges everyone.
   const charged = attendees.filter(a =>
-    (!isDinnerFee(fee) || a.includeDinner !== false) &&
+    (!isDinnerFee(fee) || (a.includeDinner !== false &&
+      (a.dinnerFeeIds == null || (fee.id != null && a.dinnerFeeIds.includes(fee.id))))) &&
     (!isShirtFee(fee) || a.includeShirt !== false),
   );
   return charged.reduce(

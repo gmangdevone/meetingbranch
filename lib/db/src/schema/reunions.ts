@@ -109,6 +109,9 @@ export const reunionFeesTable = pgTable("reunion_fees", {
   // label contains "dinner" is treated as dinner (see isDinnerFee). Explicit
   // true/false survives renames. Only per_person fees can be dinner fees.
   isDinner: boolean("is_dinner"),
+  // Null retains legacy billing until explicitly configured. Configured dinners
+  // use registration_fees as a durable selection, independent of current mode.
+  dinnerMode: text("dinner_mode").$type<"hidden" | "optional" | "mandatory">(),
   // NULL preserves legacy label detection until an organizer saves the fee.
   isShirt: boolean("is_shirt"),
 });

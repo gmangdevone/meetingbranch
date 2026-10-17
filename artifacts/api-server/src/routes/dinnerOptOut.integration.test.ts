@@ -156,6 +156,51 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     expect(csv.text.split("\n")[0]).toMatch(/,Dinner Included$/);
     expect(csv.text).toContain('"Yes; No; Yes; No"');
   });
+  it("configures dinner safely, enforces mandatory defaults, preserves exceptions and hidden charges", async () => {
+    const mode = (dinnerMode: string) => as(REGMGR).patch(`/api/reunions/${R}/fees/${DINNER}`).send({ dinnerMode });
+    const before = await ledger(regId);
+    expect((await mode("optional")).status).toBe(200);
+    expect((await ledger(regId)).chargeCents).toBe(before.chargeCents);
+    const create = (includeDinner?: boolean) => as(AMY).post("/api/registrations").send({
+      reunionId: R, branchName: "Lacey", attendees: [{ name: "Default Adult", age: 40, includeShirt: false, ...(includeDinner === undefined ? {} : { includeDinner }) }],
+    });
+    const optional = await create();
+    expect(optional.status).toBe(201);
+    expect(optional.body.attendees[0].includeDinner).toBe(true);
+    expect((await ledger(optional.body.id)).chargeCents).toBe(8000);
+    expect((await mode("mandatory")).status).toBe(200);
+    expect((await create(false)).status).toBe(400);
+    const mandatory = await create();
+    expect(mandatory.status).toBe(201);
+    const saved = mandatory.body.attendees[0];
+    const update = (user: string, a: any[]) => as(user).put(`/api/registrations/${mandatory.body.id}`).send({
+      branchName: "Lacey", selectedFeeIds: [], attendees: a.map(x => ({ ...x, dietaryRestrictions: x.dietaryRestrictions ?? undefined })),
+    });
+    expect((await update(AMY, [{ ...saved, includeDinner: false }])).status).toBe(400);
+    const override = await update(REGMGR, [{ ...saved, includeDinner: false }]);
+    expect(override.status).toBe(200);
+    expect((await ledger(mandatory.body.id)).chargeCents).toBe(5000);
+    const retained = await update(AMY, [{ ...override.body.attendees[0], name: "Renamed Adult" }]);
+    expect(retained.status).toBe(200);
+    expect(retained.body.attendees[0].includeDinner).toBe(false);
+    expect((await as(REGMGR).get(`/api/registrations/${mandatory.body.id}`)).body.canManageDinner).toBe(true);
+    expect((await as(AMY).patch(`/api/reunions/${R}/fees/${DINNER}`).send({ dinnerMode: "hidden" })).status).toBe(403);
+    expect((await as(REGMGR).patch(`/api/reunions/${R}/fees/${DINNER}`).send({ dinnerMode: "hidden", amount: 0 })).status).toBe(400);
+    expect((await mode("hidden")).status).toBe(200);
+    expect((await ledger(optional.body.id)).chargeCents).toBe(8000);
+    const hidden = await create();
+    expect(hidden.status).toBe(201);
+    expect((await ledger(hidden.body.id)).chargeCents).toBe(5000);
+    const added = await as(REGMGR).put(`/api/registrations/${optional.body.id}`).send({
+      branchName: "Lacey", selectedFeeIds: optional.body.selectedFeeIds,
+      attendees: [...optional.body.attendees.map((a: any) => ({ ...a, dietaryRestrictions: a.dietaryRestrictions ?? undefined })), { name: "New Person", age: 40, includeShirt: false }],
+    });
+    expect(added.status).toBe(200);
+    expect((await ledger(optional.body.id)).chargeCents).toBe(13000);
+    // Return this fixture to legacy mode for the pre-existing shirt assertions.
+    await db.update(reunionFeesTable).set({ dinnerMode: null }).where(eq(reunionFeesTable.id, DINNER));
+  });
+
   it("persists individual shirt choices, validates only opted-in sizes, and prices the ledger correctly", async () => {
     await db.update(reunionsTable).set({ collectShirtSizes: true }).where(eq(reunionsTable.id, R));
     const [shirt] = await db.insert(reunionFeesTable).values({

@@ -18,7 +18,8 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
 import { eventCodePath } from "../lib/eventCode";
-import { computeTotal, computeFeeAmount, feeApplies, describeFee, isDinnerFee, isShirtFee } from "../lib/fees";
+import { computeTotal, computeFeeAmount, feeApplies, describeFee, isDinnerFee, isShirtFee, isConfiguredDinner } from "../lib/fees";
+import { configuredDinnerSelection, defaultDinnerIds, hydrateDinnerIds, offeredDinners } from "../lib/dinnerChoices";
 import { registrationPricingReady } from "../lib/registrationReadiness";
 import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
 
@@ -27,6 +28,9 @@ const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 const formSchema = z.object({
   branchName: z.string().min(1, "Please select your family branch"),
   attendees: z.array(z.object({
+    id: z.number().optional(),
+    /** This attendee's actual dinner selections, one entry per chosen dinner fee. */
+    dinnerFeeIds: z.array(z.number()).optional(),
     name: z.string().trim().min(1, "Name is required"),
     shirtSize: z.enum(SHIRT_SIZES).nullable().optional(),
     includeShirt: z.boolean(),
@@ -87,9 +91,15 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   useEffect(() => {
     if (!isEdit || !existingReg || !reunion) return;
     const savedShirtFees = reunion.fees.filter(isShirtFee);
+    const saved = existingReg.selectedFeeIds ?? [];
+    const hasDinner = reunion.fees.some(isDinnerFee);
     form.reset({
       branchName: existingReg.branchName,
-      attendees: existingReg.attendees.map((a) => ({
+      attendees: existingReg.attendees.map((a) => {
+        const picked = hydrateDinnerIds(reunion.fees, saved, a as { includeDinner?: boolean | null; dinnerFeeIds?: number[] | null });
+        return {
+        id: a.id,
+        dinnerFeeIds: picked,
         name: a.name,
         shirtSize: a.shirtSize,
         // Legacy records may have a default size without ever buying a shirt.
@@ -99,11 +109,23 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
           : !!a.shirtSize),
         dietaryRestrictions: a.dietaryRestrictions ?? "",
         age: (a.age ?? undefined) as unknown as number,
-        includeDinner: a.includeDinner ?? true,
-      })),
+        // Like shirts: never opt a saved-out attendee into dinner by opening Edit.
+        includeDinner: hasDinner ? picked.length > 0 : a.includeDinner ?? true,
+        };
+      }),
     });
     setSelectedFeeIds(existingReg.selectedFeeIds ?? []);
   }, [isEdit, existingReg, reunion?.id, form]);
+
+  // New registration: the first attendee starts with every visible dinner selected.
+  const seededDinners = useRef(false);
+  useEffect(() => {
+    if (isEdit || !reunion || seededDinners.current) return;
+    seededDinners.current = true;
+    const ids = defaultDinnerIds(reunion.fees);
+    form.setValue("attendees.0.dinnerFeeIds", ids);
+    if (reunion.fees.some(isDinnerFee)) form.setValue("attendees.0.includeDinner", ids.length > 0);
+  }, [isEdit, reunion?.id, form]);
 
   const watchBranch = form.watch("branchName");
   const feeOption = branchFeeOptionFor(reunion?.branches ?? [], feeOptionsData?.options ?? [], watchBranch);
@@ -130,23 +152,43 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
   // Live totals: parse ages defensively since inputs emit strings before submit.
   // React Hook Form can mutate the watched array in place. Derive ages on
   // every render rather than memoizing on that array's identity.
+  const hasDinnerFees = (reunion?.fees ?? []).some(isDinnerFee);
   const feeAttendees = watchAttendees.map((a) => {
     const n = Number(a?.age);
-      return { age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n, includeDinner: a?.includeDinner !== false, includeShirt: a?.includeShirt === true };
+    const ids = a?.dinnerFeeIds ?? [];
+    return {
+      age: a?.age == null || (a.age as unknown) === "" || Number.isNaN(n) ? null : n,
+      includeDinner: hasDinnerFees ? ids.length > 0 : a?.includeDinner !== false,
+      includeShirt: a?.includeShirt === true,
+      dinnerFeeIds: hasDinnerFees ? ids : null,
+    };
   });
 
   const fees = reunion?.fees ?? [];
-  const optionalFees = useMemo(() => fees.filter((f) => f.isOptional && !isShirtFee(f)), [fees]);
+  const optionalFees = useMemo(() => fees.filter((f) => f.isOptional && !isShirtFee(f) && !isConfiguredDinner(f)), [fees]);
+  const canManageDinner = isEdit && (existingReg as { canManageDinner?: boolean } | undefined)?.canManageDinner === true;
+  const newDinnerIds = defaultDinnerIds(fees);
+  const savedHouseholdIds = isEdit ? existingReg?.selectedFeeIds ?? [] : [];
   const shirtFees = fees.filter(isShirtFee);
   const showShirtChoices = reunion?.collectShirtSizes || shirtFees.length > 0;
   const selectedFeeIds = [
-    ...householdSelectedFeeIds.filter(id => !shirtFees.some(fee => fee.id === id)),
+    ...householdSelectedFeeIds.filter(id => !shirtFees.some(fee => fee.id === id) && !fees.some(f => f.id === id && isConfiguredDinner(f))),
+    // Saved configured dinners stay (even hidden); add any an attendee now picks.
+    ...configuredDinnerSelection(fees, savedHouseholdIds, watchAttendees.map(a => a.dinnerFeeIds ?? [])),
     ...(watchAttendees.some(a => a.includeShirt) ? shirtFees.filter(fee => fee.isOptional).map(fee => fee.id) : []),
   ];
-  // Dinner fees this household is charged (an optional dinner must be opted into first).
-  const dinnerFees = fees.filter((f) => isDinnerFee(f) && feeApplies(f, selectedFeeIds));
-  const dinnerCostFor = (age: number | null) =>
-    dinnerFees.reduce((sum, f) => sum + computeFeeAmount(f, [{ age, includeDinner: true }]), 0);
+  const dinnerOffersFor = (index: number) =>
+    offeredDinners(fees, householdSelectedFeeIds, watchAttendees[index]?.dinnerFeeIds ?? []);
+  const anyDinnerOffered = watchAttendees.some((_, i) => dinnerOffersFor(i).length > 0);
+  const hasMandatoryDinner = fees.some(f => f.dinnerMode === "mandatory" && watchAttendees.some((_, i) => dinnerOffersFor(i).some(o => o.id === f.id)));
+  const toggleDinner = (index: number, feeId: number, on: boolean) => {
+    const cur = form.getValues(`attendees.${index}.dinnerFeeIds`) ?? [];
+    const next = on ? [...new Set([...cur, feeId])] : cur.filter(id => id !== feeId);
+    form.setValue(`attendees.${index}.dinnerFeeIds`, next, { shouldDirty: true });
+    form.setValue(`attendees.${index}.includeDinner`, next.length > 0, { shouldDirty: true });
+  };
+  const dinnerPayload = (a: { dinnerFeeIds?: number[]; includeDinner: boolean }) =>
+    hasDinnerFees ? { dinnerFeeIds: a.dinnerFeeIds ?? [], includeDinner: (a.dinnerFeeIds ?? []).length > 0 } : { includeDinner: a.includeDinner };
   const feeLines = useMemo(
     () =>
       (pricingReady ? fees : [])
@@ -254,6 +296,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
           selectedFeeIds,
           attendees: values.attendees.map(a => ({
             ...a,
+            ...dinnerPayload(a),
             dietaryRestrictions: a.dietaryRestrictions || undefined
           }))
         }
@@ -279,8 +322,9 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
         branchName: values.branchName,
         selectedFeeIds,
         sponsorshipContribution: values.sponsorshipContribution && values.sponsorshipContribution > 0 ? values.sponsorshipContribution : undefined,
-        attendees: values.attendees.map(a => ({
+        attendees: values.attendees.map(({ id: _id, ...a }) => ({
           ...a,
+          ...dinnerPayload(a),
           dietaryRestrictions: a.dietaryRestrictions || undefined
         }))
       }
@@ -487,47 +531,16 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                         )}
                       />
 
-                      {dinnerFees.length > 0 && (
-                        <FormField
-                          control={form.control}
-                          name={`attendees.${index}.includeDinner`}
-                          render={({ field: inputField }) => {
-                            const cost = dinnerCostFor(feeAttendees[index]?.age ?? null);
-                            return (
-                              <FormItem className="md:col-span-2">
-                                <label
-                                  htmlFor={`include-dinner-${index}`}
-                                  className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 border border-transparent hover:border-primary/40 cursor-pointer transition-colors"
-                                >
-                                  <Checkbox
-                                    id={`include-dinner-${index}`}
-                                    checked={inputField.value !== false}
-                                    onCheckedChange={(v) => inputField.onChange(v === true)}
-                                    data-testid={`include-dinner-${index}`}
-                                  />
-                                  <span className="flex-1 text-sm">
-                                    <span className="font-bold">Include dinner</span>
-                                    <span className="text-muted-foreground"> · {dinnerFees.map((f) => f.label).join(", ")}</span>
-                                  </span>
-                                  <span className={`text-sm font-bold tabular-nums ${inputField.value === false ? "line-through text-muted-foreground" : ""}`}>
-                                    {cost === 0 ? "Free" : `$${cost}`}
-                                  </span>
-                                </label>
-                              </FormItem>
-                            );
-                          }}
-                        />
-                      )}
                     </div>
                   </div>
                 ))}
 
               </div>
 
-              {(optionalFees.length > 0 || showShirtChoices) && (
+              {(optionalFees.length > 0 || showShirtChoices || anyDinnerOffered) && (
                 <div className="bg-card border shadow-sm p-6 md:p-8 rounded-3xl space-y-4">
                   <div>
-                    <h2 className="font-serif text-2xl font-bold">Optional Add-ons</h2>
+                    <h2 className="font-serif text-2xl font-bold">{hasMandatoryDinner ? "Add-ons" : "Optional Add-ons"}</h2>
                   </div>
                   <div className="space-y-3">
                     {optionalFees.map((fee) => (
@@ -549,6 +562,46 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                         <span className="font-bold">${computeFeeAmount(fee, feeAttendees)}</span>
                       </label>
                     ))}
+                    {fields.map((attendee, index) => {
+                      const offers = dinnerOffersFor(index);
+                      if (offers.length === 0) return null;
+                      const picked = watchAttendees[index]?.dinnerFeeIds ?? [];
+                      const age = feeAttendees[index]?.age ?? null;
+                      return (
+                        <div key={attendee.id} className="rounded-xl border p-3 space-y-2" data-testid={`dinner-choices-${index}`}>
+                          <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                            Dinner · {watchAttendees[index]?.name?.trim() || `Person ${index + 1}`}
+                          </div>
+                          {offers.map((fee) => {
+                            const on = picked.includes(fee.id);
+                            const required = fee.dinnerMode === "mandatory";
+                            const locked = required && !canManageDinner;
+                            const cost = computeFeeAmount(fee, [{ age, includeDinner: true }]);
+                            const domId = `include-dinner-${index}-${fee.id}`;
+                            return (
+                              <label key={fee.id} htmlFor={domId}
+                                className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${locked ? "cursor-not-allowed bg-muted/30" : "cursor-pointer hover:bg-muted/40"}`}>
+                                <Checkbox id={domId} data-testid={offers.length === 1 ? `include-dinner-${index}` : domId}
+                                  checked={on} disabled={locked}
+                                  onCheckedChange={(v) => toggleDinner(index, fee.id, v === true)} />
+                                <span className="flex-1 text-sm">
+                                  <span className="font-bold">{fee.label}</span>
+                                  {fee.dinnerMode === "hidden" && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Hidden · saved</span>}
+                                  {required && (
+                                    <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-primary">
+                                      {canManageDinner ? "Required · organizer may exempt" : "Required"}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className={`text-sm font-bold tabular-nums ${on ? "" : "line-through text-muted-foreground"}`}>
+                                  {cost === 0 ? "Free" : `$${cost}`}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                     {showShirtChoices && fields.map((attendee, index) => (
                       <div key={attendee.id} className="rounded-xl border p-3 space-y-3">
                         <FormField
@@ -598,7 +651,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: true, includeShirt: false })}
+                onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined as unknown as number, includeDinner: newDinnerIds.length > 0 || !hasDinnerFees, dinnerFeeIds: newDinnerIds, includeShirt: false })}
                 className="w-full py-8 border-dashed border-2 rounded-3xl text-muted-foreground hover:text-foreground bg-transparent hover:bg-muted/30"
               >
                 <Plus className="mr-2 w-5 h-5" /> Add Another Person

@@ -149,10 +149,11 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
   it("preserves legacy values for review and never serves them to payers", async () => {
     const d = await as(OWNER).get(`/api/owner/payment-recipients/${REUNION_A}`);
     expect(d.body).toMatchObject({ status: "pending_review", version: 0, legacy: { cashAppTag: "LegacyTag", paymentUrl: "https://cash.app/$LegacyTag" }, current: { cashAppTag: null } });
-    const pub = await as(null).get(`/api/reunions/${REUNION_A}/payment-recipient`);
+    expect((await as(null).get(`/api/reunions/${REUNION_A}/payment-recipient`)).status).toBe(401);
+    const pub = await as(MEMBER).get(`/api/reunions/${REUNION_A}/payment-recipient`);
     expect(pub.body).toMatchObject({ status: "pending_review", cashAppTag: null, cashAppUrl: null, paymentUrl: null, paymentHandle: null });
     const code = (await db.select().from(reunionsTable).where(eq(reunionsTable.id, REUNION_A)))[0].code;
-    const byCode = await as(null).get(`/api/reunions/by-code/${encodeURIComponent(code)}`);
+    const byCode = await as(MEMBER).get(`/api/reunions/by-code/${encodeURIComponent(code)}`);
     expect(byCode.body).toMatchObject({ cashAppTag: null, paymentHandle: null, paymentUrl: null });
     const managed = await as(ORGANIZER).get(`/api/reunions/${REUNION_A}`);
     expect(managed.body.reunion).toMatchObject({ cashAppTag: null, paymentUrl: null, paymentRecipient: { status: "pending_review" } });
@@ -188,9 +189,9 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
   });
 
   it("serves the approved recipient everywhere and isolates other reunions", async () => {
-    const pub = (await as(null).get(`/api/reunions/${REUNION_A}/payment-recipient`)).body;
+    const pub = (await as(MEMBER).get(`/api/reunions/${REUNION_A}/payment-recipient`)).body;
     expect(pub).toMatchObject({ status: "approved", cashAppTag: "FamilyFund", cashAppUrl: "https://cash.app/$FamilyFund" });
-    const other = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    const other = (await as(MEMBER).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
     expect(other).toMatchObject({ status: "pending_review", cashAppTag: null });
     const managed = (await as(ORGANIZER).get(`/api/reunions/${REUNION_A}`)).body;
     expect(managed.reunion).toMatchObject({ cashAppTag: "FamilyFund", paymentRecipient: { status: "approved" } });
@@ -216,7 +217,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     const off = await as(OWNER).post(`/api/owner/payment-recipients/${REUNION_A}/disable`).send({ scope: "cashapp", confirm: true, expectedVersion: d.version });
     expect(off.status).toBe(200);
     expect(off.body).toMatchObject({ status: "approved", current: { cashAppTag: null, paymentUrl: "https://pay.example.org/reunion" } });
-    const pub = (await as(null).get(`/api/reunions/${REUNION_A}/payment-recipient`)).body;
+    const pub = (await as(MEMBER).get(`/api/reunions/${REUNION_A}/payment-recipient`)).body;
     expect(pub).toMatchObject({ cashAppTag: null, cashAppUrl: null, paymentUrl: "https://pay.example.org/reunion" });
     expect((await as(OWNER).get(`/api/owner/payment-recipients/${REUNION_A}/history`)).body[0].action).toBe("disable_cashapp");
 
@@ -258,7 +259,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
       expect(after).toMatchObject({ status: before.status, version: before.version, current: before.current });
       expect(await db.select().from(paymentRecipientsTable).where(eq(paymentRecipientsTable.reunionId, REUNION_B))).toHaveLength(0);
       expect((await as(OWNER).get(`/api/owner/payment-recipients/${REUNION_B}/history`)).body).toEqual(historyBefore);
-      expect((await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body.cashAppTag).toBeNull();
+      expect((await as(MEMBER).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body.cashAppTag).toBeNull();
     } finally {
       await db.execute(sql.raw(`DROP TRIGGER IF EXISTS ${fn} ON payment_recipient_audit`));
       await db.execute(sql.raw(`DROP FUNCTION IF EXISTS ${fn}()`));
@@ -288,7 +289,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     const both = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "312.555.0147", note: "Verified by phone" }));
     expect(both.status).toBe(200);
     expect(both.body.current).toMatchObject({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147" });
-    let pub = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    let pub = (await as(MEMBER).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
     expect(pub).toMatchObject({ status: "approved", cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "(312) 555-0147" });
     expect((await as(ORGANIZER).get(`/api/reunions/${REUNION_B}`)).body.reunion.paymentRecipient).toMatchObject({ zelleContact: "(312) 555-0147" });
     // Stale write rejected.
@@ -297,7 +298,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     const offCash = await as(OWNER).post(`${url}/disable`).send({ scope: "cashapp", confirm: true, expectedVersion: both.body.version });
     expect(offCash.status).toBe(200);
     expect(offCash.body).toMatchObject({ status: "approved", current: { cashAppTag: null, zelleContact: "(312) 555-0147" } });
-    pub = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    pub = (await as(MEMBER).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
     expect(pub).toMatchObject({ cashAppTag: null, cashAppUrl: null, zelleRecipientName: "Rhonda Goudy" });
     // Re-add Cash App, then disable Zelle only: Cash App stays.
     const re = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", expectedVersion: offCash.body.version }));
@@ -307,7 +308,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     expect(offZelle.body).toMatchObject({ status: "approved", current: { cashAppTag: "BranchFund", zelleRecipientName: null, zelleContact: null } });
     // Disabling Zelle again is a 400 (not approved), with no extra history.
     expect((await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: offZelle.body.version })).status).toBe(400);
-    pub = (await as(null).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
+    pub = (await as(MEMBER).get(`/api/reunions/${REUNION_B}/payment-recipient`)).body;
     expect(pub).toMatchObject({ cashAppTag: "BranchFund", zelleRecipientName: null, zelleContact: null });
     const hist = (await as(OWNER).get(`${url}/history`)).body;
     expect(hist.map((h: any) => h.action)).toEqual(["disable_zelle", "change", "disable_cashapp", "approve"]);
@@ -342,7 +343,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     expect(only.status).toBe(200);
     const stored = "Pay cash at check-in.\nQuestions: call Rhonda (312) 555-0147\n<b>no html</b>";
     expect(only.body.current.paymentInstructions).toBe(stored);
-    expect((await as(null).get(pubUrl)).body).toMatchObject({ status: "approved", cashAppTag: null, zelleContact: null, paymentInstructions: stored });
+    expect((await as(MEMBER).get(pubUrl)).body).toMatchObject({ status: "approved", cashAppTag: null, zelleContact: null, paymentInstructions: stored });
     // Add Cash App + Zelle keeping the note; disabling each method keeps the note while another destination remains.
     const all = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", zelleRecipientName: "Rhonda Goudy", zelleContact: "rhonda@example.org", paymentInstructions: stored, expectedVersion: only.body.version }));
     const offCash = await as(OWNER).post(`${url}/disable`).send({ scope: "cashapp", confirm: true, expectedVersion: all.body.version });
@@ -350,7 +351,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     // Last real destination removed: payments disabled entirely and the note is hidden.
     const offZelle = await as(OWNER).post(`${url}/disable`).send({ scope: "zelle", confirm: true, expectedVersion: offCash.body.version });
     expect(offZelle.body.status).toBe("disabled");
-    expect((await as(null).get(pubUrl)).body.paymentInstructions).toBeNull();
+    expect((await as(MEMBER).get(pubUrl)).body.paymentInstructions).toBeNull();
     // Re-approve, then clear with a blank value; disable all hides everything.
     const back = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", paymentInstructions: stored, expectedVersion: offZelle.body.version }));
     const cleared = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", paymentInstructions: "   \n ", expectedVersion: back.body.version }));
@@ -362,7 +363,7 @@ describe.skipIf(!hasDb)("owner-controlled payment recipients (real DB)", () => {
     const withNote = await as(OWNER).put(url).send(save({ cashAppTag: "BranchFund", paymentInstructions: "Bring exact change", expectedVersion: cleared.body.version }));
     const off = await as(OWNER).post(`${url}/disable`).send({ scope: "all", confirm: true, expectedVersion: withNote.body.version });
     expect(off.body.status).toBe("disabled");
-    expect((await as(null).get(pubUrl)).body).toMatchObject({ status: "disabled", paymentInstructions: null });
+    expect((await as(MEMBER).get(pubUrl)).body).toMatchObject({ status: "disabled", paymentInstructions: null });
     // Ordinary reunion routes cannot set it.
     expect((await as(ORGANIZER).put(`/api/reunions/${REUNION_B}`).send({ name: "x", paymentInstructions: "Send to me" })).status).toBe(403);
     await db.delete(paymentRecipientAuditTable).where(eq(paymentRecipientAuditTable.reunionId, REUNION_B));

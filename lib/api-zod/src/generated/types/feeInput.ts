@@ -7,8 +7,10 @@
  */
 import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
+import type { FeeInputDinnerMode } from './feeInputDinnerMode';
 
 export interface FeeInput {
+  dinnerMode?: FeeInputDinnerMode;
   /** @minLength 1 */
   label: string;
   chargeType: FeeChargeType;

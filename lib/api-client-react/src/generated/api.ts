@@ -49,6 +49,7 @@ import type {
   CancelRegistrationInput,
   CastVotesInput,
   CheckInInput,
+  DinnerModeInput,
   ErrorEnvelope,
   ErrorResponse,
   EventMembership,
@@ -2532,6 +2533,74 @@ export const useCreateFee = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateFeeMutationOptions(options));
+    }
+
+export const getUpdateDinnerModeUrl = (reunionId: number,
+    feeId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/fees/${feeId}`
+}
+
+export const updateDinnerMode = async (reunionId: number,
+    feeId: number,
+    dinnerModeInput: DinnerModeInput, options?: RequestInit): Promise<ReunionFee> => {
+
+  return customFetch<ReunionFee>(getUpdateDinnerModeUrl(reunionId,feeId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dinnerModeInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateDinnerModeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDinnerMode>>, TError,{reunionId: number;feeId: number;data: BodyType<DinnerModeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDinnerMode>>, TError,{reunionId: number;feeId: number;data: BodyType<DinnerModeInput>}, TContext> => {
+
+const mutationKey = ['updateDinnerMode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDinnerMode>>, {reunionId: number;feeId: number;data: BodyType<DinnerModeInput>}> = (props) => {
+          const {reunionId,feeId,data} = props ?? {};
+
+          return  updateDinnerMode(reunionId,feeId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDinnerModeMutationResult = NonNullable<Awaited<ReturnType<typeof updateDinnerMode>>>
+    export type UpdateDinnerModeMutationBody = BodyType<DinnerModeInput>
+    export type UpdateDinnerModeMutationError = ErrorType<unknown>
+
+    export const useUpdateDinnerMode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDinnerMode>>, TError,{reunionId: number;feeId: number;data: BodyType<DinnerModeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDinnerMode>>,
+        TError,
+        {reunionId: number;feeId: number;data: BodyType<DinnerModeInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateDinnerModeMutationOptions(options));
     }
 
 export const getUpdateFeeUrl = (reunionId: number,

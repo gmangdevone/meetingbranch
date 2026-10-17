@@ -8,6 +8,10 @@
 import type { AttendeeInputShirtSize } from './attendeeInputShirtSize';
 
 export interface AttendeeInput {
+  /** Explicit per-attendee dinner selections, validated against availability and mandatory requirements. */
+  dinnerFeeIds?: number[];
+  /** Existing attendee ID when editing; used to preserve saved dinner exceptions. */
+  id?: number;
   /** Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion. */
   includeShirt?: boolean;
   /** @minLength 1 */
@@ -20,6 +24,6 @@ export interface AttendeeInput {
      * @nullable
      */
   age?: number | null;
-  /** False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true). */
+  /** False opts this attendee out of dinner-classified fees. Enabled dinner defaults on for new attendees; omitted preserves saved choices on edits. */
   includeDinner?: boolean;
 }

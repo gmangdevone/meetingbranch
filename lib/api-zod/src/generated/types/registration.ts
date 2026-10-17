@@ -12,6 +12,8 @@ import type { RegistrationLedger } from './registrationLedger';
 import type { RegistrationStatus } from './registrationStatus';
 
 export interface Registration {
+  /** Whether the current viewer may override dinner requirements when editing. */
+  canManageDinner?: boolean;
   ledger?: RegistrationLedger;
   id: number;
   reunionId: number;

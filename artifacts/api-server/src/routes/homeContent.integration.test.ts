@@ -46,6 +46,8 @@ describe.skipIf(!process.env.DATABASE_URL)("admin home content (real DB)", () =>
   it("persists public content without changing other settings or events", async () => {
     expect((await save(ids[0], full)).status).toBe(200);
     auth.id = null;
+    expect((await request(app).get(`/api/reunions/by-code/${encodeURIComponent(codes[0])}`)).status).toBe(401);
+    auth.id = owner;
     const response = await request(app).get(`/api/reunions/by-code/${encodeURIComponent(codes[0])}`);
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({ ...full, registrationsOpen: false });

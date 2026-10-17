@@ -397,6 +397,10 @@ export const AttendeeInputShirtSize = {
 } as const;
 
 export interface AttendeeInput {
+  /** Explicit per-attendee dinner selections, validated against availability and mandatory requirements. */
+  dinnerFeeIds?: number[];
+  /** Existing attendee ID when editing; used to preserve saved dinner exceptions. */
+  id?: number;
   /** Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion. */
   includeShirt?: boolean;
   /** @minLength 1 */
@@ -409,7 +413,7 @@ export interface AttendeeInput {
      * @nullable
      */
   age?: number | null;
-  /** False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true). */
+  /** False opts this attendee out of dinner-classified fees. Enabled dinner defaults on for new attendees; omitted preserves saved choices on edits. */
   includeDinner?: boolean;
 }
 
@@ -1050,6 +1054,19 @@ export interface BranchFeePaymentInput {
 }
 
 /**
+ * Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.
+ * @nullable
+ */
+export type ReunionFeeDinnerMode = typeof ReunionFeeDinnerMode[keyof typeof ReunionFeeDinnerMode] | null;
+
+
+export const ReunionFeeDinnerMode = {
+  hidden: 'hidden',
+  optional: 'optional',
+  mandatory: 'mandatory',
+} as const;
+
+/**
  * Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.
  */
 export type ReunionFeeShirtClassification = typeof ReunionFeeShirtClassification[keyof typeof ReunionFeeShirtClassification];
@@ -1101,6 +1118,11 @@ export interface FeeAgeTier {
 }
 
 export interface ReunionFee {
+  /**
+     * Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.
+     * @nullable
+     */
+  dinnerMode?: ReunionFeeDinnerMode;
   /** Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee's share. */
   isShirt: boolean;
   /** Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording. */
@@ -1214,7 +1236,17 @@ export interface Reunion {
   fees: ReunionFee[];
 }
 
+export type FeeInputDinnerMode = typeof FeeInputDinnerMode[keyof typeof FeeInputDinnerMode];
+
+
+export const FeeInputDinnerMode = {
+  hidden: 'hidden',
+  optional: 'optional',
+  mandatory: 'mandatory',
+} as const;
+
 export interface FeeInput {
+  dinnerMode?: FeeInputDinnerMode;
   /** @minLength 1 */
   label: string;
   chargeType: FeeChargeType;
@@ -1233,6 +1265,19 @@ export interface FeeInput {
      * @nullable
      */
   isShirt?: boolean | null;
+}
+
+export type DinnerModeInputDinnerMode = typeof DinnerModeInputDinnerMode[keyof typeof DinnerModeInputDinnerMode];
+
+
+export const DinnerModeInputDinnerMode = {
+  hidden: 'hidden',
+  optional: 'optional',
+  mandatory: 'mandatory',
+} as const;
+
+export interface DinnerModeInput {
+  dinnerMode: DinnerModeInputDinnerMode;
 }
 
 /**
@@ -1457,6 +1502,11 @@ export const AttendeeShirtSize = {
 } as const;
 
 export interface Attendee {
+  /**
+     * Server-owned dinner eligibility snapshot. Null retains legacy eligibility.
+     * @nullable
+     */
+  dinnerFeeIds?: number[] | null;
   /** Whether this attendee wants a T-shirt. */
   includeShirt?: boolean;
   id: number;
@@ -1755,6 +1805,8 @@ export interface RegistrationLedger {
 }
 
 export interface Registration {
+  /** Whether the current viewer may override dinner requirements when editing. */
+  canManageDinner?: boolean;
   ledger?: RegistrationLedger;
   id: number;
   reunionId: number;

@@ -788,6 +788,33 @@ paths:
           description: Forbidden
 
   /reunions/{reunionId}/fees/{feeId}:
+    patch:
+      operationId: updateDinnerMode
+      tags: [reunions]
+      parameters:
+        - name: reunionId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: feeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DinnerModeInput"
+      responses:
+        "200":
+          description: Dinner availability updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReunionFee"
     put:
       operationId: updateFee
       tags: [manage]
@@ -3922,6 +3949,10 @@ components:
       type: object
       required: [id, reunionId, label, chargeType, isOptional, amount, sortOrder, isDinner, dinnerClassification, isShirt, shirtClassification]
       properties:
+        dinnerMode:
+          type: ["string", "null"]
+          enum: [hidden, optional, mandatory, null]
+          description: "Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility."
         isShirt:
           type: boolean
           description: "Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee's share."
@@ -3976,6 +4007,9 @@ components:
       type: object
       required: [label, chargeType, amount]
       properties:
+        dinnerMode:
+          type: string
+          enum: [hidden, optional, mandatory]
         label:
           type: string
           minLength: 1
@@ -4001,6 +4035,14 @@ components:
         isShirt:
           type: ["boolean", "null"]
           description: "Classify as a T-shirt fee (per_person only; true with flat is rejected). Null or omitted preserves the existing effective classification when updating."
+
+    DinnerModeInput:
+      type: object
+      required: [dinnerMode]
+      properties:
+        dinnerMode:
+          type: string
+          enum: [hidden, optional, mandatory]
 
     ReunionRole:
       type: string
@@ -4257,6 +4299,14 @@ components:
       type: object
       required: [name]
       properties:
+        dinnerFeeIds:
+          type: array
+          items:
+            type: integer
+          description: Explicit per-attendee dinner selections, validated against availability and mandatory requirements.
+        id:
+          type: integer
+          description: Existing attendee ID when editing; used to preserve saved dinner exceptions.
         includeShirt:
           type: boolean
           description: "Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion."
@@ -4273,13 +4323,17 @@ components:
           minimum: 0
         includeDinner:
           type: boolean
-          default: true
-          description: "False opts this attendee out of dinner-classified fees only. Omitted means true (on edits, an existing attendee keeps their saved choice only if sent; omitted resets to true)."
+          description: "False opts this attendee out of dinner-classified fees. Enabled dinner defaults on for new attendees; omitted preserves saved choices on edits."
 
     Attendee:
       type: object
       required: [id, registrationId, name, shirtSize, includeDinner]
       properties:
+        dinnerFeeIds:
+          type: ["array", "null"]
+          items:
+            type: integer
+          description: "Server-owned dinner eligibility snapshot. Null retains legacy eligibility."
         includeShirt:
           type: boolean
           description: Whether this attendee wants a T-shirt.
@@ -4709,6 +4763,9 @@ components:
       required:
         [id, reunionId, userId, branchName, attendeeCount, createdAt, attendees, paymentStatus, status]
       properties:
+        canManageDinner:
+          type: boolean
+          description: Whether the current viewer may override dinner requirements when editing.
         ledger:
           $ref: "#/components/schemas/RegistrationLedger"
         id:

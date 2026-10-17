@@ -32,7 +32,8 @@ import { Switch } from "../../components/ui/switch";
 import { useToast } from "../../hooks/use-toast";
 import { ImageLibraryDialog } from "../../components/ImageLibraryDialog";
 import { useCreateReunionImage, getListReunionImagesQueryKey } from "@workspace/api-client-react";
-import { describeFee } from "../../lib/fees";
+import { describeFee, isDinnerFee } from "../../lib/fees";
+import { DinnerModeControls } from "../../components/DinnerModeControls";
 import { ROLE_OPTIONS, ROLE_LABELS } from "../../lib/roles";
 import {
   EVENT_CODE_FORMAT_MESSAGE,
@@ -923,6 +924,11 @@ function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number
       // Saved explicitly so a rename never changes dinner treatment. Flat fees can't be dinner.
       isDinner: draft.chargeType === "per_person" ? draft.isDinner : false,
       isShirt: draft.chargeType === "per_person" ? draft.isShirt : false,
+      // Never reset an existing dinner mode through the full fee editor.
+      ...(() => {
+        const mode = typeof editingId === "number" ? fees.find((f) => f.id === editingId)?.dinnerMode : null;
+        return mode && draft.chargeType === "per_person" && draft.isDinner ? { dinnerMode: mode } : {};
+      })(),
     };
   };
 
@@ -970,6 +976,7 @@ function FeesManager({ reunionId, fees, collectShirtSizes }: { reunionId: number
           <p className="text-sm text-muted-foreground">Show a size selector for each attendee during registration. Turning this off hides it and preserves saved sizes. This does not add a charge.</p>
           {shirtFeedback && <p role="status" className="text-sm">{shirtFeedback}</p>}
         </div>
+        {fees.some(isDinnerFee) && <div className="mb-4"><DinnerModeControls reunionId={reunionId} fees={fees} /></div>}
         <p className="text-sm text-muted-foreground mt-1">
           Add every charge for this reunion — registration fees, dues, T-shirts, and more. Choose how
           each is charged, whether it's optional, and set an age-based price if you like.

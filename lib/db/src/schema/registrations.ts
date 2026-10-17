@@ -70,6 +70,9 @@ export const attendeesTable = pgTable("attendees", {
   // False opts this attendee out of dinner-classified fees only. Default true
   // keeps legacy totals identical.
   includeDinner: boolean("include_dinner").notNull().default(true),
+  // Server-owned eligibility snapshot; null is legacy. Hiding a dinner must
+  // not charge it to a newly added attendee or erase it from an existing one.
+  dinnerFeeIds: integer("dinner_fee_ids").array(),
   includeShirt: boolean("include_shirt").notNull().default(true),
 });
 

@@ -5,6 +5,27 @@ export interface FeeAttendee {
   age?: number | null;
   /** false = opted out of dinner-classified fees. Missing means included. */
   includeDinner?: boolean | null;
+  /** Server-owned dinner eligibility snapshot. Null/missing = legacy (no filter). */
+  dinnerFeeIds?: number[] | null;
+}
+
+type DinnerModeFee = { chargeType: string; label?: string | null; isDinner?: boolean | null; dinnerMode?: string | null };
+
+/** Dinner fee with an explicit Hidden/Optional/Mandatory mode (null = legacy). */
+export function isConfiguredDinner(fee: DinnerModeFee): boolean {
+  return isDinnerFee(fee) && fee.dinnerMode != null;
+}
+
+/** Configured dinners members can see on new registrations. */
+export function isVisibleDinner(fee: DinnerModeFee): boolean {
+  return isConfiguredDinner(fee) && fee.dinnerMode !== "hidden";
+}
+
+/** Whether this attendee is charged for (and receives) a given dinner fee. */
+export function attendeeGetsDinner(fee: { id: number } & DinnerModeFee, a: FeeAttendee): boolean {
+  if (!isDinnerFee(fee)) return false;
+  if (a.includeDinner === false) return false;
+  return a.dinnerFeeIds == null || a.dinnerFeeIds.includes(fee.id);
 }
 
 /** Per-person shirt charges follow the attendee's shirt choice; flat fees remain household-wide. */
@@ -27,9 +48,11 @@ export function isDinnerFee(fee: { chargeType: string; label?: string | null; is
 
 /** A mandatory fee always applies; an optional fee applies only if it was selected. */
 export function feeApplies(
-  fee: Pick<ReunionFee, "id" | "isOptional">,
+  fee: Pick<ReunionFee, "id" | "isOptional"> & Partial<DinnerModeFee>,
   selectedFeeIds: number[],
 ): boolean {
+  // Configured dinners apply only when saved in the selection, even if mandatory.
+  if (fee.chargeType && isConfiguredDinner(fee as DinnerModeFee)) return selectedFeeIds.includes(fee.id);
   return !fee.isOptional || selectedFeeIds.includes(fee.id);
 }
 
@@ -52,14 +75,15 @@ export function tierForAge(
  *   A null age always pays the base amount.
  */
 export function computeFeeAmount(
-  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & { label?: string | null; isDinner?: boolean | null; isShirt?: boolean | null },
+  fee: Pick<ReunionFee, "chargeType" | "amount" | "ageTiers"> & { id?: number; label?: string | null; isDinner?: boolean | null; isShirt?: boolean | null },
   attendees: FeeAttendee[],
 ): number {
   if (fee.chargeType === "flat") return fee.amount;
   const tiers = fee.ageTiers ?? [];
   // Dinner fees skip attendees who opted out; every other fee charges everyone.
   const charged = attendees.filter(a =>
-    (!isDinnerFee(fee) || a.includeDinner !== false) &&
+    (!isDinnerFee(fee) || (a.includeDinner !== false &&
+      (a.dinnerFeeIds == null || fee.id == null || a.dinnerFeeIds.includes(fee.id)))) &&
     (!isShirtFee(fee) || a.includeShirt !== false),
   );
   return charged.reduce(

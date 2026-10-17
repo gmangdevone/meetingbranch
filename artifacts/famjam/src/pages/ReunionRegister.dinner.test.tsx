@@ -234,3 +234,70 @@ describe("editing an existing registration (regressions)", () => {
       expect(keys).toContain(JSON.stringify(k));
   });
 });
+
+describe("configured dinners: independent per-fee choices", () => {
+  const SUN = { ...DINNER, id: 20, label: "Sunday Dinner", ageTiers: [], amount: 30, dinnerClassification: "explicit", dinnerMode: "mandatory" };
+  const SAT = { ...DINNER, id: 21, label: "Saturday Dinner", ageTiers: [], amount: 10, isOptional: true, dinnerClassification: "explicit", dinnerMode: "optional" };
+  const editIt = () => render(<QueryClientProvider client={new QueryClient()}><ReunionRegister params={{ code: "LACEY", editId: "55" }} /></QueryClientProvider>);
+  const saved = (selectedFeeIds: number[], dinnerFeeIds: number[] | null, extra: object = {}) => ({
+    id: 55, reunionId: 7, branchName: "Lacey", selectedFeeIds,
+    attendees: [{ id: 1, name: "Ann Adult", shirtSize: null, age: 40, dietaryRestrictions: null, includeDinner: (dinnerFeeIds ?? []).length > 0, dinnerFeeIds }],
+    ...extra,
+  });
+
+  it("hidden -> optional: a saved attendee sees the dinner unchecked and can opt in", async () => {
+    h.fees = [SAT];
+    h.existing = saved([], []);
+    editIt();
+    const box = await screen.findByTestId("include-dinner-0");
+    expect(box).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(box);
+    fireEvent.click(screen.getByRole("button", { name: /Save|Update/ }));
+    await waitFor(() => expect(h.update).toHaveBeenCalled());
+    const data = h.update.mock.calls[0][0].data;
+    expect(data.selectedFeeIds).toContain(21);
+    expect(data.attendees[0]).toMatchObject({ id: 1, dinnerFeeIds: [21], includeDinner: true });
+  });
+
+  it("mandatory is locked for members while optional toggles independently", async () => {
+    h.fees = [SUN, SAT];
+    h.existing = saved([20, 21], [20, 21]);
+    editIt();
+    const sun = await screen.findByTestId("include-dinner-0-20");
+    expect(sun).toBeDisabled();
+    fireEvent.click(screen.getByTestId("include-dinner-0-21"));
+    fireEvent.click(screen.getByRole("button", { name: /Save|Update/ }));
+    await waitFor(() => expect(h.update).toHaveBeenCalled());
+    expect(h.update.mock.calls[0][0].data.attendees[0].dinnerFeeIds).toEqual([20]);
+  });
+
+  it("organizers can exempt mandatory; repeat save keeps hidden saved selections", async () => {
+    h.fees = [SUN, { ...SAT, dinnerMode: "hidden" }];
+    h.existing = saved([20, 21], [20, 21], { canManageDinner: true });
+    editIt();
+    const sun = await screen.findByTestId("include-dinner-0-20");
+    expect(sun).not.toBeDisabled();
+    expect(screen.getByTestId("include-dinner-0-21")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Save|Update/ }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    const first = h.update.mock.calls[0][0].data;
+    expect(first.selectedFeeIds).toEqual(expect.arrayContaining([20, 21]));
+    expect(first.attendees[0].dinnerFeeIds).toEqual([20, 21]);
+    fireEvent.click(sun);
+    fireEvent.click(screen.getByRole("button", { name: /Save|Update/ }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(2));
+    const second = h.update.mock.calls[1][0].data;
+    expect(second.attendees[0].dinnerFeeIds).toEqual([21]);
+    expect(second.selectedFeeIds).toEqual(expect.arrayContaining([20, 21]));
+  });
+
+  it("new registrations default every visible dinner selected and never offer hidden", async () => {
+    h.fees = [SUN, SAT, { ...SAT, id: 22, label: "Secret Supper", dinnerMode: "hidden" }];
+    renderIt();
+    fireEvent.click(screen.getByRole("button", { name: "Pick Lacey" }));
+    fill(0, "Ann", "40");
+    await waitFor(() => expect(screen.getByTestId("include-dinner-0-21")).toHaveAttribute("aria-checked", "true"));
+    expect(screen.queryByText("Secret Supper")).toBeNull();
+    expect(total()).toBe("$40");
+  });
+});

@@ -8,6 +8,11 @@
 import type { AttendeeShirtSize } from './attendeeShirtSize';
 
 export interface Attendee {
+  /**
+     * Server-owned dinner eligibility snapshot. Null retains legacy eligibility.
+     * @nullable
+     */
+  dinnerFeeIds?: number[] | null;
   /** Whether this attendee wants a T-shirt. */
   includeShirt?: boolean;
   id: number;

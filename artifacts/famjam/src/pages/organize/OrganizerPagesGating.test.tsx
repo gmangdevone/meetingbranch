@@ -40,6 +40,7 @@ vi.mock("@workspace/api-client-react", () => {
     useListBranchFees: () => ({ data: undefined, isLoading: false }),
     getListBranchFeesQueryKey: (id: number) => ["branch-fees", id],
     useUpdateRegistrationPayment: noopMutation,
+    useUpdateDinnerMode: noopMutation,
     useUpdateContributionPayment: noopMutation,
     useCancelRegistration: noopMutation,
     useTransferRegistration: noopMutation,
@@ -171,9 +172,10 @@ it("shows add-on quantities and the correct recipients in the check-in dialog", 
     expect(screen.getByText("Dinner × 1")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /0\/2/ }));
     const dialog = within(screen.getByRole("dialog"));
-    expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Add-ons: Dinner");
+    expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Dinner: Included");
     expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("T-Shirt Size: L");
     expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("No individual add-ons");
+    expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("Dinner: Not included");
     expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("T-Shirt Size: S");
     expect(dialog.getByText("Household add-ons")).toBeInTheDocument();
     expect(dialog.getByText("Photo package × 1")).toBeInTheDocument();
