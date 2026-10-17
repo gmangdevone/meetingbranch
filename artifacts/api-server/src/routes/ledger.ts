@@ -6,6 +6,7 @@ import { attachAuth } from "../middlewares/requireAdmin";
 import { requireReunionManager, requireReunionPermission } from "../middlewares/requireReunionManager";
 import { canManageRegistrations } from "./registrations";
 import { lockElection } from "../lib/branchFees";
+import { emailRecordedPayment } from "../lib/paymentConfirmation";
 import {
   type Exec,
   LedgerError,
@@ -344,6 +345,7 @@ router.post("/reunions/:reunionId/receipts", ...manage, requireReunionPermission
       return { ids, receiptId: receipt.id, duplicate: false };
     });
     if (regIds.duplicate) return void (await sendDuplicate(regIds.receiptId));
+    await emailRecordedPayment(regIds.receiptId);
     res.status(201).json({ receiptId: regIds.receiptId, duplicate: false, ledgers: await affectedLedgers(regIds.ids) });
   } catch (err) {
     if (!sendErr(res, err)) throw err;

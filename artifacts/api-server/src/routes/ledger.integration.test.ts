@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import express, { type Express } from "express";
 import request from "supertest";
 import { and, eq, inArray, sql } from "drizzle-orm";
+vi.mock("../lib/paymentConfirmation", () => ({ emailRecordedPayment: vi.fn() }));
+import { emailRecordedPayment } from "../lib/paymentConfirmation";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Partial payments ledger against the REAL dev Postgres schema (Clerk mocked).
@@ -113,6 +115,7 @@ describe.skipIf(!hasDb)("partial payment ledger (real DB)", () => {
   });
 
   it("duplicate confirmation is idempotent and concurrent over-allocation is serialized", async () => {
+    vi.mocked(emailRecordedPayment).mockClear();
     const id = await newReg();
     const k = key();
     const a = await one(id, 2000, { idempotencyKey: k });
@@ -120,6 +123,8 @@ describe.skipIf(!hasDb)("partial payment ledger (real DB)", () => {
     expect(a.status).toBe(201);
     expect(b.status).toBe(200);
     expect(b.body).toMatchObject({ duplicate: true, receiptId: a.body.receiptId });
+    expect(emailRecordedPayment).toHaveBeenCalledTimes(1);
+    expect(emailRecordedPayment).toHaveBeenCalledWith(a.body.receiptId);
     expect((await one(id, 9999, { idempotencyKey: k })).status).toBe(409);
     expect((await ledger(id)).ledger.confirmedCents).toBe(2000);
     // Two 50.00 receipts racing against a 60.00 balance: exactly one wins.

@@ -327,3 +327,51 @@ export async function sendRegistrationConfirmation(
     logger.error({ err, to: params.toEmail }, "Failed to send confirmation email via Brevo");
   }
 }
+
+export interface PaymentConfirmation {
+  toEmail: string;
+  toName: string;
+  reunionName: string;
+  receiptId: number;
+  registrationId: number;
+  amountCents: number;
+  balanceCents: number;
+  receivedDate: string;
+  method: string;
+}
+
+export function buildPaymentConfirmationHtml(p: PaymentConfirmation): string {
+  const dollars = (c: number) => `$${(c / 100).toFixed(2)}`;
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;color:#202020">
+    <h1>Payment received</h1>
+    <p>Hello ${escapeHtml(p.toName)},</p>
+    <p>An organizer recorded your payment for <strong>${escapeHtml(p.reunionName)}</strong>.</p>
+    <p>Registration #${p.registrationId} · Receipt #${p.receiptId}</p>
+    <p><strong>Amount applied to this registration: ${dollars(p.amountCents)}</strong></p>
+    <p>Payment date: ${escapeHtml(p.receivedDate)}<br>Method: ${escapeHtml(p.method.replace(/_/g, " "))}</p>
+    <p><strong>Remaining balance: ${dollars(p.balanceCents)}</strong></p>
+    <p>This balance includes any chip-in attached to your registration and reflects the balance when this confirmation was prepared. Separately billed branch fees are not included.</p>
+    <p>Thank you! If anything looks incorrect, please contact your event organizer.</p>
+  </div>`;
+}
+
+/** Fail explicitly; caller logs delivery failure without undoing recorded money. */
+export async function sendPaymentConfirmation(p: PaymentConfirmation): Promise<void> {
+  const key = process.env.BREVO_API_KEY;
+  if (!key) throw new Error("Payment confirmation not sent: BREVO_API_KEY is missing");
+  const fromEmail = getFromEmail();
+  if (!isSenderDomainAllowed(fromEmail)) throw new Error("Payment confirmation sender domain is not approved");
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    signal: AbortSignal.timeout(15000),
+    headers: { accept: "application/json", "api-key": key, "content-type": "application/json" },
+    body: JSON.stringify({
+      sender: { name: FROM_NAME, email: fromEmail },
+      to: [{ email: p.toEmail, name: p.toName }],
+      subject: `Payment received — ${p.reunionName}`,
+      htmlContent: buildPaymentConfirmationHtml(p),
+    }),
+  });
+  if (!response.ok) throw new Error(`Payment confirmation provider returned ${response.status}`);
+  logger.info({ receiptId: p.receiptId, registrationId: p.registrationId }, "Payment confirmation accepted by email provider");
+}
