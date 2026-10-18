@@ -19,6 +19,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { useToast } from "../hooks/use-toast";
 import { eventCodePath } from "../lib/eventCode";
 import { computeTotal, computeFeeAmount, feeApplies, describeFee, isDinnerFee, isShirtFee, isConfiguredDinner } from "../lib/fees";
+import { AttendeeFeeBreakdown } from "../components/AttendeeFeeBreakdown";
 import { configuredDinnerSelection, defaultDinnerIds, hydrateDinnerIds, offeredDinners } from "../lib/dinnerChoices";
 import { registrationPricingReady } from "../lib/registrationReadiness";
 import { SpecialInstructionsNote, approvedInstructions } from "../components/payments/SpecialInstructionsNote";
@@ -532,6 +533,12 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                       />
 
                     </div>
+                    <AttendeeFeeBreakdown
+                      fees={fees}
+                      attendee={feeAttendees[index]}
+                      selectedFeeIds={selectedFeeIds}
+                      ready={registrationPricingReady([watchAttendees[index]], 0)}
+                    />
                   </div>
                 ))}
 

@@ -12,7 +12,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useListMyBranchFeeElections, getListMyBranchFeeElectionsQueryKey } from "@workspace/api-client-react";
 import { BranchFeeCard } from "../components/payments/BranchFeeCard";
 import { useUser } from "@clerk/react";
-import { describeFee, describeTierRange, computeTotal, computeFeeAmount, feeApplies } from "../lib/fees";
+import { describeFee, describeTierRange, computeTotal, feeApplies } from "../lib/fees";
+import { AttendeeFeeBreakdown } from "../components/AttendeeFeeBreakdown";
 import { saveLastReunionCode, clearLastReunionCode, getLastReunionCode } from "../lib/lastReunion";
 import { eventCodePath } from "../lib/eventCode";
 import { getEventCountdownLabel, getRegistrationMomentumLabel, millisecondsUntilNextDay } from "../lib/eventMomentum";
@@ -404,7 +405,6 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                         const applicableFees = reunion.fees.filter((fee) =>
                           feeApplies(fee, reg.selectedFeeIds ?? []),
                         );
-                        const perPersonFees = applicableFees.filter((f) => f.chargeType === "per_person");
                         const flatFees = applicableFees.filter((f) => f.chargeType === "flat");
                         return (
                           <div key={reg.id} className="pb-4 border-b">
@@ -440,16 +440,8 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                         </span>
                                       )}
                                     </span>
-                                    <span className="font-bold tabular-nums">
-                                      ${perPersonFees.reduce((sum, fee) => sum + computeFeeAmount(fee, [attendee]), 0)}
-                                    </span>
                                   </div>
-                                  {perPersonFees.map((fee) => (
-                                    <div key={fee.id} className="flex justify-between items-baseline gap-3 pl-4 text-sm text-muted-foreground">
-                                      <span>{fee.label}</span>
-                                      <span className="tabular-nums">{money(Math.round((computeFeeAmount(fee, [attendee])) * 100))}</span>
-                                    </div>
-                                  ))}
+                                  <AttendeeFeeBreakdown fees={reunion.fees} attendee={attendee} selectedFeeIds={reg.selectedFeeIds ?? []} />
                                 </div>
                               ))}
                               {flatFees.map((fee) => (
