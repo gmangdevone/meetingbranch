@@ -54,6 +54,20 @@ describe.skipIf(!process.env.DATABASE_URL)("admin home content (real DB)", () =>
     const [other] = await db.select().from(reunionsTable).where(eq(reunionsTable.id, ids[1]));
     expect(other).toMatchObject(empty);
   });
+  it("persists event-specific pending payment notices, validates limits and restores defaults", async () => {
+    auth.id = owner;
+    const notice = { paymentPendingHeading: "Next steps", paymentPendingMessage: "Please pay by Friday.\nThank you!" };
+    expect((await request(app).put(`/api/reunions/${ids[0]}`).send(notice)).status).toBe(200);
+    const response = await request(app).get(`/api/reunions/by-code/${encodeURIComponent(codes[0])}`);
+    expect(response.body).toMatchObject(notice);
+    const [other] = await db.select().from(reunionsTable).where(eq(reunionsTable.id, ids[1]));
+    expect(other.paymentPendingHeading).toBeNull();
+    expect((await request(app).put(`/api/reunions/${ids[0]}`).send({ paymentPendingHeading: "x".repeat(161) })).status).toBe(400);
+    expect((await request(app).put(`/api/reunions/${ids[0]}`).send({ paymentPendingMessage: "x".repeat(5001) })).status).toBe(400);
+    expect((await request(app).put(`/api/reunions/${ids[0]}`).send({ paymentPendingHeading: null, paymentPendingMessage: " " })).status).toBe(200);
+    const reset = await request(app).get(`/api/reunions/by-code/${encodeURIComponent(codes[0])}`);
+    expect(reset.body).toMatchObject({ paymentPendingHeading: null, paymentPendingMessage: null });
+  });
   it("rejects unsafe links, incomplete enabled content, unknown fields and oversized headings", async () => {
     for (const hotelBookingUrl of ["javascript:alert(1)", "//evil.test", "data:text/html,test", "https://user:pass@example.com", "not a url"]) {
       expect((await save(ids[0], { ...full, hotelBookingUrl })).status).toBe(400);

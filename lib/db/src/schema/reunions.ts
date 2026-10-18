@@ -23,6 +23,8 @@ export const reunionsTable = pgTable(
     heroImageUrl: text("hero_image_url"),
     welcomeHeading: text("welcome_heading"),
     welcomeDescription: text("welcome_description"),
+    paymentPendingHeading: text("payment_pending_heading"),
+    paymentPendingMessage: text("payment_pending_message"),
     hotelEnabled: boolean("hotel_enabled").notNull().default(false),
     hotelDescription: text("hotel_description"),
     hotelBookingUrl: text("hotel_booking_url"),

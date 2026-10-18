@@ -42,6 +42,16 @@ export interface ReunionUpdateInput {
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
   /**
+     * @maxLength 160
+     * @nullable
+     */
+  paymentPendingHeading?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  paymentPendingMessage?: string | null;
+  /**
      * Object path of a custom hub hero background image. Set null to restore the default.
      * @nullable
      */

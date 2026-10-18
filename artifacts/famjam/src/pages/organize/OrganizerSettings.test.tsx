@@ -112,6 +112,29 @@ describe("OrganizerSettings organizers section gating", () => {
     expect(screen.getByRole("heading", { name: "Organizers" })).toBeInTheDocument();
   });
 
+  it("previews, saves, and restores the pending payment notice", async () => {
+    hoisted.updateMutate.mockReset();
+    setSummary(makeViewer({ roles: ["power_user"] }));
+    render(<OrganizerSettings params={{ reunionId: "1" }} />);
+    fireEvent.change(screen.getByLabelText("Notice heading"), { target: { value: "Next steps" } });
+    fireEvent.change(screen.getByLabelText("Notice message"), { target: { value: "Please pay by Friday.\nThank you!" } });
+    expect(screen.getByRole("heading", { name: "Next steps" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(hoisted.updateMutate).toHaveBeenCalled());
+    expect(hoisted.updateMutate.mock.calls[0][0].data).toMatchObject({
+      paymentPendingHeading: "Next steps", paymentPendingMessage: "Please pay by Friday.\nThank you!",
+    });
+    hoisted.updateMutate.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Restore default notice" }));
+    expect(screen.getByLabelText("Notice message")).toHaveValue("");
+    expect(screen.getByRole("heading", { name: "Payment Pending" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(hoisted.updateMutate).toHaveBeenCalled());
+    expect(hoisted.updateMutate.mock.calls[0][0].data).toMatchObject({
+      paymentPendingHeading: null, paymentPendingMessage: null,
+    });
+  });
+
   it("normalizes and submits an updated Event Code with a link warning", async () => {
     hoisted.updateMutate.mockReset();
     hoisted.updateMutate.mockImplementation(

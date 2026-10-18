@@ -1183,6 +1183,16 @@ export interface Reunion {
   /** @nullable */
   welcomeDescription?: string | null;
   hotelEnabled?: boolean;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  paymentPendingHeading?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  paymentPendingMessage?: string | null;
   /** @nullable */
   hotelDescription?: string | null;
   /** @nullable */
@@ -1411,6 +1421,16 @@ export interface ReunionUpdateInput {
   endDate?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
+  /**
+     * @maxLength 160
+     * @nullable
+     */
+  paymentPendingHeading?: string | null;
+  /**
+     * @maxLength 5000
+     * @nullable
+     */
+  paymentPendingMessage?: string | null;
   /**
      * Object path of a custom hub hero background image. Set null to restore the default.
      * @nullable

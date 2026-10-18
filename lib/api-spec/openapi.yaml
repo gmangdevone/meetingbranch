@@ -3945,6 +3945,12 @@ components:
           type: [string, "null"]
         hotelEnabled:
           type: boolean
+        paymentPendingHeading:
+          type: [string, "null"]
+          maxLength: 160
+        paymentPendingMessage:
+          type: [string, "null"]
+          maxLength: 5000
         hotelDescription:
           type: [string, "null"]
         hotelBookingUrl:
@@ -4276,6 +4282,12 @@ components:
           type: boolean
         allowRegistrantEdits:
           type: boolean
+        paymentPendingHeading:
+          type: [string, "null"]
+          maxLength: 160
+        paymentPendingMessage:
+          type: [string, "null"]
+          maxLength: 5000
         heroImageUrl:
           type: ["string", "null"]
           description: "Object path of a custom hub hero background image. Set null to restore the default."

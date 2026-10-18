@@ -454,6 +454,10 @@ export const createReunionResponseCodeMax = 32;
 
 
 export const createReunionResponseCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
+export const createReunionResponsePaymentPendingHeadingMax = 160;
+
+export const createReunionResponsePaymentPendingMessageMax = 5000;
+
 export const createReunionResponseHeroImageUrlsMax = 5;
 
 export const createReunionResponseHeroRotationSecondsMin = 3;
@@ -496,6 +500,8 @@ export const CreateReunionResponse = zod.object({
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(createReunionResponsePaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(createReunionResponsePaymentPendingMessageMax).nullish(),
   "hotelDescription": zod.string().nullish(),
   "hotelBookingUrl": zod.string().nullish(),
   "hotelImageUrl": zod.string().nullish(),
@@ -549,6 +555,10 @@ export const listMyReunionsResponseReunionCodeMax = 32;
 
 
 export const listMyReunionsResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
+export const listMyReunionsResponseReunionPaymentPendingHeadingMax = 160;
+
+export const listMyReunionsResponseReunionPaymentPendingMessageMax = 5000;
+
 export const listMyReunionsResponseReunionHeroImageUrlsMax = 5;
 
 export const listMyReunionsResponseReunionHeroRotationSecondsMin = 3;
@@ -592,6 +602,8 @@ export const ListMyReunionsResponseItem = zod.object({
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(listMyReunionsResponseReunionPaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(listMyReunionsResponseReunionPaymentPendingMessageMax).nullish(),
   "hotelDescription": zod.string().nullish(),
   "hotelBookingUrl": zod.string().nullish(),
   "hotelImageUrl": zod.string().nullish(),
@@ -684,6 +696,10 @@ export const getReunionByCodeResponseCodeMax = 32;
 
 
 export const getReunionByCodeResponseCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
+export const getReunionByCodeResponsePaymentPendingHeadingMax = 160;
+
+export const getReunionByCodeResponsePaymentPendingMessageMax = 5000;
+
 export const getReunionByCodeResponseHeroImageUrlsMax = 5;
 
 export const getReunionByCodeResponseHeroRotationSecondsMin = 3;
@@ -726,6 +742,8 @@ export const GetReunionByCodeResponse = zod.object({
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(getReunionByCodeResponsePaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(getReunionByCodeResponsePaymentPendingMessageMax).nullish(),
   "hotelDescription": zod.string().nullish(),
   "hotelBookingUrl": zod.string().nullish(),
   "hotelImageUrl": zod.string().nullish(),
@@ -783,6 +801,10 @@ export const getReunionResponseReunionCodeMax = 32;
 
 
 export const getReunionResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
+export const getReunionResponseReunionPaymentPendingHeadingMax = 160;
+
+export const getReunionResponseReunionPaymentPendingMessageMax = 5000;
+
 export const getReunionResponseReunionHeroImageUrlsMax = 5;
 
 export const getReunionResponseReunionHeroRotationSecondsMin = 3;
@@ -826,6 +848,8 @@ export const GetReunionResponse = zod.object({
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(getReunionResponseReunionPaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(getReunionResponseReunionPaymentPendingMessageMax).nullish(),
   "hotelDescription": zod.string().nullish(),
   "hotelBookingUrl": zod.string().nullish(),
   "hotelImageUrl": zod.string().nullish(),
@@ -901,6 +925,10 @@ export const updateReunionBodyCodeRegExp = new RegExp('^(?=.*[A-Za-z])(?=.*[0-9]
 
 
 
+export const updateReunionBodyPaymentPendingHeadingMax = 160;
+
+export const updateReunionBodyPaymentPendingMessageMax = 5000;
+
 export const updateReunionBodyHeroImageUrlsMax = 5;
 
 export const updateReunionBodyHeroRotationSecondsMin = 3;
@@ -919,6 +947,8 @@ export const UpdateReunionBody = zod.object({
   "endDate": zod.string().min(1).optional(),
   "registrationsOpen": zod.boolean().optional(),
   "allowRegistrantEdits": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(updateReunionBodyPaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(updateReunionBodyPaymentPendingMessageMax).nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.'),
   "heroImageUrls": zod.array(zod.string()).max(updateReunionBodyHeroImageUrlsMax).optional().describe('Ordered hero slideshow images (object paths, up to 5). Pass [] to clear the slideshow.'),
   "heroRotationSeconds": zod.number().min(updateReunionBodyHeroRotationSecondsMin).max(updateReunionBodyHeroRotationSecondsMax).optional().describe('Seconds between hero slides (3-8).'),
@@ -933,6 +963,10 @@ export const updateReunionResponseCodeMax = 32;
 
 
 export const updateReunionResponseCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
+export const updateReunionResponsePaymentPendingHeadingMax = 160;
+
+export const updateReunionResponsePaymentPendingMessageMax = 5000;
+
 export const updateReunionResponseHeroImageUrlsMax = 5;
 
 export const updateReunionResponseHeroRotationSecondsMin = 3;
@@ -975,6 +1009,8 @@ export const UpdateReunionResponse = zod.object({
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(updateReunionResponsePaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(updateReunionResponsePaymentPendingMessageMax).nullish(),
   "hotelDescription": zod.string().nullish(),
   "hotelBookingUrl": zod.string().nullish(),
   "hotelImageUrl": zod.string().nullish(),
@@ -3928,6 +3964,10 @@ export const adminListReunionsResponseReunionCodeMax = 32;
 
 
 export const adminListReunionsResponseReunionCodeRegExp = new RegExp('^(?=.*[A-Z])(?=.*[0-9])[A-Z0-9*._~-]+$');
+export const adminListReunionsResponseReunionPaymentPendingHeadingMax = 160;
+
+export const adminListReunionsResponseReunionPaymentPendingMessageMax = 5000;
+
 export const adminListReunionsResponseReunionHeroImageUrlsMax = 5;
 
 export const adminListReunionsResponseReunionHeroRotationSecondsMin = 3;
@@ -3971,6 +4011,8 @@ export const AdminListReunionsResponseItem = zod.object({
   "welcomeHeading": zod.string().nullish(),
   "welcomeDescription": zod.string().nullish(),
   "hotelEnabled": zod.boolean().optional(),
+  "paymentPendingHeading": zod.string().max(adminListReunionsResponseReunionPaymentPendingHeadingMax).nullish(),
+  "paymentPendingMessage": zod.string().max(adminListReunionsResponseReunionPaymentPendingMessageMax).nullish(),
   "hotelDescription": zod.string().nullish(),
   "hotelBookingUrl": zod.string().nullish(),
   "hotelImageUrl": zod.string().nullish(),

@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { DEFAULT_PAYMENT_PENDING_HEADING, DEFAULT_PAYMENT_PENDING_MESSAGE } from "../lib/paymentPendingNotice";
 import { useGetRegistration, getGetRegistrationQueryKey, useTransferRegistration, getListMyRegistrationsQueryKey, useGetReunionByCode, getGetReunionByCodeQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
 import { ArrowLeft, Users, CreditCard, ExternalLink, CalendarDays, Send, AlertTriangle, Pencil } from "lucide-react";
@@ -281,9 +282,9 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
               <CreditCard className="w-8 h-8" />
             </div>
-            <h3 className="font-bold text-xl mb-2 text-amber-900 dark:text-amber-500">Payment Pending</h3>
-            <p className="text-amber-700 dark:text-amber-600/80 mb-6 max-w-md">
-              Your registration is saved, but you still need to pay the organizer to complete it. You can pay in parts. Your balance updates when an organizer confirms each payment.
+            <h3 className="font-bold text-xl mb-2 text-amber-900 dark:text-amber-500 break-words max-w-full">{regReunion?.paymentPendingHeading?.trim() || DEFAULT_PAYMENT_PENDING_HEADING}</h3>
+            <p className="text-amber-700 dark:text-amber-600/80 mb-6 max-w-md whitespace-pre-wrap break-words">
+              {regReunion?.paymentPendingMessage?.trim() || DEFAULT_PAYMENT_PENDING_MESSAGE}
             </p>
             
             <div id="payment-instructions" tabIndex={-1} className="scroll-mt-6 bg-white dark:bg-background border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 w-full text-left">

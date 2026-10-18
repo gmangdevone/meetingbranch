@@ -1,4 +1,6 @@
 import { RecipientStatusCard } from "../../components/payments/RecipientStatusCard";
+import { Textarea } from "../../components/ui/textarea";
+import { DEFAULT_PAYMENT_PENDING_HEADING, DEFAULT_PAYMENT_PENDING_MESSAGE } from "../../lib/paymentPendingNotice";
 import { useEffect, useRef, useState } from "react";
 import {
   useGetReunion,
@@ -49,6 +51,8 @@ const formSchema = z.object({
   checkPayee: z.string().optional(),
   registrationsOpen: z.boolean().default(true),
   allowRegistrantEdits: z.boolean().default(false),
+  paymentPendingHeading: z.string().max(160).default(""),
+  paymentPendingMessage: z.string().max(5000).default(""),
 });
 
 export function OrganizerSettings({ params }: { params: { reunionId: string } }) {
@@ -77,6 +81,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       checkPayee: "",
       registrationsOpen: true,
       allowRegistrantEdits: false,
+      paymentPendingHeading: "",
+      paymentPendingMessage: "",
     },
   });
 
@@ -91,6 +97,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         checkPayee: summary.reunion.checkPayee || "",
         registrationsOpen: summary.reunion.registrationsOpen,
         allowRegistrantEdits: summary.reunion.allowRegistrantEdits ?? false,
+        paymentPendingHeading: summary.reunion.paymentPendingHeading ?? "",
+        paymentPendingMessage: summary.reunion.paymentPendingMessage ?? "",
       });
     }
   }, [summary, form]);
@@ -109,6 +117,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         checkPayee: values.checkPayee?.trim() || null,
         registrationsOpen: values.registrationsOpen,
         allowRegistrantEdits: values.allowRegistrantEdits,
+        paymentPendingHeading: values.paymentPendingHeading.trim() || null,
+        paymentPendingMessage: values.paymentPendingMessage.trim() || null,
       }
     }, {
       onSuccess: () => {
@@ -298,6 +308,34 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="pt-4 border-t space-y-4">
+              <h3 className="font-serif text-xl font-bold">Payment Pending Notice</h3>
+              <p className="text-sm text-muted-foreground">Shown after registration while payment is still pending. Leave either field blank to use its default wording. Payment instructions remain below the notice.</p>
+              <FormField control={form.control} name="paymentPendingHeading" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notice heading</FormLabel>
+                  <FormControl><Input {...field} maxLength={160} placeholder={DEFAULT_PAYMENT_PENDING_HEADING} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="paymentPendingMessage" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notice message</FormLabel>
+                  <FormControl><Textarea {...field} maxLength={5000} rows={5} placeholder={DEFAULT_PAYMENT_PENDING_MESSAGE} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+                <p className="text-xs font-semibold mb-2">Preview</p>
+                <h4 className="font-bold break-words">{form.watch("paymentPendingHeading")?.trim() || DEFAULT_PAYMENT_PENDING_HEADING}</h4>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm">{form.watch("paymentPendingMessage")?.trim() || DEFAULT_PAYMENT_PENDING_MESSAGE}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => {
+                form.setValue("paymentPendingHeading", "", { shouldDirty: true });
+                form.setValue("paymentPendingMessage", "", { shouldDirty: true });
+              }}>Restore default notice</Button>
             </div>
 
             {saveFeedback && (
