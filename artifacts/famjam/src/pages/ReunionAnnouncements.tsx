@@ -71,7 +71,7 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
               key={announcement.id} 
               className={`relative overflow-hidden rounded-3xl border p-6 shadow-sm animate-in slide-in-from-bottom-4 ${
                 idx % 2 === 0
-                  ? 'border-[#a63b3b] bg-gradient-to-br from-[#BF4646] to-[#8f3030] text-white'
+                  ? 'border-gray-400 bg-gradient-to-br from-gray-100 to-gray-400 text-gray-950'
                   : 'border-[#6898a2] bg-gradient-to-br from-[#7EACB5] to-[#a8cbd1] text-slate-950'
               } ${
                 announcement.pinned ? 'ring-2 ring-amber-300/80' : ''
@@ -86,14 +86,14 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
               
               <div className="mb-2">
                 <span className={`text-xs font-medium uppercase tracking-widest ${
-                  idx % 2 === 0 ? 'text-white/80' : 'text-slate-800/75'
+                  idx % 2 === 0 ? 'text-gray-700' : 'text-slate-800/75'
                 }`}>
                   {format(new Date(announcement.createdAt), 'MMM d, yyyy')}
                 </span>
               </div>
               <h3 className="font-bold text-xl mb-3 pr-16">{announcement.title}</h3>
               <div className={`text-sm leading-relaxed max-w-none whitespace-pre-wrap break-words ${
-                idx % 2 === 0 ? 'text-white/90' : 'text-slate-900/85'
+                idx % 2 === 0 ? 'text-gray-900' : 'text-slate-900/85'
               }`}>
                 <AnnouncementBody body={announcement.body} />
               </div>
