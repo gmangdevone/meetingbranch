@@ -100,7 +100,7 @@ export function ChecklistPanel({
   const pct = items.length ? Math.round((done / items.length) * 100) : 0;
   return (
     <section id="member-checklist-panel" data-testid="panel-member-checklist" aria-labelledby="checklist-heading"
-      className="bg-green-100/60 dark:bg-green-950/30 border border-green-200/60 dark:border-green-800/40 shadow-sm rounded-3xl p-6 md:p-8 animate-in fade-in slide-in-from-top-2 duration-300">
+      className="bg-gradient-to-br from-sky-100/70 to-blue-200/60 dark:from-sky-950/50 dark:to-blue-900/40 border border-blue-200/60 dark:border-blue-800/40 shadow-sm rounded-3xl p-6 md:p-8 animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">My Checklist</p>
