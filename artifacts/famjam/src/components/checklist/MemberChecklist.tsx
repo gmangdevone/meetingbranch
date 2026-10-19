@@ -136,9 +136,9 @@ export function ChecklistPanel({
           const err = item.id != null ? itemErrors[item.id] : undefined;
           return (
             <li key={item.id ?? item.title} data-testid={`row-checklist-item-${item.id}`}
-              className={`flex gap-4 rounded-2xl border p-4 transition-colors ${item.completed ? "bg-muted/40" : "bg-background"}`}>
+              className="flex gap-4 rounded-2xl border border-primary-border bg-primary text-white p-4 transition-colors">
               {auto ? (
-                <span aria-hidden="true" className={`mt-0.5 grid place-items-center w-6 h-6 shrink-0 rounded-full border-2 ${item.completed ? "bg-primary border-primary text-primary-foreground" : "border-dashed border-muted-foreground/50"}`}>
+                <span aria-hidden="true" className={`mt-0.5 grid place-items-center w-6 h-6 shrink-0 rounded-full border-2 border-white text-white ${item.completed ? "bg-white/20" : "border-dashed"}`}>
                   {item.completed && <Check className="w-3.5 h-3.5" />}
                 </span>
               ) : (
@@ -150,30 +150,30 @@ export function ChecklistPanel({
                   disabled={pendingItemId !== null || item.id == null}
                   onClick={() => onToggleItem(item, !item.completed)}
                   data-testid={`checkbox-checklist-item-${item.id}`}
-                  className={`mt-0.5 grid place-items-center w-6 h-6 shrink-0 rounded-md border-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait ${item.completed ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/60 hover:border-primary"}`}
+                  className={`mt-0.5 grid place-items-center w-6 h-6 shrink-0 rounded-md border-2 border-white text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary disabled:cursor-wait ${item.completed ? "bg-white/20" : "hover:bg-white/15"}`}
                 >
                   {pending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : item.completed ? <Check className="w-3.5 h-3.5" /> : null}
                 </button>
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className={`font-bold ${item.completed ? "text-muted-foreground line-through decoration-2" : ""}`}>{item.title}</span>
+                  <span className={`font-bold ${item.completed ? "line-through decoration-2" : ""}`}>{item.title}</span>
                   {auto && (
                     <span data-testid={`status-checklist-auto-${item.id}`}
-                      className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${item.completed ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300"}`}>
+                      className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-white/15 text-white border border-white/30">
                       {item.statusText || (item.completed ? "Done" : "Not yet")}
                     </span>
                   )}
                 </div>
-                {item.description && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap break-words">{item.description}</p>}
+                {item.description && <p className="mt-1 text-sm text-white whitespace-pre-wrap break-words">{item.description}</p>}
                 {link && (
                   <a href={link} target="_blank" rel="noopener noreferrer" data-testid={`link-checklist-item-${item.id}`}
-                    className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-primary hover:underline break-all">
+                    className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-white underline underline-offset-2 hover:decoration-2 break-all">
                     Open link <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}
-                {auto && <p className="mt-1 text-xs text-muted-foreground">Updates automatically.</p>}
-                {err && <p role="alert" className="mt-2 text-sm font-medium text-destructive">{err}</p>}
+                {auto && <p className="mt-1 text-xs text-white">Updates automatically.</p>}
+                {err && <p role="alert" className="mt-2 rounded-lg border border-white/50 bg-white/15 p-2 text-sm font-medium text-white">{err}</p>}
               </div>
             </li>
           );
