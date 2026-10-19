@@ -4,7 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
-import { Textarea } from "../../components/ui/textarea";
+import { AnnouncementEditor } from "../../components/AnnouncementEditor";
+import { AnnouncementBody } from "../../components/AnnouncementBody";
+import { announcementLinks, safeAnnouncementUrl } from "../../lib/announcementLinks";
 import { Switch } from "../../components/ui/switch";
 import { Label } from "../../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../../components/ui/dialog";
@@ -24,6 +26,8 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [linkEditing, setLinkEditing] = useState(false);
 
   const { data: announcements, isLoading } = useListReunionAnnouncements(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getListReunionAnnouncementsQueryKey(reunionId) }
@@ -32,8 +36,11 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
   const createMutation = useCreateAnnouncement();
   const updateMutation = useUpdateAnnouncement();
   const deleteMutation = useDeleteAnnouncement();
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   const resetForm = () => {
+    setSaveError("");
+    setLinkEditing(false);
     setTitle("");
     setBody("");
     setPinned(false);
@@ -46,6 +53,7 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
   };
 
   const openEdit = (a: Announcement) => {
+    setSaveError("");
     setTitle(a.title);
     setBody(a.body);
     setPinned(!!a.pinned);
@@ -54,8 +62,13 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
   };
 
   const handleSave = () => {
+    setSaveError("");
     if (!title.trim() || !body.trim()) {
-      toast({ title: "Validation Error", description: "Title and body are required.", variant: "destructive" });
+      setSaveError("Title and message are required.");
+      return;
+    }
+    if (announcementLinks(body).some(link => !safeAnnouncementUrl(link.url))) {
+      setSaveError("A message link has an invalid URL. Edit or remove it before posting.");
       return;
     }
 
@@ -65,7 +78,8 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
         queryClient.invalidateQueries({ queryKey: getListReunionAnnouncementsQueryKey(reunionId) });
         setIsOpen(false);
         toast({ title: editingId ? "Announcement updated" : "Announcement created" });
-      }
+      },
+      onError: () => setSaveError("Could not save the announcement. Your edits are still here; please try again."),
     };
 
     if (editingId) {
@@ -96,19 +110,18 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
           </Button>
         </div>
 
-        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(!open) resetForm(); }}>
-          <DialogContent className="sm:max-w-[500px] rounded-3xl">
+        <Dialog open={isOpen} onOpenChange={(open) => { if (saving) return; setIsOpen(open); if(!open) resetForm(); }}>
+          <DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto rounded-3xl">
             <DialogHeader>
               <DialogTitle className="font-serif text-2xl">{editingId ? "Edit Announcement" : "Create Announcement"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <fieldset disabled={saving} className="space-y-4 py-4 min-w-0">
               <div className="space-y-2">
-                <Label>Title</Label>
-                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Important Update" className="rounded-xl" />
+                <Label htmlFor="announcement-title">Title</Label>
+                <Input id="announcement-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Important Update" className="rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label>Message</Label>
-                <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Type your message here..." className="min-h-[150px] rounded-xl resize-none" />
+                <AnnouncementEditor value={body} onChange={setBody} disabled={saving} onLinkEditing={setLinkEditing} />
               </div>
               <div className="flex items-center space-x-2 pt-2">
                 <Switch id="pinned" checked={pinned} onCheckedChange={setPinned} />
@@ -116,10 +129,11 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
                   <Pin className="w-4 h-4" /> Pin to top
                 </Label>
               </div>
-            </div>
+            </fieldset>
+            {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsOpen(false)} className="rounded-xl">Cancel</Button>
-              <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending} className="rounded-xl">
+              <Button variant="outline" disabled={saving} onClick={() => setIsOpen(false)} className="rounded-xl">Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || linkEditing} className="rounded-xl">
                 {editingId ? "Save Changes" : "Post Announcement"}
               </Button>
             </DialogFooter>
@@ -138,10 +152,10 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
             {announcements.map((a) => (
               <div key={a.id} className={`bg-card border shadow-sm rounded-3xl p-6 relative group ${a.pinned ? 'border-amber-200' : ''}`}>
                 <div className="absolute top-4 right-4 flex opacity-0 group-hover:opacity-100 transition-opacity gap-2">
-                  <Button size="icon" variant="secondary" className="h-8 w-8 rounded-lg" onClick={() => openEdit(a)}>
+                  <Button aria-label={`Edit announcement ${a.title}`} size="icon" variant="secondary" className="h-8 w-8 rounded-lg" onClick={() => openEdit(a)}>
                     <Edit2 className="w-4 h-4" />
                   </Button>
-                  <Button size="icon" variant="destructive" className="h-8 w-8 rounded-lg" onClick={() => handleDelete(a.id)}>
+                  <Button aria-label={`Delete announcement ${a.title}`} size="icon" variant="destructive" className="h-8 w-8 rounded-lg" onClick={() => handleDelete(a.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -151,7 +165,7 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
                   <span className="text-xs text-muted-foreground">{format(new Date(a.createdAt), 'MMM d, yyyy - h:mm a')}</span>
                 </div>
                 <h3 className="font-bold text-xl mb-2 pr-20">{a.title}</h3>
-                <p className="text-muted-foreground whitespace-pre-wrap">{a.body}</p>
+                <p className="text-muted-foreground whitespace-pre-wrap break-words"><AnnouncementBody body={a.body} /></p>
               </div>
             ))}
           </div>

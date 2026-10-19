@@ -5,6 +5,7 @@ import { Bell, Pin, ArrowLeft, Info } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { eventCodePath } from "../lib/eventCode";
+import { AnnouncementBody } from "../components/AnnouncementBody";
 
 export function ReunionAnnouncements({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
@@ -94,7 +95,7 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
               <div className={`text-sm leading-relaxed max-w-none whitespace-pre-wrap break-words ${
                 idx % 2 === 0 ? 'text-white/90' : 'text-slate-900/85'
               }`}>
-                {announcement.body}
+                <AnnouncementBody body={announcement.body} />
               </div>
             </div>
           ))}
