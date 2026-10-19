@@ -27,6 +27,9 @@ vi.mock("@workspace/api-client-react", () => {
   return {
   useAdminListReunions: () => ({ data: undefined }),
   getAdminListReunionsQueryKey: () => ["adminReunions"],
+  useGetChecklistConfig: () => ({ data: { enabled: false, items: [] }, isLoading: false, isError: false }),
+  getGetChecklistConfigQueryKey: (id: number) => ["checklistConfig", id],
+  useSaveChecklistConfig: noopMutation,
   useGetReunion: () => ({
     data: hoisted.summary,
     isLoading: false,

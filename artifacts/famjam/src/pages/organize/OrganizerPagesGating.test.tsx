@@ -84,6 +84,9 @@ vi.mock("@workspace/api-client-react", () => {
     useDeleteBranch: noopMutation,
     // Settings
     useUpdateReunion: noopMutation,
+    useGetChecklistConfig: () => ({ data: { enabled: false, items: [] }, isLoading: false, isError: false }),
+    getGetChecklistConfigQueryKey: (id: number) => ["checklistConfig", id],
+    useSaveChecklistConfig: noopMutation,
   useRequestUploadUrl: noopMutation,
   useCreateReunionImage: noopMutation,
   useDeleteReunionImage: noopMutation,

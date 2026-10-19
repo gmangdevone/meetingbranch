@@ -8,6 +8,135 @@
 import * as zod from 'zod';
 
 
+export const GetChecklistConfigParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const getChecklistConfigResponseItemsItemTitleMax = 160;
+
+export const getChecklistConfigResponseItemsItemDescriptionMax = 2000;
+
+export const getChecklistConfigResponseItemsItemLinkMax = 2048;
+
+export const getChecklistConfigResponseItemsMax = 50;
+
+
+
+export const GetChecklistConfigResponse = zod.object({
+  "enabled": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "title": zod.string().min(1).max(getChecklistConfigResponseItemsItemTitleMax),
+  "description": zod.string().max(getChecklistConfigResponseItemsItemDescriptionMax).nullish(),
+  "link": zod.string().max(getChecklistConfigResponseItemsItemLinkMax).nullish(),
+  "kind": zod.enum(['manual', 'registration', 'payment']),
+  "visible": zod.boolean(),
+  "sortOrder": zod.number(),
+  "completed": zod.boolean().optional(),
+  "statusText": zod.string().optional()
+})).max(getChecklistConfigResponseItemsMax)
+})
+
+
+export const SaveChecklistConfigParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const saveChecklistConfigBodyItemsItemTitleMax = 160;
+
+export const saveChecklistConfigBodyItemsItemDescriptionMax = 2000;
+
+export const saveChecklistConfigBodyItemsItemLinkMax = 2048;
+
+export const saveChecklistConfigBodyItemsMax = 50;
+
+
+
+export const SaveChecklistConfigBody = zod.object({
+  "enabled": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "title": zod.string().min(1).max(saveChecklistConfigBodyItemsItemTitleMax),
+  "description": zod.string().max(saveChecklistConfigBodyItemsItemDescriptionMax).nullish(),
+  "link": zod.string().max(saveChecklistConfigBodyItemsItemLinkMax).nullish(),
+  "kind": zod.enum(['manual', 'registration', 'payment']),
+  "visible": zod.boolean(),
+  "sortOrder": zod.number(),
+  "completed": zod.boolean().optional(),
+  "statusText": zod.string().optional()
+})).max(saveChecklistConfigBodyItemsMax)
+})
+
+export const saveChecklistConfigResponseItemsItemTitleMax = 160;
+
+export const saveChecklistConfigResponseItemsItemDescriptionMax = 2000;
+
+export const saveChecklistConfigResponseItemsItemLinkMax = 2048;
+
+export const saveChecklistConfigResponseItemsMax = 50;
+
+
+
+export const SaveChecklistConfigResponse = zod.object({
+  "enabled": zod.boolean(),
+  "items": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "title": zod.string().min(1).max(saveChecklistConfigResponseItemsItemTitleMax),
+  "description": zod.string().max(saveChecklistConfigResponseItemsItemDescriptionMax).nullish(),
+  "link": zod.string().max(saveChecklistConfigResponseItemsItemLinkMax).nullish(),
+  "kind": zod.enum(['manual', 'registration', 'payment']),
+  "visible": zod.boolean(),
+  "sortOrder": zod.number(),
+  "completed": zod.boolean().optional(),
+  "statusText": zod.string().optional()
+})).max(saveChecklistConfigResponseItemsMax)
+})
+
+
+export const GetMyChecklistParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const getMyChecklistResponseItemsItemTitleMax = 160;
+
+export const getMyChecklistResponseItemsItemDescriptionMax = 2000;
+
+export const getMyChecklistResponseItemsItemLinkMax = 2048;
+
+
+
+export const GetMyChecklistResponse = zod.object({
+  "enabled": zod.boolean(),
+  "completedCount": zod.number(),
+  "totalCount": zod.number(),
+  "items": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "title": zod.string().min(1).max(getMyChecklistResponseItemsItemTitleMax),
+  "description": zod.string().max(getMyChecklistResponseItemsItemDescriptionMax).nullish(),
+  "link": zod.string().max(getMyChecklistResponseItemsItemLinkMax).nullish(),
+  "kind": zod.enum(['manual', 'registration', 'payment']),
+  "visible": zod.boolean(),
+  "sortOrder": zod.number(),
+  "completed": zod.boolean().optional(),
+  "statusText": zod.string().optional()
+}))
+})
+
+
+export const SetChecklistCompletionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "itemId": zod.coerce.number()
+})
+
+export const SetChecklistCompletionBody = zod.object({
+  "completed": zod.boolean()
+})
+
+export const SetChecklistCompletionResponse = zod.object({
+  "completed": zod.boolean()
+})
+
+
 export const AdminSaveHomeContentParams = zod.object({
   "reunionId": zod.coerce.number()
 })

@@ -49,6 +49,8 @@ import type {
   CancelRegistrationInput,
   CastVotesInput,
   CheckInInput,
+  ChecklistCompletionInput,
+  ChecklistConfig,
   DinnerModeInput,
   ErrorEnvelope,
   ErrorResponse,
@@ -61,6 +63,7 @@ import type {
   ManagePoll,
   ManagedRegistrationInput,
   MemberActivityChoiceList,
+  MemberChecklist,
   MemberPoll,
   MemberPollList,
   MemberProfile,
@@ -103,6 +106,7 @@ import type {
   ReunionUpdateInput,
   ScheduleItem,
   ScheduleItemInput,
+  SetChecklistCompletion200,
   SponsorshipAllocationInput,
   SponsorshipContribution,
   SponsorshipContributionInput,
@@ -149,6 +153,282 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetChecklistConfigUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/checklist/config`
+}
+
+export const getChecklistConfig = async (reunionId: number, options?: RequestInit): Promise<ChecklistConfig> => {
+
+  return customFetch<ChecklistConfig>(getGetChecklistConfigUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetChecklistConfigQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/checklist/config`
+    ] as const;
+    }
+
+
+export const getGetChecklistConfigQueryOptions = <TData = Awaited<ReturnType<typeof getChecklistConfig>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChecklistConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetChecklistConfigQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getChecklistConfig>>> = ({ signal }) => getChecklistConfig(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getChecklistConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetChecklistConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getChecklistConfig>>>
+export type GetChecklistConfigQueryError = ErrorType<unknown>
+
+
+
+export function useGetChecklistConfig<TData = Awaited<ReturnType<typeof getChecklistConfig>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getChecklistConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetChecklistConfigQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveChecklistConfigUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/checklist/config`
+}
+
+export const saveChecklistConfig = async (reunionId: number,
+    checklistConfig: ChecklistConfig, options?: RequestInit): Promise<ChecklistConfig> => {
+
+  return customFetch<ChecklistConfig>(getSaveChecklistConfigUrl(reunionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(checklistConfig)
+  }
+);}
+
+
+
+
+
+export const getSaveChecklistConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveChecklistConfig>>, TError,{reunionId: number;data: BodyType<ChecklistConfig>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveChecklistConfig>>, TError,{reunionId: number;data: BodyType<ChecklistConfig>}, TContext> => {
+
+const mutationKey = ['saveChecklistConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveChecklistConfig>>, {reunionId: number;data: BodyType<ChecklistConfig>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  saveChecklistConfig(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveChecklistConfigMutationResult = NonNullable<Awaited<ReturnType<typeof saveChecklistConfig>>>
+    export type SaveChecklistConfigMutationBody = BodyType<ChecklistConfig>
+    export type SaveChecklistConfigMutationError = ErrorType<unknown>
+
+    export const useSaveChecklistConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveChecklistConfig>>, TError,{reunionId: number;data: BodyType<ChecklistConfig>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveChecklistConfig>>,
+        TError,
+        {reunionId: number;data: BodyType<ChecklistConfig>},
+        TContext
+      > => {
+      return useMutation(getSaveChecklistConfigMutationOptions(options));
+    }
+
+export const getGetMyChecklistUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/checklist/mine`
+}
+
+export const getMyChecklist = async (reunionId: number, options?: RequestInit): Promise<MemberChecklist> => {
+
+  return customFetch<MemberChecklist>(getGetMyChecklistUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyChecklistQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/checklist/mine`
+    ] as const;
+    }
+
+
+export const getGetMyChecklistQueryOptions = <TData = Awaited<ReturnType<typeof getMyChecklist>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyChecklist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyChecklistQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyChecklist>>> = ({ signal }) => getMyChecklist(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyChecklist>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyChecklistQueryResult = NonNullable<Awaited<ReturnType<typeof getMyChecklist>>>
+export type GetMyChecklistQueryError = ErrorType<unknown>
+
+
+
+export function useGetMyChecklist<TData = Awaited<ReturnType<typeof getMyChecklist>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyChecklist>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyChecklistQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetChecklistCompletionUrl = (reunionId: number,
+    itemId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/checklist/items/${itemId}/completion`
+}
+
+export const setChecklistCompletion = async (reunionId: number,
+    itemId: number,
+    checklistCompletionInput: ChecklistCompletionInput, options?: RequestInit): Promise<SetChecklistCompletion200> => {
+
+  return customFetch<SetChecklistCompletion200>(getSetChecklistCompletionUrl(reunionId,itemId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(checklistCompletionInput)
+  }
+);}
+
+
+
+
+
+export const getSetChecklistCompletionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setChecklistCompletion>>, TError,{reunionId: number;itemId: number;data: BodyType<ChecklistCompletionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setChecklistCompletion>>, TError,{reunionId: number;itemId: number;data: BodyType<ChecklistCompletionInput>}, TContext> => {
+
+const mutationKey = ['setChecklistCompletion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setChecklistCompletion>>, {reunionId: number;itemId: number;data: BodyType<ChecklistCompletionInput>}> = (props) => {
+          const {reunionId,itemId,data} = props ?? {};
+
+          return  setChecklistCompletion(reunionId,itemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetChecklistCompletionMutationResult = NonNullable<Awaited<ReturnType<typeof setChecklistCompletion>>>
+    export type SetChecklistCompletionMutationBody = BodyType<ChecklistCompletionInput>
+    export type SetChecklistCompletionMutationError = ErrorType<unknown>
+
+    export const useSetChecklistCompletion = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setChecklistCompletion>>, TError,{reunionId: number;itemId: number;data: BodyType<ChecklistCompletionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setChecklistCompletion>>,
+        TError,
+        {reunionId: number;itemId: number;data: BodyType<ChecklistCompletionInput>},
+        TContext
+      > => {
+      return useMutation(getSetChecklistCompletionMutationOptions(options));
+    }
 
 export const getAdminSaveHomeContentUrl = (reunionId: number,) => {
 

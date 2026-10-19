@@ -5,6 +5,56 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+export interface ChecklistCompletionInput {
+  completed: boolean;
+}
+
+export type ChecklistItemKind = typeof ChecklistItemKind[keyof typeof ChecklistItemKind];
+
+
+export const ChecklistItemKind = {
+  manual: 'manual',
+  registration: 'registration',
+  payment: 'payment',
+} as const;
+
+export interface ChecklistItem {
+  id?: number;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  description?: string | null;
+  /**
+     * @maxLength 2048
+     * @nullable
+     */
+  link?: string | null;
+  kind: ChecklistItemKind;
+  visible: boolean;
+  sortOrder: number;
+  completed?: boolean;
+  statusText?: string;
+}
+
+export interface ChecklistConfig {
+  enabled: boolean;
+  /** @maxItems 50 */
+  items: ChecklistItem[];
+}
+
+export interface MemberChecklist {
+  enabled: boolean;
+  completedCount: number;
+  totalCount: number;
+  items: ChecklistItem[];
+}
+
 export interface HomeContent {
   /**
      * @maxLength 160
@@ -2093,6 +2143,10 @@ export interface AdminSetupResult {
   message: string;
   userId: string;
 }
+
+export type SetChecklistCompletion200 = {
+  completed: boolean;
+};
 
 export type ListDinnerHistory200Item = {
   id: number;

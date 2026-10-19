@@ -25,6 +25,7 @@ export const reunionsTable = pgTable(
     welcomeDescription: text("welcome_description"),
     paymentPendingHeading: text("payment_pending_heading"),
     paymentPendingMessage: text("payment_pending_message"),
+    checklistEnabled: boolean("checklist_enabled").notNull().default(false),
     hotelEnabled: boolean("hotel_enabled").notNull().default(false),
     hotelDescription: text("hotel_description"),
     hotelBookingUrl: text("hotel_booking_url"),

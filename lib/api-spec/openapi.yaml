@@ -24,6 +24,78 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /reunions/{reunionId}/checklist/config:
+    get:
+      operationId: getChecklistConfig
+      tags: [manage]
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Event checklist configuration (authorized managers only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistConfig"
+    put:
+      operationId: saveChecklistConfig
+      tags: [manage]
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChecklistConfig"
+      responses:
+        "200":
+          description: Saved configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChecklistConfig"
+  /reunions/{reunionId}/checklist/mine:
+    get:
+      operationId: getMyChecklist
+      tags: [reunions]
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      responses:
+        "200":
+          description: Current user's event checklist with live automatic status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberChecklist"
+  /reunions/{reunionId}/checklist/items/{itemId}/completion:
+    put:
+      operationId: setChecklistCompletion
+      tags: [reunions]
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChecklistCompletionInput"
+      responses:
+        "200":
+          description: Saved completion
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [completed]
+                properties:
+                  completed:
+                    type: boolean
   /admin/reunions/{reunionId}/home-content:
     put:
       operationId: adminSaveHomeContent
@@ -2899,6 +2971,64 @@ components:
         type: integer
 
   schemas:
+    ChecklistCompletionInput:
+      type: object
+      required: [completed]
+      properties:
+        completed:
+          type: boolean
+    ChecklistItem:
+      type: object
+      required: [title, kind, visible, sortOrder]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+          minLength: 1
+          maxLength: 160
+        description:
+          type: [string, "null"]
+          maxLength: 2000
+        link:
+          type: [string, "null"]
+          maxLength: 2048
+        kind:
+          type: string
+          enum: [manual, registration, payment]
+        visible:
+          type: boolean
+        sortOrder:
+          type: integer
+        completed:
+          type: boolean
+        statusText:
+          type: string
+    ChecklistConfig:
+      type: object
+      required: [enabled, items]
+      properties:
+        enabled:
+          type: boolean
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/ChecklistItem"
+    MemberChecklist:
+      type: object
+      required: [enabled, items, completedCount, totalCount]
+      properties:
+        enabled:
+          type: boolean
+        completedCount:
+          type: integer
+        totalCount:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChecklistItem"
     HomeContent:
       type: object
       additionalProperties: false

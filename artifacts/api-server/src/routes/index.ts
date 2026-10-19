@@ -13,6 +13,7 @@ import imagesRouter from "./images";
 import profileRouter from "./profile";
 import paymentRecipientsRouter from "./paymentRecipients";
 import ledgerRouter from "./ledger";
+import checklistRouter from "./checklist";
 import branchFeeElectionsRouter from "./branchFeeElections";
 import { requireAuth } from "../middlewares/requireAuth";
 
@@ -27,6 +28,7 @@ router.use(healthRouter);
 // router's global requireAdmin (owner authority never derives from isAdmin).
 router.use(paymentRecipientsRouter);
 router.use(ledgerRouter);
+router.use(checklistRouter);
 router.use(branchFeeElectionsRouter);
 router.use(profileRouter);
 router.use(settingsRouter);

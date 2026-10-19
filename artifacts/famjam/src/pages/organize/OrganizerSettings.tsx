@@ -26,6 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { ChecklistEditor } from "../../components/checklist/ChecklistEditor";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form";
@@ -357,6 +358,8 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
             </Button>
           </form>
         </Form>
+
+        <ChecklistEditor reunionId={reunionId} />
 
         <HubImagesManager reunionId={reunionId} reunion={summary.reunion} />
 

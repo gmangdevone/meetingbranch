@@ -26,6 +26,7 @@ import { useEffect } from "react";
 import { money } from "../components/payments/money";
 import { PlainText } from "../components/PlainText";
 import { HotelBlock } from "../components/HotelBlock";
+import { ChecklistHeroButton, ChecklistPanel, useChecklistController } from "../components/checklist/MemberChecklist";
 import { DEFAULT_WELCOME_HEADING, defaultWelcomeDescription } from "../lib/homeContent";
 
 /**
@@ -76,6 +77,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   const [showHeroFees, setShowHeroFees] = useState(false);
   const [countdownNow, setCountdownNow] = useState(() => new Date());
 
+  const [showChecklist, setShowChecklist] = useState(false);
   const revealPayments = () => {
     setShowPayments(true);
     // Wait a tick so the section is rendered before scrolling
@@ -94,6 +96,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
     , queryKey: getGetReunionByCodeQueryKey(code) }
   });
 
+  const checklist = useChecklistController(reunion?.id);
   const { data: reunionSummary } = useGetReunionSummary(reunion?.id ?? 0, {
     query: {
       enabled: !!reunion?.id,
@@ -154,6 +157,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   // Every event visit starts collapsed, regardless of outstanding balances.
   useEffect(() => {
     setShowPayments(false);
+    setShowChecklist(false);
   }, [code]);
 
   // Remember the last successfully visited reunion so the Home nav can return here;
@@ -273,6 +277,18 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             {reunion.name}
           </h1>
           <Greeting className="font-serif text-2xl md:text-3xl font-bold mb-2 drop-shadow-md" />
+          {isSignedIn && (
+            <div className="my-4 md:my-0 md:absolute md:bottom-0 md:right-0 md:z-20">
+              <ChecklistHeroButton
+                data={checklist.query.data}
+                isError={checklist.query.isError}
+                isRefetching={checklist.query.isFetching}
+                open={showChecklist}
+                onToggle={() => setShowChecklist((v) => !v)}
+                onRetry={() => checklist.query.refetch()}
+              />
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-lg font-medium">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-5 h-5" />
@@ -282,7 +298,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
             </div>
             <span className="font-bold text-white/90">{countdownLabel}</span>
           </div>
-          <div className="mt-6 pt-5 border-t border-white/20">
+          <div className="mt-6 pt-5 border-t border-white/20 md:pr-80">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2 text-base font-bold text-white/90">
                 <Users className="w-5 h-5" />
@@ -330,6 +346,17 @@ export function ReunionHub({ params }: { params: { code: string } }) {
           </div>
         </div>
       </div>
+
+      {isSignedIn && showChecklist && checklist.query.data?.enabled && (
+        <ChecklistPanel
+          data={checklist.query.data}
+          isError={checklist.query.isError}
+          pendingItemId={checklist.pendingItemId}
+          itemErrors={checklist.itemErrors}
+          onToggleItem={checklist.toggleItem}
+          onClose={() => setShowChecklist(false)}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 flex flex-col gap-6">
