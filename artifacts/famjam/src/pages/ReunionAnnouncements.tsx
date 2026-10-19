@@ -16,7 +16,7 @@ export function ReunionAnnouncements({ params }: { params: { code: string } }) {
   });
 
   const { data: announcements, isLoading: loadingAnnouncements } = useListReunionAnnouncements(reunion?.id ?? 0, {
-    query: {  enabled: !!reunion?.id , queryKey: getListReunionAnnouncementsQueryKey(reunion?.id ?? 0) }
+    query: {  enabled: !!reunion?.id , queryKey: getListReunionAnnouncementsQueryKey(reunion?.id ?? 0), refetchOnMount: "always", refetchInterval: 30_000 }
   });
 
   if (loadingReunion || loadingAnnouncements) {

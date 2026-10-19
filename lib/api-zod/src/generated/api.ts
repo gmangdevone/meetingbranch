@@ -1273,6 +1273,31 @@ export const CreateAnnouncementResponse = zod.object({
 
 
 /**
+ * @summary Save announcement order within pinned and unpinned groups
+ */
+export const ReorderAnnouncementsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+
+
+
+export const ReorderAnnouncementsBody = zod.object({
+  "ids": zod.array(zod.number().min(1))
+})
+
+export const ReorderAnnouncementsResponseItem = zod.object({
+  "id": zod.number(),
+  "reunionId": zod.number(),
+  "title": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "pinned": zod.boolean().optional()
+})
+export const ReorderAnnouncementsResponse = zod.array(ReorderAnnouncementsResponseItem)
+
+
+/**
  * @summary Update an announcement
  */
 export const UpdateAnnouncementParams = zod.object({

@@ -31,6 +31,7 @@ import {
   ListReunionScheduleResponse,
   CreateAnnouncementBody,
   UpdateAnnouncementBody,
+  ReorderAnnouncementsBody,
   CreateScheduleItemBody,
   UpdateScheduleItemBody,
   CreateBranchBody,
@@ -383,7 +384,7 @@ router.get("/reunions/:reunionId/announcements", async (req, res): Promise<void>
     .select()
     .from(announcementsTable)
     .where(eq(announcementsTable.reunionId, reunionId))
-    .orderBy(desc(announcementsTable.pinned), desc(announcementsTable.createdAt));
+    .orderBy(desc(announcementsTable.pinned), asc(announcementsTable.sortOrder), desc(announcementsTable.createdAt), desc(announcementsTable.id));
   res.json(ListReunionAnnouncementsResponse.parse(items));
 });
 
@@ -860,6 +861,39 @@ router.post("/reunions/:reunionId/announcements", ...manage, requireReunionPermi
     })
     .returning();
   res.status(201).json(created);
+});
+
+router.put("/reunions/:reunionId/announcements/order", ...manage, requireReunionPermission("announcements"), async (req, res): Promise<void> => {
+  const parsed = ReorderAnnouncementsBody.safeParse(req.body);
+  if (!parsed.success || new Set(parsed.data.ids).size !== parsed.data.ids.length ||
+      parsed.data.ids.some(id => !Number.isSafeInteger(id))) {
+    res.status(400).json({ error: "Provide each announcement ID exactly once." });
+    return;
+  }
+  const reunionId = req.managedReunion!.id;
+  const result = await db.transaction(async tx => {
+    await lockReunionRow(tx, reunionId);
+    const current = await tx.select().from(announcementsTable)
+      .where(eq(announcementsTable.reunionId, reunionId)).for("update");
+    const byId = new Map(current.map(item => [item.id, item]));
+    const ids = parsed.data.ids;
+    if (current.length !== ids.length || ids.some(id => !byId.has(id))) return null;
+    let unpinnedSeen = false;
+    for (const id of ids) {
+      if (!byId.get(id)!.pinned) unpinnedSeen = true;
+      else if (unpinnedSeen) return null;
+    }
+    for (const [index, id] of ids.entries()) {
+      await tx.update(announcementsTable).set({ sortOrder: index + 1 })
+        .where(and(eq(announcementsTable.id, id), eq(announcementsTable.reunionId, reunionId)));
+    }
+    return ids.map(id => byId.get(id)!);
+  });
+  if (!result) {
+    res.status(409).json({ error: "Announcements changed. Refresh and try again; pinned posts must stay first." });
+    return;
+  }
+  res.json(ListReunionAnnouncementsResponse.parse(result));
 });
 
 router.put("/reunions/:reunionId/announcements/:announcementId", ...manage, requireReunionPermission("announcements"), async (req, res): Promise<void> => {

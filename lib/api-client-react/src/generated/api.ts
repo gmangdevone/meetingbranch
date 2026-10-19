@@ -38,6 +38,7 @@ import type {
   AdminUser,
   Announcement,
   AnnouncementInput,
+  AnnouncementOrderInput,
   Attendee,
   BranchFeeElectionInput,
   BranchFeeLedger,
@@ -2376,6 +2377,78 @@ export const useCreateAnnouncement = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateAnnouncementMutationOptions(options));
+    }
+
+export const getReorderAnnouncementsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/announcements/order`
+}
+
+/**
+ * @summary Save announcement order within pinned and unpinned groups
+ */
+export const reorderAnnouncements = async (reunionId: number,
+    announcementOrderInput: AnnouncementOrderInput, options?: RequestInit): Promise<Announcement[]> => {
+
+  return customFetch<Announcement[]>(getReorderAnnouncementsUrl(reunionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(announcementOrderInput)
+  }
+);}
+
+
+
+
+
+export const getReorderAnnouncementsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderAnnouncements>>, TError,{reunionId: number;data: BodyType<AnnouncementOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reorderAnnouncements>>, TError,{reunionId: number;data: BodyType<AnnouncementOrderInput>}, TContext> => {
+
+const mutationKey = ['reorderAnnouncements'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reorderAnnouncements>>, {reunionId: number;data: BodyType<AnnouncementOrderInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  reorderAnnouncements(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReorderAnnouncementsMutationResult = NonNullable<Awaited<ReturnType<typeof reorderAnnouncements>>>
+    export type ReorderAnnouncementsMutationBody = BodyType<AnnouncementOrderInput>
+    export type ReorderAnnouncementsMutationError = ErrorType<void>
+
+    /**
+ * @summary Save announcement order within pinned and unpinned groups
+ */
+export const useReorderAnnouncements = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reorderAnnouncements>>, TError,{reunionId: number;data: BodyType<AnnouncementOrderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reorderAnnouncements>>,
+        TError,
+        {reunionId: number;data: BodyType<AnnouncementOrderInput>},
+        TContext
+      > => {
+      return useMutation(getReorderAnnouncementsMutationOptions(options));
     }
 
 export const getUpdateAnnouncementUrl = (reunionId: number,

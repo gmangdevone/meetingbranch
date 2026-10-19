@@ -760,6 +760,37 @@ paths:
         "403":
           description: Forbidden
 
+  /reunions/{reunionId}/announcements/order:
+    put:
+      operationId: reorderAnnouncements
+      tags: [manage]
+      summary: Save announcement order within pinned and unpinned groups
+      security:
+        - clerkAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ReunionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementOrderInput"
+      responses:
+        "200":
+          description: Ordered announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+        "400":
+          description: Invalid order
+        "403":
+          description: Forbidden
+        "409":
+          description: Announcements changed; refresh before reordering
+
   /reunions/{reunionId}/announcements/{announcementId}:
     put:
       operationId: updateAnnouncement
@@ -5276,6 +5307,16 @@ components:
           format: date-time
         pinned:
           type: boolean
+
+    AnnouncementOrderInput:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+            minimum: 1
 
     AnnouncementInput:
       type: object

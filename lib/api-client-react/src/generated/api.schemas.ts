@@ -2074,6 +2074,11 @@ export interface Announcement {
   pinned?: boolean;
 }
 
+export interface AnnouncementOrderInput {
+  /** @items.minimum 1 */
+  ids: number[];
+}
+
 export interface AnnouncementInput {
   /** @minLength 1 */
   title: string;

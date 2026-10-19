@@ -27,6 +27,7 @@ export * from './adminSetupStatus';
 export * from './adminUser';
 export * from './announcement';
 export * from './announcementInput';
+export * from './announcementOrderInput';
 export * from './attachedContributionLedger';
 export * from './attendee';
 export * from './attendeeInput';

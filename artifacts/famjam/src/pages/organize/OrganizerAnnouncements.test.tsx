@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { OrganizerAnnouncements } from "./OrganizerAnnouncements";
 
 const state = vi.hoisted(() => ({ rows: [] as any[], fail: false, invalidate: vi.fn() }));
-vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: state.invalidate }) }));
+vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: state.invalidate, setQueryData: (_key: unknown, rows: any[]) => { state.rows = rows; } }) }));
 vi.mock("./OrganizerLayout", () => ({ OrganizerLayout: ({ children }: any) => children }));
 vi.mock("../../hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@workspace/api-client-react", () => ({
@@ -18,9 +18,31 @@ vi.mock("@workspace/api-client-react", () => ({
     state.rows[0] = { ...state.rows[0], ...data }; options.onSuccess();
   } }),
   useDeleteAnnouncement: () => ({ mutate: vi.fn() }),
+  useReorderAnnouncements: () => ({ isPending: false, mutate: ({ data }: any, options: any) => {
+    if (state.fail) return options.onError();
+    options.onSuccess(data.ids.map((id: number) => state.rows.find(row => row.id === id)));
+  } }),
 }));
 beforeEach(() => { state.rows = []; state.fail = false; state.invalidate.mockClear(); });
 afterEach(cleanup);
+
+it("moves posts within their group, saves immediately, and disables boundary arrows", () => {
+  state.rows = [
+    { id: 1, title: "Pinned", body: "Pinned", pinned: true, createdAt: "2026-10-19" },
+    { id: 2, title: "First", body: "First", pinned: false, createdAt: "2026-10-19" },
+    { id: 3, title: "Second", body: "Second", pinned: false, createdAt: "2026-10-19" },
+  ];
+  render(<OrganizerAnnouncements params={{ reunionId: "1" }} />);
+  expect((screen.getByRole("button", { name: "Move First up" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Move Pinned down" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Move Second up" }));
+  expect(state.rows.map(row => row.id)).toEqual([1, 3, 2]);
+  expect(screen.getByRole("status").textContent).toContain("saved");
+  state.fail = true;
+  fireEvent.click(screen.getByRole("button", { name: "Move Second down" }));
+  expect(screen.getByRole("alert").textContent).toContain("Could not save");
+  expect(state.rows.map(row => row.id)).toEqual([1, 3, 2]);
+});
 
 it("saves labelled links, displays them after remount, and preserves them during edits", async () => {
   const view = render(<OrganizerAnnouncements params={{ reunionId: "1" }} />);

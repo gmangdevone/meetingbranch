@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListReunionAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement, getListReunionAnnouncementsQueryKey } from "@workspace/api-client-react";
+import { useListReunionAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement, useReorderAnnouncements, getListReunionAnnouncementsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { Button } from "../../components/ui/button";
@@ -10,7 +10,7 @@ import { announcementLinks, safeAnnouncementUrl } from "../../lib/announcementLi
 import { Switch } from "../../components/ui/switch";
 import { Label } from "../../components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../../components/ui/dialog";
-import { Trash2, Edit2, Pin, Plus, Bell } from "lucide-react";
+import { Trash2, Edit2, Pin, Plus, Bell, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import type { Announcement } from "@workspace/api-client-react";
@@ -28,15 +28,37 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
   const [pinned, setPinned] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [linkEditing, setLinkEditing] = useState(false);
+  const [orderFeedback, setOrderFeedback] = useState<{ error: boolean; text: string } | null>(null);
 
   const { data: announcements, isLoading } = useListReunionAnnouncements(reunionId, {
-    query: { enabled: !isNaN(reunionId), queryKey: getListReunionAnnouncementsQueryKey(reunionId) }
+    query: { enabled: !isNaN(reunionId), queryKey: getListReunionAnnouncementsQueryKey(reunionId), refetchOnMount: "always" }
   });
 
   const createMutation = useCreateAnnouncement();
   const updateMutation = useUpdateAnnouncement();
   const deleteMutation = useDeleteAnnouncement();
+  const reorder = useReorderAnnouncements();
   const saving = createMutation.isPending || updateMutation.isPending;
+  const busy = saving || deleteMutation.isPending || reorder.isPending;
+  const movePost = (index: number, direction: -1 | 1) => {
+    if (!announcements || busy) return;
+    const target = index + direction;
+    if (!announcements[target] || !!announcements[target].pinned !== !!announcements[index].pinned) return;
+    const ids = announcements.map(a => a.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    setOrderFeedback(null);
+    reorder.mutate({ reunionId, data: { ids } }, {
+      onSuccess: (ordered) => {
+        queryClient.setQueryData(getListReunionAnnouncementsQueryKey(reunionId), ordered);
+        queryClient.invalidateQueries({ queryKey: getListReunionAnnouncementsQueryKey(reunionId) });
+        setOrderFeedback({ error: false, text: "Announcement order saved." });
+      },
+      onError: () => {
+        setOrderFeedback({ error: true, text: "Could not save the order. The list has been refreshed; try again." });
+        queryClient.invalidateQueries({ queryKey: getListReunionAnnouncementsQueryKey(reunionId) });
+      },
+    });
+  };
 
   const resetForm = () => {
     setSaveError("");
@@ -105,7 +127,7 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
           <h1 className="font-serif text-3xl font-bold">Announcements</h1>
-          <Button onClick={openCreate} className="rounded-full">
+          <Button onClick={openCreate} disabled={busy} className="rounded-full">
             <Plus className="w-4 h-4 mr-2" /> New Post
           </Button>
         </div>
@@ -140,6 +162,8 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
           </DialogContent>
         </Dialog>
 
+        <p className="text-sm text-muted-foreground">Use the arrows to reorder posts. Changes save automatically. Pinned posts stay at the top; new posts appear first in their group.</p>
+        {orderFeedback && <p role={orderFeedback.error ? "alert" : "status"} className={orderFeedback.error ? "text-sm text-destructive" : "text-sm text-primary"}>{orderFeedback.text}</p>}
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         ) : !announcements || announcements.length === 0 ? (
@@ -149,13 +173,15 @@ export function OrganizerAnnouncements({ params }: { params: { reunionId: string
           </div>
         ) : (
           <div className="space-y-4">
-            {announcements.map((a) => (
+            {announcements.map((a, index) => (
               <div key={a.id} className={`bg-card border shadow-sm rounded-3xl p-6 relative group ${a.pinned ? 'border-amber-200' : ''}`}>
-                <div className="absolute top-4 right-4 flex opacity-0 group-hover:opacity-100 transition-opacity gap-2">
-                  <Button aria-label={`Edit announcement ${a.title}`} size="icon" variant="secondary" className="h-8 w-8 rounded-lg" onClick={() => openEdit(a)}>
+                <div className="flex flex-wrap justify-end gap-2 mb-3">
+                  <Button aria-label={`Move ${a.title} up`} title="Move up" size="icon" variant="outline" className="h-8 w-8 rounded-lg" disabled={busy || index === 0 || !!announcements[index - 1]?.pinned !== !!a.pinned} onClick={() => movePost(index, -1)}><ArrowUp className="w-4 h-4" /></Button>
+                  <Button aria-label={`Move ${a.title} down`} title="Move down" size="icon" variant="outline" className="h-8 w-8 rounded-lg" disabled={busy || index === announcements.length - 1 || !!announcements[index + 1]?.pinned !== !!a.pinned} onClick={() => movePost(index, 1)}><ArrowDown className="w-4 h-4" /></Button>
+                  <Button disabled={busy} aria-label={`Edit announcement ${a.title}`} size="icon" variant="secondary" className="h-8 w-8 rounded-lg" onClick={() => openEdit(a)}>
                     <Edit2 className="w-4 h-4" />
                   </Button>
-                  <Button aria-label={`Delete announcement ${a.title}`} size="icon" variant="destructive" className="h-8 w-8 rounded-lg" onClick={() => handleDelete(a.id)}>
+                  <Button disabled={busy} aria-label={`Delete announcement ${a.title}`} size="icon" variant="destructive" className="h-8 w-8 rounded-lg" onClick={() => handleDelete(a.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>

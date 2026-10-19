@@ -11,6 +11,7 @@ export const announcementsTable = pgTable("announcements", {
   title: text("title").notNull(),
   body: text("body").notNull(),
   pinned: boolean("pinned").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
