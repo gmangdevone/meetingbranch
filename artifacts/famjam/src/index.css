@@ -50,8 +50,32 @@ body, .content-text-preview { font-size: var(--text-base); }
 [class~="text-[15px]"] { font-size: calc(15px * var(--content-text-scale)); }
 /* Let interactive controls grow with text instead of clipping it. */
 button:not(:has(> svg:only-child)) { white-space: normal; }
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+/* Clerk's invisible OTP input uses an enormous font for its internal layout.
+   An em-based min-height on it makes the field thousands of pixels tall. */
+input:not(.cl-rootBox input):not([class*="cl-"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 select { min-height: 2.5em; }
+
+/* Keep Clerk's code fields legible independently of app/theme input styles. */
+.meeting-auth-code {
+  background: #ffffff !important;
+  color: #1e2a33 !important;
+  -webkit-text-fill-color: #1e2a33 !important;
+  caret-color: #1f5d8c !important;
+  border: 2px solid #617079 !important;
+  border-radius: 10px !important;
+  width: 2.25rem !important;
+  height: 3rem !important;
+  min-height: 3rem !important;
+  padding: 0 !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  text-align: center !important;
+}
+.meeting-auth-code:focus {
+  border-color: #1f5d8c !important;
+  outline: 3px solid #b8d9f0 !important;
+  outline-offset: 2px;
+}
 
 /* Keep account settings above the app navigation and inside a phone viewport. */
 .meeting-profile-backdrop {

@@ -72,6 +72,7 @@ vi.mock("@workspace/api-client-react", () => {
     useCreateAnnouncement: noopMutation,
     useUpdateAnnouncement: noopMutation,
     useDeleteAnnouncement: noopMutation,
+    useReorderAnnouncements: noopMutation,
     // Schedule
     useListReunionSchedule: emptyList,
     getListReunionScheduleQueryKey: (id: number) => ["schedule", id],

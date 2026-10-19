@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { ContentTextSizeSync } from "./components/ContentTextSize";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, RedirectToSignIn } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
-import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Link } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
@@ -69,7 +68,6 @@ const authCardElements = {
 };
 
 const clerkAppearance = {
-  theme: shadcn,
   cssLayerName: "clerk",
   options: {
     logoPlacement: "inside" as const,
@@ -84,7 +82,10 @@ const clerkAppearance = {
     colorBackground: "#FFFDF6",
     colorInput: "#EADFC9",
     colorInputForeground: "#1E2A33",
-    colorNeutral: "#EADFC9",
+    colorNeutral: "#1E2A33",
+    colorMuted: "#E6E9ED",
+    colorPrimaryForeground: "#FFFFFF",
+    colorRing: "#1F5D8C",
     fontFamily: '"Mulish", system-ui, sans-serif',
     borderRadius: "1rem",
   },
@@ -107,7 +108,7 @@ const clerkAppearance = {
     footerAction: "mt-6 border-t border-[hsl(35,20%,85%)] pt-6 flex flex-col gap-2 items-center",
     dividerLine: "bg-[hsl(35,20%,85%)]",
     alert: "bg-red-50 border border-red-200 rounded-xl p-3",
-    otpCodeFieldInput: "bg-[hsl(35,15%,95%)] border-transparent focus:border-[hsl(15,80%,55%)] focus:ring-[hsl(15,80%,55%)] rounded-xl",
+    otpCodeFieldInput: "meeting-auth-code",
     formFieldRow: "mb-5",
   },
   signIn: { elements: authCardElements },
