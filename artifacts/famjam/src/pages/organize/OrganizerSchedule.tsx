@@ -9,6 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Trash2, Edit2, Plus, GripVertical } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import type { ScheduleItem } from "@workspace/api-client-react";
+import { AnnouncementEditor } from "../../components/AnnouncementEditor";
+import { AnnouncementBody } from "../../components/AnnouncementBody";
+import { announcementLinks, safeAnnouncementUrl } from "../../lib/announcementLinks";
 
 export function OrganizerSchedule({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -25,6 +28,8 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   const [locationStr, setLocationStr] = useState("");
   const [description, setDescription] = useState("");
   const [sortOrder, setSortOrder] = useState(0);
+  const [saveError, setSaveError] = useState("");
+  const [linkEditing, setLinkEditing] = useState(false);
 
   const { data: schedule, isLoading } = useListReunionSchedule(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getListReunionScheduleQueryKey(reunionId) }
@@ -33,8 +38,11 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   const createMutation = useCreateScheduleItem();
   const updateMutation = useUpdateScheduleItem();
   const deleteMutation = useDeleteScheduleItem();
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   const resetForm = () => {
+    setSaveError("");
+    setLinkEditing(false);
     setDay(schedule && schedule.length > 0 ? schedule[0].day : "Friday");
     setStartTime("12:00 PM");
     setEndTime("");
@@ -51,6 +59,8 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   };
 
   const openEdit = (s: ScheduleItem) => {
+    setSaveError("");
+    setLinkEditing(false);
     setDay(s.day);
     setStartTime(s.startTime);
     setEndTime(s.endTime || "");
@@ -63,8 +73,14 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   };
 
   const handleSave = () => {
+    if (saving || linkEditing) return;
+    setSaveError("");
     if (!day || !startTime || !title) {
-      toast({ title: "Validation Error", description: "Day, start time, and title are required.", variant: "destructive" });
+      setSaveError("Day, start time, and title are required.");
+      return;
+    }
+    if (announcementLinks(description).some(link => !safeAnnouncementUrl(link.url))) {
+      setSaveError("A description link has an invalid URL. Edit or remove it before saving.");
       return;
     }
 
@@ -83,7 +99,8 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
         queryClient.invalidateQueries({ queryKey: getListReunionScheduleQueryKey(reunionId) });
         setIsOpen(false);
         toast({ title: "Saved" });
-      }
+      },
+      onError: () => setSaveError("Could not save the event. Your edits are still here; please try again."),
     };
 
     if (editingId) {
@@ -121,12 +138,12 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
           </Button>
         </div>
 
-        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(!open) resetForm(); }}>
-          <DialogContent className="sm:max-w-[500px] rounded-3xl">
+        <Dialog open={isOpen} onOpenChange={(open) => { if (saving) return; setIsOpen(open); if(!open) resetForm(); }}>
+          <DialogContent className="sm:max-w-[500px] max-h-[90dvh] overflow-y-auto rounded-3xl">
             <DialogHeader>
               <DialogTitle className="font-serif text-2xl">{editingId ? "Edit Event" : "Add Event"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <fieldset disabled={saving} className="space-y-4 py-4 min-w-0">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Day Group (e.g. Friday)</Label>
@@ -148,21 +165,21 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Event Title</Label>
-                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Family Picnic" className="rounded-xl" />
+                <Label htmlFor="schedule-title">Event Title</Label>
+                <Input id="schedule-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Family Picnic" className="rounded-xl" />
               </div>
               <div className="space-y-2">
                 <Label>Location (Optional)</Label>
                 <Input value={locationStr} onChange={e => setLocationStr(e.target.value)} placeholder="Park Pavilion 3" className="rounded-xl" />
               </div>
               <div className="space-y-2">
-                <Label>Description (Optional)</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Bring your own chairs" className="rounded-xl" />
+                <AnnouncementEditor label="Description (Optional)" placeholder="Bring your own chairs" value={description} onChange={setDescription} disabled={saving} onLinkEditing={setLinkEditing} />
               </div>
-            </div>
+            </fieldset>
+            {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsOpen(false)} className="rounded-xl">Cancel</Button>
-              <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending} className="rounded-xl">
+              <Button variant="outline" disabled={saving} onClick={() => setIsOpen(false)} className="rounded-xl">Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || linkEditing} className="rounded-xl">
                 Save Event
               </Button>
             </DialogFooter>
@@ -192,12 +209,12 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
                         {(item.location || item.description) && (
                           <div className="text-xs text-muted-foreground mt-1">
                             {item.location && <span className="mr-2">📍 {item.location}</span>}
-                            {item.description}
+                            {item.description && <div className="whitespace-pre-wrap break-words"><AnnouncementBody body={item.description} /></div>}
                           </div>
                         )}
                       </div>
                       <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(item)}>
+                        <Button aria-label={`Edit event ${item.title}`} size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(item)}>
                           <Edit2 className="w-4 h-4" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.id)}>

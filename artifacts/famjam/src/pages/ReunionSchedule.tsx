@@ -5,6 +5,7 @@ import { CalendarDays, Clock, MapPin, ArrowLeft } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { eventCodePath } from "../lib/eventCode";
+import { AnnouncementBody } from "../components/AnnouncementBody";
 
 export function ReunionSchedule({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
@@ -100,7 +101,7 @@ export function ReunionSchedule({ params }: { params: { code: string } }) {
                     <div className="md:w-2/3 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6">
                       <h3 className="font-bold text-xl mb-2">{item.title}</h3>
                       {item.description && (
-                        <p className="text-muted-foreground">{item.description}</p>
+                        <p className="text-muted-foreground whitespace-pre-wrap break-words"><AnnouncementBody body={item.description} /></p>
                       )}
                     </div>
                   </div>

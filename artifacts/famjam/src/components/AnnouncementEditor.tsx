@@ -6,8 +6,9 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
 
-export function AnnouncementEditor({ value, onChange, disabled, onLinkEditing }: {
+export function AnnouncementEditor({ value, onChange, disabled, onLinkEditing, label = "Message", placeholder = "Type your message here..." }: {
   value: string; onChange: (value: string) => void; disabled: boolean; onLinkEditing?: (editing: boolean) => void;
+  label?: string; placeholder?: string;
 }) {
   const textarea = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState<{ start: number; end: number; label: string; url: string } | null>(null);
@@ -40,10 +41,10 @@ export function AnnouncementEditor({ value, onChange, disabled, onLinkEditing }:
     replace(draft.start, draft.end, encodeAnnouncementLink(draft.label.trim(), url));
   }
   return <div className="space-y-3">
-    <Label htmlFor="announcement-message">Message</Label>
+    <Label htmlFor="announcement-message">{label}</Label>
     <Textarea id="announcement-message" ref={textarea} value={value}
       disabled={disabled || !!draft} onChange={e => onChange(e.target.value)}
-      placeholder="Type your message here..." className="min-h-[150px] rounded-xl" />
+      placeholder={placeholder} className="min-h-[150px] rounded-xl" />
     <p className="text-xs text-muted-foreground">Select a word or place your cursor, then insert a link. Links appear as [text](URL) here; the preview shows what members see.</p>
     <Button type="button" variant="outline" disabled={disabled || !!draft} onClick={insert}>Insert Link</Button>
     {draft && <fieldset disabled={disabled} className="rounded-xl border p-3 space-y-3">
@@ -69,6 +70,6 @@ export function AnnouncementEditor({ value, onChange, disabled, onLinkEditing }:
       <p className="text-xs font-bold mb-2">Member preview</p>
       <div className="whitespace-pre-wrap break-words text-sm"><AnnouncementBody body={value} /></div>
     </div>
-    {draft && <p className="text-xs text-muted-foreground">Apply Link before posting to include your link changes.</p>}
+    {draft && <p className="text-xs text-muted-foreground">Apply Link before saving to include your link changes.</p>}
   </div>;
 }
