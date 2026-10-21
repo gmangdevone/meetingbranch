@@ -1,7 +1,7 @@
 import { useAdminGetSettings, getAdminGetSettingsQueryKey, useAdminUpdateSettings, useAdminListReunions, getAdminListReunionsQueryKey, useAdminListUsers, useAdminToggleAdminFlag, useAdminRemoveUser, getAdminListUsersQueryKey, getGetSettingsQueryKey, type AdminUser } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
-import { Shield, Settings as SettingsIcon, Users, CalendarDays, Power, ArrowRight, ShieldCheck, Mail, X, Plus, Trash2 } from "lucide-react";
+import { Shield, Settings as SettingsIcon, Users, CalendarDays, Power, ArrowRight, ShieldCheck, Mail, X, Plus, Trash2, ChevronDown } from "lucide-react";
 import { useAuth } from "@clerk/react";
 import { Button } from "../../components/ui/button";
 import { Switch } from "../../components/ui/switch";
@@ -10,12 +10,14 @@ import { format } from "date-fns";
 import { useToast } from "../../hooks/use-toast";
 import { useState } from "react";
 import { ContentTextSizeSetting } from "../../components/ContentTextSize";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../components/ui/collapsible";
 
 export function AdminArea() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [claiming, setClaiming] = useState(false);
+  const [usersOpen, setUsersOpen] = useState(false);
 
   // Platform admin signal
   const { data: adminReunions, isError: notAdminError, isLoading: loadingReunions, refetch } = useAdminListReunions({
@@ -294,8 +296,17 @@ export function AdminArea() {
             </div>
           </section>
 
+          <Collapsible asChild open={usersOpen} onOpenChange={setUsersOpen}>
           <section>
-            <h2 className="font-serif text-2xl font-bold mb-4 flex items-center"><Users className="w-6 h-6 mr-2 text-primary" /> Users</h2>
+            <h2 className="mb-4">
+              <CollapsibleTrigger className="flex min-h-11 w-full items-center gap-2 rounded-xl px-2 py-2 text-left font-serif text-2xl font-bold hover:bg-muted transition-colors">
+                <Users className="w-6 h-6 shrink-0 text-primary" aria-hidden="true" />
+                Users
+                <span className="ml-auto font-sans text-sm font-medium text-muted-foreground" aria-hidden="true">{usersOpen ? "Hide" : "Show"}</span>
+                <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${usersOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+              </CollapsibleTrigger>
+            </h2>
+            <CollapsibleContent>
             <div className="bg-card border shadow-sm rounded-3xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
@@ -343,7 +354,9 @@ export function AdminArea() {
                 </table>
               </div>
             </div>
+            </CollapsibleContent>
           </section>
+          </Collapsible>
         </div>
       </div>
 
