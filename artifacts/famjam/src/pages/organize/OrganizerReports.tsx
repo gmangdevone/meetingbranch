@@ -1,7 +1,7 @@
 import { useGetReunionReports, getGetReunionReportsQueryKey } from "@workspace/api-client-react";
 import { OrganizerLayout } from "./OrganizerLayout";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Users, Shirt, Utensils, CreditCard } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { Users, Package, Utensils, CreditCard } from "lucide-react";
 import { money } from "../../components/payments/money";
 import { BranchFeeReport } from "../../components/payments/BranchFeeReport";
 
@@ -22,10 +22,12 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
     { name: 'Waived', value: reports.waivedCount },
   ].filter(d => d.value > 0);
 
-  const shirtData = reports.byShirtSize.map(s => ({
-    name: s.shirtSize,
-    count: s.count
-  }));
+  // Server-provided add-on rollup (pending codegen): one row per item + variation.
+  const addOnSummary = ((reports as { addOnSummary?: AddOnSummaryRow[] }).addOnSummary ?? [])
+    .slice()
+    .sort((a, b) => a.label.localeCompare(b.label) || a.variation.localeCompare(b.variation));
+  const addOnUnits = addOnSummary.reduce((acc, r) => acc + r.quantity, 0);
+  const addOnCents = addOnSummary.reduce((acc, r) => acc + r.totalCents, 0);
 
   const branchData = reports.byGroup.map(g => ({
     name: g.branchName,
@@ -48,8 +50,9 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
             <div className="text-xs text-muted-foreground mt-1">/ {reports.totalRegistrations} households</div>
           </div>
           <div className="bg-card border shadow-sm rounded-2xl p-5 flex flex-col">
-            <div className="text-muted-foreground text-sm font-bold uppercase tracking-widest mb-2 flex items-center"><Shirt className="w-4 h-4 mr-2"/> Shirts</div>
-            <div className="text-4xl font-bold font-serif">{reports.byShirtSize.reduce((acc, s) => acc + s.count, 0)}</div>
+            <div className="text-muted-foreground text-sm font-bold uppercase tracking-widest mb-2 flex items-center"><Package className="w-4 h-4 mr-2"/> Add-ons</div>
+            <div className="text-4xl font-bold font-serif" data-testid="text-addon-units">{addOnUnits}</div>
+            <div className="text-xs text-muted-foreground mt-1">{money(addOnCents)} ordered</div>
           </div>
           <div className="bg-card border shadow-sm rounded-2xl p-5 flex flex-col">
             <div className="text-muted-foreground text-sm font-bold uppercase tracking-widest mb-2 flex items-center"><Utensils className="w-4 h-4 mr-2"/> Dietary</div>
@@ -117,22 +120,34 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
             )}
           </div>
 
-          <div className="bg-card border shadow-sm rounded-3xl p-6">
-            <h3 className="font-bold text-lg mb-6 text-center">T-Shirt Sizes</h3>
-            {shirtData.length > 0 ? (
-              <div className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={shirtData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                    <Bar dataKey="count" fill="hsl(190 40% 30%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+          <div className="bg-card border shadow-sm rounded-3xl p-6" data-testid="report-addons">
+            <h3 className="font-bold text-lg mb-1 text-center">Add-on Orders</h3>
+            <p className="text-xs text-muted-foreground text-center mb-5">Counted per variation from saved purchases</p>
+            {addOnSummary.length > 0 ? (
+              <div className="max-h-[300px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] uppercase tracking-widest text-muted-foreground border-b">
+                      <th className="py-2 font-bold">Item</th>
+                      <th className="py-2 font-bold">Variation</th>
+                      <th className="py-2 font-bold text-right">Qty</th>
+                      <th className="py-2 font-bold text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {addOnSummary.map((r, i) => (
+                      <tr key={`${r.label}-${r.variation}-${i}`} data-testid={`row-addon-${i}`}>
+                        <td className="py-2 font-medium">{r.label}{r.chargeType === "flat" && <span className="ml-1 text-[10px] uppercase text-muted-foreground">household</span>}</td>
+                        <td className="py-2 text-muted-foreground">{r.variation || "Standard"}</td>
+                        <td className="py-2 text-right tabular-nums font-bold">{r.quantity}</td>
+                        <td className="py-2 text-right tabular-nums">{money(r.totalCents)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">No data yet</div>
+              <div className="h-[300px] flex items-center justify-center text-muted-foreground">No add-on orders yet</div>
             )}
           </div>
         </div>
@@ -141,3 +156,5 @@ export function OrganizerReports({ params }: { params: { reunionId: string } }) 
     </OrganizerLayout>
   );
 }
+
+type AddOnSummaryRow = { label: string; variation: string; quantity: number; totalCents: number; chargeType?: string };

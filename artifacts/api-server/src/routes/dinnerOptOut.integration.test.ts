@@ -203,7 +203,7 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     const rep = await as(ORG).get(`/api/reunions/${R}/reports`);
     expect(rep.body.dinnerOptOutCount).toBe(2);
     const csv = await as(ORG).get(`/api/reunions/${R}/registrations/export`);
-    expect(csv.text.split("\n")[0]).toMatch(/,Dinner Included$/);
+    expect(csv.text.split("\n")[0]).toMatch(/,Dinner Included,Add-ons$/);
     expect(csv.text).toContain('"Yes; No; Yes; No"');
   });
   it("configures dinner safely, enforces mandatory defaults, preserves exceptions and hidden charges", async () => {
@@ -262,28 +262,28 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
       reunionId: R, label: "T-Shirt", chargeType: "per_person", amount: 20, isOptional: true,
     }).returning();
     const attendees = [
-      { name: "James", age: 40, includeDinner: false, includeShirt: true, shirtSize: "L" },
-      { name: "Charlette", age: 35, includeDinner: false, includeShirt: false, shirtSize: null },
+      { name: "James", age: 40, includeDinner: false, addOns: [{ feeId: shirt.id, choices: [{ groupId: "legacy-size", valueId: "L" }] }] },
+      { name: "Charlette", age: 35, includeDinner: false, addOns: [] },
     ];
     const missing = await as(AMY).post("/api/registrations").send({
-      reunionId: R, branchName: "Lacey", selectedFeeIds: [shirt.id], attendees: [{ ...attendees[0], shirtSize: null }, attendees[1]],
+      reunionId: R, branchName: "Lacey", attendees: [{ ...attendees[0], addOns: [{ feeId: shirt.id, choices: [] }] }, attendees[1]],
     });
     expect(missing.status).toBe(400);
     const created = await as(AMY).post("/api/registrations").send({
       reunionId: R, branchName: "Lacey", selectedFeeIds: [shirt.id], attendees,
     });
     expect(created.status, JSON.stringify(created.body)).toBe(201);
-    expect(created.body.attendees.map((a: any) => [a.includeShirt, a.shirtSize])).toEqual([[true, "L"], [false, null]]);
+    expect(created.body.attendees.map((a: any) => a.addOns.length)).toEqual([1, 0]);
     expect((await ledger(created.body.id)).chargeCents).toBe(12000);
     // Older clients omit classification; renaming must lock the old label's treatment.
     const renamed = await as(ORG).put(`/api/reunions/${R}/fees/${shirt.id}`).send({
       label: "Family Keepsake", chargeType: "per_person", amount: 20, isOptional: true,
     });
     expect(renamed.status).toBe(200);
-    expect(renamed.body).toMatchObject({ isShirt: true, shirtClassification: "explicit" });
+    expect(renamed.body).toMatchObject({ isShirt: false, isAddOn: true });
     expect((await ledger(created.body.id)).chargeCents).toBe(12000);
     const reloaded = await as(ORG).get(`/api/reunions/${R}`);
-    expect(reloaded.body.reunion.fees.find((f: any) => f.id === shirt.id)).toMatchObject({ label: "Family Keepsake", isShirt: true });
+    expect(reloaded.body.reunion.fees.find((f: any) => f.id === shirt.id)).toMatchObject({ label: "Family Keepsake", isAddOn: true });
     expect((await as(ORG).post(`/api/reunions/${R}/fees`).send({
       label: "Household bundle", chargeType: "flat", amount: 20, isShirt: true,
     })).status).toBe(400);
@@ -292,7 +292,7 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     })).status).toBe(400);
     const saved = await as(REGMGR).put(`/api/registrations/${created.body.id}`).send({
       branchName: "Lacey", selectedFeeIds: [shirt.id],
-      attendees: attendees.map(a => ({ ...a, includeShirt: false })),
+      attendees: created.body.attendees.map((a: any) => ({ id: a.id, name: a.name, age: a.age, includeDinner: false, addOns: [] })),
     });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
     expect((await ledger(created.body.id)).chargeCents).toBe(10000);
@@ -301,7 +301,7 @@ describe.skipIf(!hasDb)("dinner opt-out per attendee (real DB)", () => {
     const flat = await as(ORG).put(`/api/reunions/${R}/fees/${shirt.id}`).send({
       label: "Household bundle", chargeType: "flat", amount: 20, isOptional: true,
     });
-    expect(flat.body.isShirt).toBe(false);
-    expect((await ledger(created.body.id)).chargeCents).toBe(12000);
+    expect(flat.status).toBe(400);
+    expect((await ledger(created.body.id)).chargeCents).toBe(10000);
   });
 });

@@ -592,6 +592,19 @@ export const createReunionResponseHeroImageUrlsMax = 5;
 export const createReunionResponseHeroRotationSecondsMin = 3;
 export const createReunionResponseHeroRotationSecondsMax = 8;
 
+export const createReunionResponseFeesItemOptionGroupsItemIdMax = 80;
+
+export const createReunionResponseFeesItemOptionGroupsItemLabelMax = 120;
+
+export const createReunionResponseFeesItemOptionGroupsItemValuesItemIdMax = 80;
+
+export const createReunionResponseFeesItemOptionGroupsItemValuesItemLabelMax = 120;
+
+export const createReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const createReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const createReunionResponseFeesItemOptionGroupsItemValuesMax = 100;
+
 export const createReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const createReunionResponseFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -655,6 +668,19 @@ export const CreateReunionResponse = zod.object({
   "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(createReunionResponseFeesItemOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(createReunionResponseFeesItemOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(createReunionResponseFeesItemOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(createReunionResponseFeesItemOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(createReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin).max(createReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(createReunionResponseFeesItemOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -692,6 +718,19 @@ export const listMyReunionsResponseReunionHeroImageUrlsMax = 5;
 
 export const listMyReunionsResponseReunionHeroRotationSecondsMin = 3;
 export const listMyReunionsResponseReunionHeroRotationSecondsMax = 8;
+
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemIdMax = 80;
+
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemLabelMax = 120;
+
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemIdMax = 80;
+
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemLabelMax = 120;
+
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesMax = 100;
 
 export const listMyReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
 
@@ -757,6 +796,19 @@ export const ListMyReunionsResponseItem = zod.object({
   "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(listMyReunionsResponseReunionFeesItemOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(listMyReunionsResponseReunionFeesItemOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin).max(listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(listMyReunionsResponseReunionFeesItemOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -834,6 +886,19 @@ export const getReunionByCodeResponseHeroImageUrlsMax = 5;
 export const getReunionByCodeResponseHeroRotationSecondsMin = 3;
 export const getReunionByCodeResponseHeroRotationSecondsMax = 8;
 
+export const getReunionByCodeResponseFeesItemOptionGroupsItemIdMax = 80;
+
+export const getReunionByCodeResponseFeesItemOptionGroupsItemLabelMax = 120;
+
+export const getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemIdMax = 80;
+
+export const getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemLabelMax = 120;
+
+export const getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const getReunionByCodeResponseFeesItemOptionGroupsItemValuesMax = 100;
+
 export const getReunionByCodeResponseFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const getReunionByCodeResponseFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -897,6 +962,19 @@ export const GetReunionByCodeResponse = zod.object({
   "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(getReunionByCodeResponseFeesItemOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(getReunionByCodeResponseFeesItemOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin).max(getReunionByCodeResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(getReunionByCodeResponseFeesItemOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -938,6 +1016,19 @@ export const getReunionResponseReunionHeroImageUrlsMax = 5;
 
 export const getReunionResponseReunionHeroRotationSecondsMin = 3;
 export const getReunionResponseReunionHeroRotationSecondsMax = 8;
+
+export const getReunionResponseReunionFeesItemOptionGroupsItemIdMax = 80;
+
+export const getReunionResponseReunionFeesItemOptionGroupsItemLabelMax = 120;
+
+export const getReunionResponseReunionFeesItemOptionGroupsItemValuesItemIdMax = 80;
+
+export const getReunionResponseReunionFeesItemOptionGroupsItemValuesItemLabelMax = 120;
+
+export const getReunionResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const getReunionResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const getReunionResponseReunionFeesItemOptionGroupsItemValuesMax = 100;
 
 export const getReunionResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
 
@@ -1003,6 +1094,19 @@ export const GetReunionResponse = zod.object({
   "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(getReunionResponseReunionFeesItemOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(getReunionResponseReunionFeesItemOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(getReunionResponseReunionFeesItemOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(getReunionResponseReunionFeesItemOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(getReunionResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin).max(getReunionResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(getReunionResponseReunionFeesItemOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -1101,6 +1205,19 @@ export const updateReunionResponseHeroImageUrlsMax = 5;
 export const updateReunionResponseHeroRotationSecondsMin = 3;
 export const updateReunionResponseHeroRotationSecondsMax = 8;
 
+export const updateReunionResponseFeesItemOptionGroupsItemIdMax = 80;
+
+export const updateReunionResponseFeesItemOptionGroupsItemLabelMax = 120;
+
+export const updateReunionResponseFeesItemOptionGroupsItemValuesItemIdMax = 80;
+
+export const updateReunionResponseFeesItemOptionGroupsItemValuesItemLabelMax = 120;
+
+export const updateReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const updateReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const updateReunionResponseFeesItemOptionGroupsItemValuesMax = 100;
+
 export const updateReunionResponseFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const updateReunionResponseFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -1164,6 +1281,19 @@ export const UpdateReunionResponse = zod.object({
   "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateReunionResponseFeesItemOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(updateReunionResponseFeesItemOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateReunionResponseFeesItemOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(updateReunionResponseFeesItemOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(updateReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin).max(updateReunionResponseFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(updateReunionResponseFeesItemOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -1446,6 +1576,24 @@ export const CreateFeeParams = zod.object({
   "reunionId": zod.coerce.number()
 })
 
+export const createFeeBodyBasePriceCentsMin = 0;
+export const createFeeBodyBasePriceCentsMax = 100000000;
+
+export const createFeeBodyOptionGroupsItemIdMax = 80;
+
+export const createFeeBodyOptionGroupsItemLabelMax = 120;
+
+export const createFeeBodyOptionGroupsItemValuesItemIdMax = 80;
+
+export const createFeeBodyOptionGroupsItemValuesItemLabelMax = 120;
+
+export const createFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const createFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const createFeeBodyOptionGroupsItemValuesMax = 100;
+
+export const createFeeBodyOptionGroupsMax = 10;
+
 
 export const createFeeBodyIsOptionalDefault = false;
 export const createFeeBodyAmountMin = 0;
@@ -1460,6 +1608,19 @@ export const createFeeBodyAgeTiersDefault = [];
 export const createFeeBodySortOrderDefault = 0;
 
 export const CreateFeeBody = zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().min(createFeeBodyBasePriceCentsMin).max(createFeeBodyBasePriceCentsMax).optional(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(createFeeBodyOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(createFeeBodyOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(createFeeBodyOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(createFeeBodyOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(createFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMin).max(createFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(createFeeBodyOptionGroupsItemValuesMax)
+})).max(createFeeBodyOptionGroupsMax).optional(),
   "dinnerMode": zod.enum(['hidden', 'optional', 'mandatory']).optional(),
   "label": zod.string().min(1),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
@@ -1475,6 +1636,19 @@ export const CreateFeeBody = zod.object({
   "isShirt": zod.boolean().nullish().describe('Classify as a T-shirt fee (per_person only; true with flat is rejected). Null or omitted preserves the existing effective classification when updating.')
 })
 
+export const createFeeResponseOptionGroupsItemIdMax = 80;
+
+export const createFeeResponseOptionGroupsItemLabelMax = 120;
+
+export const createFeeResponseOptionGroupsItemValuesItemIdMax = 80;
+
+export const createFeeResponseOptionGroupsItemValuesItemLabelMax = 120;
+
+export const createFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const createFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const createFeeResponseOptionGroupsItemValuesMax = 100;
+
 export const createFeeResponseAgeTiersItemMinAgeMin = 0;
 
 export const createFeeResponseAgeTiersItemMaxAgeMin = 0;
@@ -1484,6 +1658,19 @@ export const createFeeResponseAgeTiersItemAmountMin = 0;
 
 
 export const CreateFeeResponse = zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(createFeeResponseOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(createFeeResponseOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(createFeeResponseOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(createFeeResponseOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(createFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMin).max(createFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(createFeeResponseOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -1513,6 +1700,19 @@ export const UpdateDinnerModeBody = zod.object({
   "dinnerMode": zod.enum(['hidden', 'optional', 'mandatory'])
 })
 
+export const updateDinnerModeResponseOptionGroupsItemIdMax = 80;
+
+export const updateDinnerModeResponseOptionGroupsItemLabelMax = 120;
+
+export const updateDinnerModeResponseOptionGroupsItemValuesItemIdMax = 80;
+
+export const updateDinnerModeResponseOptionGroupsItemValuesItemLabelMax = 120;
+
+export const updateDinnerModeResponseOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const updateDinnerModeResponseOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const updateDinnerModeResponseOptionGroupsItemValuesMax = 100;
+
 export const updateDinnerModeResponseAgeTiersItemMinAgeMin = 0;
 
 export const updateDinnerModeResponseAgeTiersItemMaxAgeMin = 0;
@@ -1522,6 +1722,19 @@ export const updateDinnerModeResponseAgeTiersItemAmountMin = 0;
 
 
 export const UpdateDinnerModeResponse = zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateDinnerModeResponseOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(updateDinnerModeResponseOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateDinnerModeResponseOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(updateDinnerModeResponseOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(updateDinnerModeResponseOptionGroupsItemValuesItemAdjustmentCentsMin).max(updateDinnerModeResponseOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(updateDinnerModeResponseOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -1550,6 +1763,24 @@ export const UpdateFeeParams = zod.object({
   "feeId": zod.coerce.number()
 })
 
+export const updateFeeBodyBasePriceCentsMin = 0;
+export const updateFeeBodyBasePriceCentsMax = 100000000;
+
+export const updateFeeBodyOptionGroupsItemIdMax = 80;
+
+export const updateFeeBodyOptionGroupsItemLabelMax = 120;
+
+export const updateFeeBodyOptionGroupsItemValuesItemIdMax = 80;
+
+export const updateFeeBodyOptionGroupsItemValuesItemLabelMax = 120;
+
+export const updateFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const updateFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const updateFeeBodyOptionGroupsItemValuesMax = 100;
+
+export const updateFeeBodyOptionGroupsMax = 10;
+
 
 export const updateFeeBodyIsOptionalDefault = false;
 export const updateFeeBodyAmountMin = 0;
@@ -1564,6 +1795,19 @@ export const updateFeeBodyAgeTiersDefault = [];
 export const updateFeeBodySortOrderDefault = 0;
 
 export const UpdateFeeBody = zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().min(updateFeeBodyBasePriceCentsMin).max(updateFeeBodyBasePriceCentsMax).optional(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateFeeBodyOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(updateFeeBodyOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateFeeBodyOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(updateFeeBodyOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(updateFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMin).max(updateFeeBodyOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(updateFeeBodyOptionGroupsItemValuesMax)
+})).max(updateFeeBodyOptionGroupsMax).optional(),
   "dinnerMode": zod.enum(['hidden', 'optional', 'mandatory']).optional(),
   "label": zod.string().min(1),
   "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household'),
@@ -1579,6 +1823,19 @@ export const UpdateFeeBody = zod.object({
   "isShirt": zod.boolean().nullish().describe('Classify as a T-shirt fee (per_person only; true with flat is rejected). Null or omitted preserves the existing effective classification when updating.')
 })
 
+export const updateFeeResponseOptionGroupsItemIdMax = 80;
+
+export const updateFeeResponseOptionGroupsItemLabelMax = 120;
+
+export const updateFeeResponseOptionGroupsItemValuesItemIdMax = 80;
+
+export const updateFeeResponseOptionGroupsItemValuesItemLabelMax = 120;
+
+export const updateFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const updateFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const updateFeeResponseOptionGroupsItemValuesMax = 100;
+
 export const updateFeeResponseAgeTiersItemMinAgeMin = 0;
 
 export const updateFeeResponseAgeTiersItemMaxAgeMin = 0;
@@ -1588,6 +1845,19 @@ export const updateFeeResponseAgeTiersItemAmountMin = 0;
 
 
 export const UpdateFeeResponse = zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateFeeResponseOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(updateFeeResponseOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(updateFeeResponseOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(updateFeeResponseOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(updateFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMin).max(updateFeeResponseOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(updateFeeResponseOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),
@@ -1693,6 +1963,17 @@ export const ListReunionRegistrationsParams = zod.object({
 })
 
 export const ListReunionRegistrationsResponseItem = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -1726,6 +2007,17 @@ export const ListReunionRegistrationsResponseItem = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -1749,7 +2041,11 @@ export const CreateManagedRegistrationParams = zod.object({
   "reunionId": zod.coerce.number()
 })
 
+export const createManagedRegistrationBodyAddOnsItemChoicesMax = 10;
 
+
+
+export const createManagedRegistrationBodyAttendeesItemAddOnsItemChoicesMax = 10;
 
 
 export const createManagedRegistrationBodyAttendeesItemAgeMin = 0;
@@ -1758,10 +2054,28 @@ export const createManagedRegistrationBodyAttendeesItemAgeMin = 0;
 
 
 export const CreateManagedRegistrationBody = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(createManagedRegistrationBodyAddOnsItemChoicesMax)
+})).optional(),
   "memberFirstName": zod.string().min(1),
   "memberLastName": zod.string().optional(),
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(createManagedRegistrationBodyAttendeesItemAddOnsItemChoicesMax)
+})).optional(),
   "dinnerFeeIds": zod.array(zod.number()).optional().describe('Explicit per-attendee dinner selections, validated against availability and mandatory requirements.'),
   "id": zod.number().optional().describe('Existing attendee ID when editing; used to preserve saved dinner exceptions.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion.'),
@@ -1775,6 +2089,17 @@ export const CreateManagedRegistrationBody = zod.object({
 })
 
 export const CreateManagedRegistrationResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -1808,6 +2133,17 @@ export const CreateManagedRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -1846,6 +2182,17 @@ export const UpdateRegistrationPaymentBody = zod.object({
 })
 
 export const UpdateRegistrationPaymentResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -1879,6 +2226,17 @@ export const UpdateRegistrationPaymentResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -2329,6 +2687,17 @@ export const CancelRegistrationBody = zod.object({
 })
 
 export const CancelRegistrationResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -2362,6 +2731,17 @@ export const CancelRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -2390,6 +2770,17 @@ export const SetAttendeeCheckInBody = zod.object({
 })
 
 export const SetAttendeeCheckInResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -3323,6 +3714,13 @@ export const GetReunionReportsParams = zod.object({
 })
 
 export const GetReunionReportsResponse = zod.object({
+  "addOnSummary": zod.array(zod.object({
+  "label": zod.string(),
+  "variation": zod.string(),
+  "quantity": zod.number(),
+  "totalCents": zod.number(),
+  "chargeType": zod.enum(['per_person', 'flat']).describe('per_person = charged once per attendee; flat = one flat amount per registration\/household')
+})).optional(),
   "totalRegistrations": zod.number(),
   "totalAttendees": zod.number(),
   "paidCount": zod.number(),
@@ -3361,6 +3759,10 @@ export const GetReunionReportsResponse = zod.object({
 /**
  * @summary Submit a new reunion registration
  */
+export const createRegistrationBodyAddOnsItemChoicesMax = 10;
+
+
+export const createRegistrationBodyAttendeesItemAddOnsItemChoicesMax = 10;
 
 
 export const createRegistrationBodyAttendeesItemAgeMin = 0;
@@ -3370,9 +3772,27 @@ export const createRegistrationBodyAttendeesItemAgeMin = 0;
 
 
 export const CreateRegistrationBody = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(createRegistrationBodyAddOnsItemChoicesMax)
+})).optional(),
   "reunionId": zod.number(),
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(createRegistrationBodyAttendeesItemAddOnsItemChoicesMax)
+})).optional(),
   "dinnerFeeIds": zod.array(zod.number()).optional().describe('Explicit per-attendee dinner selections, validated against availability and mandatory requirements.'),
   "id": zod.number().optional().describe('Existing attendee ID when editing; used to preserve saved dinner exceptions.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion.'),
@@ -3387,6 +3807,17 @@ export const CreateRegistrationBody = zod.object({
 })
 
 export const CreateRegistrationResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
   "ledger": zod.object({
   "registrationId": zod.number(),
@@ -3420,6 +3851,17 @@ export const CreateRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -3439,6 +3881,17 @@ export const CreateRegistrationResponse = zod.object({
  * @summary List the current user's registrations
  */
 export const ListMyRegistrationsResponseItem = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
   "ledger": zod.object({
   "registrationId": zod.number(),
@@ -3472,6 +3925,17 @@ export const ListMyRegistrationsResponseItem = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -3496,6 +3960,17 @@ export const GetRegistrationParams = zod.object({
 })
 
 export const GetRegistrationResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
   "ledger": zod.object({
   "registrationId": zod.number(),
@@ -3529,6 +4004,17 @@ export const GetRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -3552,6 +4038,10 @@ export const UpdateRegistrationParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const updateRegistrationBodyAddOnsItemChoicesMax = 10;
+
+
+export const updateRegistrationBodyAttendeesItemAddOnsItemChoicesMax = 10;
 
 
 export const updateRegistrationBodyAttendeesItemAgeMin = 0;
@@ -3560,8 +4050,26 @@ export const updateRegistrationBodyAttendeesItemAgeMin = 0;
 
 
 export const UpdateRegistrationBody = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(updateRegistrationBodyAddOnsItemChoicesMax)
+})).optional(),
   "branchName": zod.string().min(1),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(updateRegistrationBodyAttendeesItemAddOnsItemChoicesMax)
+})).optional(),
   "dinnerFeeIds": zod.array(zod.number()).optional().describe('Explicit per-attendee dinner selections, validated against availability and mandatory requirements.'),
   "id": zod.number().optional().describe('Existing attendee ID when editing; used to preserve saved dinner exceptions.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt. False excludes this attendee from per-person T-shirt fees and size collection. Omitted preserves legacy inclusion.'),
@@ -3575,6 +4083,17 @@ export const UpdateRegistrationBody = zod.object({
 })
 
 export const UpdateRegistrationResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
   "ledger": zod.object({
   "registrationId": zod.number(),
@@ -3608,6 +4127,17 @@ export const UpdateRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -3643,6 +4173,17 @@ export const TransferRegistrationBody = zod.object({
 })
 
 export const TransferRegistrationResponse = zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
   "ledger": zod.object({
   "registrationId": zod.number(),
@@ -3676,6 +4217,17 @@ export const TransferRegistrationResponse = zod.object({
   "cancellationResolution": zod.union([zod.enum(['refunded', 'donated_to_fund', 'no_payment']),zod.null()]).optional(),
   "createdAt": zod.coerce.date(),
   "attendees": zod.array(zod.object({
+  "addOns": zod.array(zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})).nullish(),
   "dinnerFeeIds": zod.array(zod.number()).nullish().describe('Server-owned dinner eligibility snapshot. Null retains legacy eligibility.'),
   "includeShirt": zod.boolean().optional().describe('Whether this attendee wants a T-shirt.'),
   "id": zod.number(),
@@ -4127,6 +4679,19 @@ export const adminListReunionsResponseReunionHeroImageUrlsMax = 5;
 export const adminListReunionsResponseReunionHeroRotationSecondsMin = 3;
 export const adminListReunionsResponseReunionHeroRotationSecondsMax = 8;
 
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemIdMax = 80;
+
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemLabelMax = 120;
+
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemIdMax = 80;
+
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemLabelMax = 120;
+
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin = -100000000;
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax = 100000000;
+
+export const adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesMax = 100;
+
 export const adminListReunionsResponseReunionFeesItemAgeTiersItemMinAgeMin = 0;
 
 export const adminListReunionsResponseReunionFeesItemAgeTiersItemMaxAgeMin = 0;
@@ -4191,6 +4756,19 @@ export const AdminListReunionsResponseItem = zod.object({
   "archivedAt": zod.coerce.date().nullish()
 })),
   "fees": zod.array(zod.object({
+  "isAddOn": zod.boolean().optional(),
+  "retired": zod.boolean().optional(),
+  "basePriceCents": zod.number().nullish(),
+  "optionGroups": zod.array(zod.object({
+  "id": zod.string().min(1).max(adminListReunionsResponseReunionFeesItemOptionGroupsItemIdMax),
+  "label": zod.string().min(1).max(adminListReunionsResponseReunionFeesItemOptionGroupsItemLabelMax),
+  "values": zod.array(zod.object({
+  "id": zod.string().min(1).max(adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemIdMax),
+  "label": zod.string().min(1).max(adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemLabelMax),
+  "adjustmentCents": zod.number().min(adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMin).max(adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesItemAdjustmentCentsMax),
+  "active": zod.boolean()
+})).min(1).max(adminListReunionsResponseReunionFeesItemOptionGroupsItemValuesMax)
+})).optional(),
   "dinnerMode": zod.union([zod.literal('hidden'),zod.literal('optional'),zod.literal('mandatory'),zod.literal(null)]).nullish().describe('Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.'),
   "isShirt": zod.boolean().describe('Effective T-shirt classification. Only per_person fees can be shirt fees; includeShirt false removes only that attendee\'s share.'),
   "shirtClassification": zod.enum(['explicit', 'detected']).describe('Explicit classification survives renames; detected means a legacy fee inferred from T-shirt or tee wording.'),

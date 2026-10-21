@@ -5,6 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnPurchase } from './addOnPurchase';
 import type { Attendee } from './attendee';
 import type { CancellationResolution } from './cancellationResolution';
 import type { PaymentStatus } from './paymentStatus';
@@ -12,6 +13,8 @@ import type { RegistrationLedger } from './registrationLedger';
 import type { RegistrationStatus } from './registrationStatus';
 
 export interface Registration {
+  /** @nullable */
+  addOns?: AddOnPurchase[] | null;
   /** Whether the current viewer may override dinner requirements when editing. */
   canManageDinner?: boolean;
   ledger?: RegistrationLedger;

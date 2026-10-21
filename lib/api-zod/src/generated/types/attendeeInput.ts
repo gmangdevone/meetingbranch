@@ -5,9 +5,11 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnSelection } from './addOnSelection';
 import type { AttendeeInputShirtSize } from './attendeeInputShirtSize';
 
 export interface AttendeeInput {
+  addOns?: AddOnSelection[];
   /** Explicit per-attendee dinner selections, validated against availability and mandatory requirements. */
   dinnerFeeIds?: number[];
   /** Existing attendee ID when editing; used to preserve saved dinner exceptions. */

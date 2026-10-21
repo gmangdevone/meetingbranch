@@ -5,11 +5,21 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnOptionGroup } from './addOnOptionGroup';
 import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
 import type { FeeInputDinnerMode } from './feeInputDinnerMode';
 
 export interface FeeInput {
+  isAddOn?: boolean;
+  retired?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  basePriceCents?: number;
+  /** @maxItems 10 */
+  optionGroups?: AddOnOptionGroup[];
   dinnerMode?: FeeInputDinnerMode;
   /** @minLength 1 */
   label: string;

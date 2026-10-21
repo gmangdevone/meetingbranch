@@ -89,64 +89,6 @@ describe("registration dinner opt-out", () => {
     await waitFor(() => expect(total()).toBe("$80"));
   });
 
-  it("shows T-shirt sizes when enabled and blocks submission until selected", async () => {
-    h.collectShirtSizes = true;
-    h.fees = [{ ...DINNER, isOptional: true }];
-    renderIt();
-    fireEvent.click(screen.getByText("Pick Lacey"));
-    fill(0, "Ann Adult", "40");
-    fireEvent.click(screen.getByLabelText("T-Shirt — Ann Adult"));
-    expect(screen.getByText("T-Shirt Size")).toBeInTheDocument();
-    const addOnsCard = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
-    expect(addOnsCard).toContainElement(screen.getByText("T-Shirt Size"));
-    expect(addOnsCard).toHaveTextContent("Ann Adult");
-    expect(screen.getByText("Sunday Dinner").compareDocumentPosition(
-      screen.getByText("T-Shirt Size"),
-    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("T-Shirt Size").compareDocumentPosition(
-      screen.getByRole("button", { name: /Add Another Person/ }),
-    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
-    await waitFor(() => expect(screen.getByText("Please select a T-shirt size")).toBeInTheDocument());
-    expect(h.create).not.toHaveBeenCalled();
-  });
-
-  it("shows the add-ons card for size collection without fees and adds a selector for each person", () => {
-    h.collectShirtSizes = true;
-    h.fees = [];
-    renderIt();
-    fireEvent.click(screen.getByText("Pick Lacey"));
-    expect(screen.getByText("Optional Add-ons")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("T-Shirt — Person 1"));
-    expect(screen.getAllByText("T-Shirt Size")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: /Add Another Person/ }));
-    fireEvent.click(screen.getByLabelText("T-Shirt — Person 2"));
-    const card = screen.getByText("Optional Add-ons").parentElement!.parentElement!;
-    expect(screen.getAllByText("T-Shirt Size")).toHaveLength(2);
-    for (const label of screen.getAllByText("T-Shirt Size")) expect(card).toContainElement(label);
-    expect(card).toHaveTextContent("Person 2");
-  });
-
-  it("charges and saves a shirt only for James, not Charlette", async () => {
-    h.collectShirtSizes = true;
-    h.fees = [{ ...REG, id: 9, label: "T-Shirt", amount: 20, ageTiers: [], isOptional: true }];
-    renderIt();
-    fireEvent.click(screen.getByText("Pick Lacey"));
-    fill(0, "James", "40");
-    fireEvent.click(screen.getByRole("button", { name: /Add Another Person/ }));
-    fill(1, "Charlette", "35");
-    fireEvent.click(screen.getByLabelText(/T-Shirt — James/));
-    fireEvent.click(screen.getByText("Pick L"));
-    expect(screen.getAllByText("T-Shirt Size")).toHaveLength(1);
-    await waitFor(() => expect(total()).toBe("$20"));
-    fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
-    await waitFor(() => expect(h.create).toHaveBeenCalled());
-    expect(h.create.mock.calls[0][0].data).toMatchObject({
-      selectedFeeIds: [9],
-      attendees: [{ name: "James", includeShirt: true, shirtSize: "L" }, { name: "Charlette", includeShirt: false }],
-    });
-  });
-
   it("mixed household: exact tiers and the submitted includeDinner flags", async () => {
     renderIt();
     fireEvent.click(screen.getByText("Pick Lacey"));
@@ -193,16 +135,6 @@ describe("editing an existing registration (regressions)", () => {
     { id: 1, name: "Ann Adult", shirtSize: "L", age: 40, dietaryRestrictions: null, includeDinner: true },
     { id: 2, name: "Ben Adult", shirtSize: "M", age: 35, dietaryRestrictions: null, includeDinner: true },
   ] };
-
-  it("does not opt legacy size records into an unselected T-shirt fee on edit", async () => {
-    h.collectShirtSizes = true;
-    h.fees = [{ ...REG, id: 9, label: "T-Shirt", amount: 20, ageTiers: [], isOptional: true }];
-    h.existing = existing;
-    render(<QueryClientProvider client={new QueryClient()}><ReunionRegister params={{ code: "LACEY", editId: "55" }} /></QueryClientProvider>);
-    await waitFor(() => expect(screen.getByLabelText(/T-Shirt — Ann Adult/)).toHaveAttribute("aria-checked", "false"));
-    expect(screen.queryByText("T-Shirt Size")).toBeNull();
-    expect(total()).toBe("$0");
-  });
 
   it("shows the saved branch's attendee controls without reselecting the branch, even when a branch fee is open", async () => {
     h.existing = existing;
@@ -299,5 +231,57 @@ describe("configured dinners: independent per-fee choices", () => {
     await waitFor(() => expect(screen.getByTestId("include-dinner-0-21")).toHaveAttribute("aria-checked", "true"));
     expect(screen.queryByText("Secret Supper")).toBeNull();
     expect(total()).toBe("$40");
+  });
+});
+
+describe("generic add-on variations", () => {
+  const SHIRT = {
+    id: 9, label: "Reunion Tee", chargeType: "per_person", amount: 10, basePriceCents: 1000, isOptional: true, isAddOn: true, retired: false,
+    ageTiers: [], isDinner: false, isShirt: false, dinnerClassification: "explicit",
+    optionGroups: [{ id: "size", label: "Size", values: [
+      { id: "m", label: "M", adjustmentCents: 0, active: true },
+      { id: "xl", label: "XL", adjustmentCents: 300, active: true },
+      { id: "xs", label: "XS", adjustmentCents: 0, active: false },
+    ] }],
+  };
+  const PIN = { id: 10, label: "Family Pin", chargeType: "flat", amount: 5, basePriceCents: 450, isOptional: false, isAddOn: true, retired: false, ageTiers: [], isDinner: false, dinnerClassification: "explicit", optionGroups: [] };
+
+  it("prices $13 for XL, requires a choice, and sends only ids", async () => {
+    h.fees = [SHIRT, PIN];
+    renderIt();
+    fireEvent.click(screen.getByText("Pick Lacey"));
+    fill(0, "Ann Adult", "40");
+    // mandatory household pin auto-included
+    await waitFor(() => expect(total()).toBe("$4.5"));
+    expect(screen.queryByTestId("attendee-0-choice-9-size-xs")).toBeNull();
+    fireEvent.click(screen.getByTestId("attendee-0-toggle-addon-9"));
+    fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
+    await waitFor(() => expect(screen.getByTestId("addon-errors")).toHaveTextContent("Choose a size for Reunion Tee"));
+    expect(h.create).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("attendee-0-choice-9-size-xl"));
+    expect(screen.getByTestId("attendee-0-price-addon-9")).toHaveTextContent("$13");
+    fireEvent.click(screen.getByRole("button", { name: "Complete Registration" }));
+    await waitFor(() => expect(h.create).toHaveBeenCalled());
+    const data = h.create.mock.calls[0][0].data;
+    expect(data.attendees[0].addOns).toEqual([{ feeId: 9, choices: [{ groupId: "size", valueId: "xl" }] }]);
+    expect(data.addOns).toEqual([{ feeId: 10, choices: [] }]);
+    expect(data.selectedFeeIds).not.toContain(9);
+    expect(data.attendees[0]).not.toHaveProperty("shirtSize");
+  });
+
+  it("keeps a saved retired choice and its old price on edit, preserving attendee ids", async () => {
+    h.fees = [SHIRT];
+    h.existing = { id: 55, reunionId: 7, branchName: "Lacey", selectedFeeIds: [], addOns: [], attendees: [
+      { id: 1, name: "Ann Adult", age: 40, dietaryRestrictions: null, includeDinner: true,
+        addOns: [{ feeId: 9, label: "Reunion Tee", unitPriceCents: 800, choices: [{ groupId: "size", valueId: "xs", groupLabel: "Size", valueLabel: "XS" }] }] },
+    ] };
+    render(<QueryClientProvider client={new QueryClient()}><ReunionRegister params={{ code: "LACEY", editId: "55" }} /></QueryClientProvider>);
+    await waitFor(() => expect(screen.getByTestId("attendee-0-price-addon-9")).toHaveTextContent("$8"));
+    expect(screen.getByTestId("attendee-0-choice-9-size-xs")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Save|Update/ }));
+    await waitFor(() => expect(h.update).toHaveBeenCalled());
+    const a = h.update.mock.calls[0][0].data.attendees[0];
+    expect(a.id).toBe(1);
+    expect(a.addOns).toEqual([{ feeId: 9, choices: [{ groupId: "size", valueId: "xs" }] }]);
   });
 });

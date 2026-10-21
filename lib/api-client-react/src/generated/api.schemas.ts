@@ -430,6 +430,19 @@ export interface CancelRegistrationInput {
   resolution?: CancelRegistrationInputResolution;
 }
 
+export interface AddOnChoice {
+  groupId: string;
+  valueId: string;
+  groupLabel?: string;
+  valueLabel?: string;
+}
+
+export interface AddOnSelection {
+  feeId: number;
+  /** @maxItems 10 */
+  choices: AddOnChoice[];
+}
+
 /**
  * @nullable
  */
@@ -447,6 +460,7 @@ export const AttendeeInputShirtSize = {
 } as const;
 
 export interface AttendeeInput {
+  addOns?: AddOnSelection[];
   /** Explicit per-attendee dinner selections, validated against availability and mandatory requirements. */
   dinnerFeeIds?: number[];
   /** Existing attendee ID when editing; used to preserve saved dinner exceptions. */
@@ -468,6 +482,7 @@ export interface AttendeeInput {
 }
 
 export interface UpdateRegistrationInput {
+  addOns?: AddOnSelection[];
   /** @minLength 1 */
   branchName: string;
   /** @minItems 1 */
@@ -1103,6 +1118,43 @@ export interface BranchFeePaymentInput {
   note?: string | null;
 }
 
+export interface AddOnOptionValue {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+  /**
+     * @minimum -100000000
+     * @maximum 100000000
+     */
+  adjustmentCents: number;
+  active: boolean;
+}
+
+export interface AddOnOptionGroup {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  label: string;
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  values: AddOnOptionValue[];
+}
+
 /**
  * Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.
  * @nullable
@@ -1168,6 +1220,11 @@ export interface FeeAgeTier {
 }
 
 export interface ReunionFee {
+  isAddOn?: boolean;
+  retired?: boolean;
+  /** @nullable */
+  basePriceCents?: number | null;
+  optionGroups?: AddOnOptionGroup[];
   /**
      * Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.
      * @nullable
@@ -1296,6 +1353,13 @@ export interface Reunion {
   fees: ReunionFee[];
 }
 
+export interface AddOnPurchase {
+  feeId: number;
+  label: string;
+  unitPriceCents: number;
+  choices: AddOnChoice[];
+}
+
 export type FeeInputDinnerMode = typeof FeeInputDinnerMode[keyof typeof FeeInputDinnerMode];
 
 
@@ -1306,6 +1370,15 @@ export const FeeInputDinnerMode = {
 } as const;
 
 export interface FeeInput {
+  isAddOn?: boolean;
+  retired?: boolean;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  basePriceCents?: number;
+  /** @maxItems 10 */
+  optionGroups?: AddOnOptionGroup[];
   dinnerMode?: FeeInputDinnerMode;
   /** @minLength 1 */
   label: string;
@@ -1572,6 +1645,8 @@ export const AttendeeShirtSize = {
 } as const;
 
 export interface Attendee {
+  /** @nullable */
+  addOns?: AddOnPurchase[] | null;
   /**
      * Server-owned dinner eligibility snapshot. Null retains legacy eligibility.
      * @nullable
@@ -1813,6 +1888,7 @@ export interface ActivityChoiceSelectionsInput {
 }
 
 export interface ManagedRegistrationInput {
+  addOns?: AddOnSelection[];
   /** @minLength 1 */
   memberFirstName: string;
   memberLastName?: string;
@@ -1824,6 +1900,7 @@ export interface ManagedRegistrationInput {
 }
 
 export interface RegistrationInput {
+  addOns?: AddOnSelection[];
   reunionId: number;
   /** @minLength 1 */
   branchName: string;
@@ -1875,6 +1952,8 @@ export interface RegistrationLedger {
 }
 
 export interface Registration {
+  /** @nullable */
+  addOns?: AddOnPurchase[] | null;
   /** Whether the current viewer may override dinner requirements when editing. */
   canManageDinner?: boolean;
   ledger?: RegistrationLedger;
@@ -1896,6 +1975,8 @@ export interface Registration {
 }
 
 export interface AdminRegistration {
+  /** @nullable */
+  addOns?: AddOnPurchase[] | null;
   ledger?: RegistrationLedger;
   id: number;
   reunionId: number;
@@ -2048,7 +2129,16 @@ export interface FinanceSummary {
   pendingReportedCents: number;
 }
 
+export interface AddOnSummaryRow {
+  label: string;
+  variation: string;
+  quantity: number;
+  totalCents: number;
+  chargeType: FeeChargeType;
+}
+
 export interface AdminReport {
+  addOnSummary?: AddOnSummaryRow[];
   totalRegistrations: number;
   totalAttendees: number;
   paidCount: number;

@@ -76,6 +76,7 @@ import {
 } from "../lib/reunionCode";
 import { computeTotal, serializeFee, isShirtFee, isDinnerFee } from "../lib/fees";
 import { resolveDinnerSelections } from "../lib/dinnerSelections";
+import { catalogFee, freezeAddOns, freezeConvertedFee, hydrateAddOns, isAddOn, resolveAddOns, validateCatalog } from "../lib/addOns";
 import { dinnerModeChoice, dinnerSelectionChanges, recordDinnerChanges } from "../lib/dinnerHistory";
 import { getOrCreateSettings } from "../lib/settings";
 import { upsertUserFromClerk } from "../lib/users";
@@ -123,6 +124,10 @@ async function getReunionWithBranches(reunionId: number) {
 const FLAT_DINNER_ERROR = "Only per-person fees can be dinner fees. A flat fee can't be removed for one attendee.";
 
 function normalizeFeeInput(data: {
+  isAddOn?: boolean;
+  basePriceCents?: number;
+  optionGroups?: import("@workspace/db").AddOnOptionGroup[];
+  retired?: boolean;
   label: string;
   chargeType: "per_person" | "flat";
   isOptional: boolean;
@@ -154,6 +159,10 @@ function normalizeFeeInput(data: {
     if (curMin <= prevMax) return null; // overlapping ranges
   }
   return {
+    isAddOn: data.isAddOn,
+    basePriceCents: data.basePriceCents,
+    optionGroups: data.optionGroups,
+    retired: data.retired,
     label: data.label.trim(),
     chargeType: data.chargeType,
     isOptional: data.isOptional,
@@ -162,8 +171,8 @@ function normalizeFeeInput(data: {
     sortOrder: data.sortOrder,
     // Flat => explicitly not dinner. Null/omitted leaves the stored value alone
     // (undefined is skipped by drizzle), so legacy detection keeps working.
-    isDinner: data.chargeType === "flat" ? false : (data.isDinner ?? undefined),
-    isShirt: data.chargeType === "flat" ? false : (data.isShirt ?? undefined),
+    isDinner: data.isAddOn || data.chargeType === "flat" ? false : (data.isDinner ?? undefined),
+    isShirt: data.isAddOn || data.chargeType === "flat" ? false : (data.isShirt ?? undefined),
     dinnerMode: data.dinnerMode,
   };
 }
@@ -728,6 +737,12 @@ router.post("/reunions/:reunionId/fees", ...manage, requireReunionPermission("po
     res.status(400).json({ error: "Dinner availability only applies to a dinner fee." });
     return;
   }
+  if (normalized.isAddOn) {
+    const error = validateCatalog(normalized.optionGroups ?? [], normalized.basePriceCents ?? normalized.amount * 100);
+    if (error || normalized.ageTiers.length) {
+      res.status(400).json({ error: error ?? "Add-ons use option pricing, not age tiers." }); return;
+    }
+  }
   const [created] = await withChargeChange(req.managedReunion!.id, req.userId!, async (tx) => {
     const rows = await tx
     .insert(reunionFeesTable)
@@ -773,6 +788,23 @@ router.put("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermissi
       eq(reunionFeesTable.reunionId, req.managedReunion!.id),
     )).for("update");
     if (!existing) return [];
+    if (isAddOn(existing) && (normalizedUpdate.isAddOn === false || existing.chargeType !== normalizedUpdate.chargeType)) {
+      throw new LedgerError(400, "An existing add-on must keep its recipient scope and add-on type. Create another item instead.");
+    }
+    if (normalizedUpdate.isAddOn || isAddOn(existing)) {
+      if (!isAddOn(existing)) {
+        if (isDinnerFee(existing) || normalizedUpdate.chargeType !== existing.chargeType) throw new LedgerError(400, "Keep dinner rules and existing recipient scope unchanged. Create a new add-on instead.");
+        await freezeConvertedFee(tx, existing);
+      }
+      const mapped = catalogFee(existing);
+      normalizedUpdate.isAddOn = true;
+      normalizedUpdate.isShirt = false;
+      normalizedUpdate.isDinner = false;
+      normalizedUpdate.optionGroups ??= mapped.optionGroups;
+      normalizedUpdate.basePriceCents ??= mapped.basePriceCents ?? normalizedUpdate.amount * 100;
+      const error = validateCatalog(normalizedUpdate.optionGroups, normalizedUpdate.basePriceCents);
+      if (error || normalizedUpdate.ageTiers.length) throw new LedgerError(400, error ?? "Add-ons use option pricing, not age tiers.");
+    }
     if (normalizedUpdate.dinnerMode) {
       if (!isDinnerFee({ ...existing, ...normalizedUpdate, isDinner: normalizedUpdate.isDinner ?? isDinnerFee(existing) })) {
         throw new LedgerError(400, "Dinner availability only applies to a dinner fee.");
@@ -820,6 +852,11 @@ router.delete("/reunions/:reunionId/fees/:feeId", ...manage, requireReunionPermi
     return;
   }
   const [deleted] = await withChargeChange(req.managedReunion!.id, req.userId!, async (tx) => {
+    const [existing] = await tx.select().from(reunionFeesTable).where(and(eq(reunionFeesTable.id, feeId), eq(reunionFeesTable.reunionId, req.managedReunion!.id)));
+    if (existing && isAddOn(existing)) {
+      const mapped = catalogFee(existing);
+      return tx.update(reunionFeesTable).set({ retired: true, isAddOn: true, isShirt: false, isDinner: false, optionGroups: mapped.optionGroups, basePriceCents: mapped.basePriceCents }).where(eq(reunionFeesTable.id, existing.id)).returning();
+    }
     const rows = await tx
     .delete(reunionFeesTable)
     .where(
@@ -1022,9 +1059,11 @@ router.delete("/reunions/:reunionId/schedule/:scheduleId", ...manage, requireReu
 // ── Registrations (manage) ────────────────────────────────────────────────────
 router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
   const reunionId = req.managedReunion!.id;
+  const catalog = await db.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, reunionId));
   const rows = await db
     .select({
       id: registrationsTable.id,
+      addOns: registrationsTable.addOns,
       reunionId: registrationsTable.reunionId,
       userId: registrationsTable.userId,
       branchName: registrationsTable.branchName,
@@ -1049,7 +1088,7 @@ router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermis
   const withAttendees = await Promise.all(
     rows.map(async (r) => {
       const [attendees, selectedFees] = await Promise.all([
-        db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, r.id)),
+        db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, r.id)).orderBy(asc(attendeesTable.id)),
         db
           .select({ feeId: registrationFeesTable.feeId })
           .from(registrationFeesTable)
@@ -1057,7 +1096,8 @@ router.get("/reunions/:reunionId/registrations", ...manage, requireReunionPermis
       ]);
       return {
         ...r,
-        attendees,
+        addOns: r.addOns ?? [],
+        attendees: hydrateAddOns(catalog, selectedFees.map(f => f.feeId), attendees),
         selectedFeeIds: selectedFees.map((f) => f.feeId),
         userEmail: r.userEmail ?? "",
         registrantIsManaged: r.registrantIsManaged ?? false,
@@ -1082,10 +1122,6 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
   }
   const reunion = req.managedReunion!;
   const { memberFirstName, memberLastName, branchName, attendees, selectedFeeIds } = body.data;
-  if (reunion.collectShirtSizes && attendees.some(a => a.includeShirt !== false && !a.shirtSize)) {
-    res.status(400).json({ error: "Please select a T-shirt size for each attendee who wants one." });
-    return;
-  }
 
   // Same validations as self-service registration: branch + optional fees.
   const branches = await db
@@ -1115,7 +1151,12 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
   const defaultEmail = `${slug}@coppergram.com`;
   const managedUserId = `managed_${crypto.randomUUID()}`;
 
-  const created = await db.transaction(async (tx) => {
+  let created;
+  try {
+  created = await db.transaction(async (tx) => {
+    await lockReunionRow(tx, reunion.id);
+    const liveFees = await tx.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, reunion.id));
+    const merchandise = resolveAddOns(liveFees, dinner.attendees, body.data.addOns, undefined, selectedFeeIds ?? []);
     await tx.insert(usersTable).values({
       id: managedUserId,
       email: defaultEmail,
@@ -1130,10 +1171,12 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
         userId: managedUserId,
         branchName,
         attendeeCount: attendees.length,
+        addOns: merchandise.addOns,
       })
       .returning();
     await tx.insert(attendeesTable).values(
-      dinner.attendees.map((a) => ({
+      merchandise.attendees.map((a) => ({
+        addOns: a.addOns,
         registrationId: registration.id,
         name: a.name,
         shirtSize: a.includeShirt === false ? null : a.shirtSize,
@@ -1153,6 +1196,12 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
       dinnerSelectionChanges(fees, dinner.attendees, dinner.previous, [], chosenFeeIds), registration.id);
     return registration;
   });
+  } catch (error) {
+    if (error instanceof Error && /add-on|attendee/i.test(error.message)) {
+      res.status(400).json({ error: error.message }); return;
+    }
+    throw error;
+  }
 
   const [attendeeRows, feeRows] = await Promise.all([
     db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, created.id)),
@@ -1177,9 +1226,11 @@ router.post("/reunions/:reunionId/registrations", ...manage, requireReunionPermi
 
 router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunionPermission("registration"), async (req, res): Promise<void> => {
   const reunion = req.managedReunion!;
+  const catalog = await db.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, reunion.id));
   const rows = await db
     .select({
       id: registrationsTable.id,
+      addOns: registrationsTable.addOns,
       branchName: registrationsTable.branchName,
       attendeeCount: registrationsTable.attendeeCount,
       paymentStatus: registrationsTable.paymentStatus,
@@ -1202,7 +1253,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
           .from(attendeesTable)
           .where(
             sql`${attendeesTable.registrationId} IN (${sql.join(regIds, sql`, `)})`,
-          )
+          ).orderBy(asc(attendeesTable.id))
       : [];
   const attendeeMap = new Map<number, typeof attendeeRows>();
   for (const a of attendeeRows) {
@@ -1213,12 +1264,19 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
 
   const escape = (v: string | null | undefined) => `"${(v ?? "").replace(/"/g, '""')}"`;
   const csvLines: string[] = [
-    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Charges,Sponsored,Confirmed Paid,Legacy Opening Credit,Waived,Balance Due,Credit For Review,Pending Reported,Status,Registered At,Attendee Names,Shirt Sizes,Dietary Restrictions,Dinner Included",
+    "Registration ID,Branch,Registrant Email,First Name,Last Name,Attendee Count,Payment Status,Charges,Sponsored,Confirmed Paid,Legacy Opening Credit,Waived,Balance Due,Credit For Review,Pending Reported,Status,Registered At,Attendee Names,Historical Shirt Sizes,Dietary Restrictions,Dinner Included,Add-ons",
   ];
   const exportLedgers = await loadLedgers(db, rows.map((r) => r.id));
   const d = (c: number | undefined) => ((c ?? 0) / 100).toFixed(2);
   for (const r of rows) {
     const attendees = attendeeMap.get(r.id) ?? [];
+    const selected = await db.select().from(registrationFeesTable).where(eq(registrationFeesTable.registrationId, r.id));
+    const people = hydrateAddOns(catalog, selected.map(f => f.feeId), attendees);
+    const formatPurchase = (p: import("@workspace/db").AddOnPurchase) => `${p.label}${p.choices.length ? ` (${p.choices.map(c => `${c.groupLabel}: ${c.valueLabel}`).join(", ")})` : ""}: $${(p.unitPriceCents / 100).toFixed(2)}`;
+    const purchaseText = [
+      ...(r.addOns ?? []).map(p => `Household: ${formatPurchase(p)}`),
+      ...people.flatMap(a => a.addOns.map(p => `${a.name}: ${formatPurchase(p)}`)),
+    ].join("; ");
     const l = exportLedgers.get(r.id);
     csvLines.push(
       [
@@ -1243,6 +1301,7 @@ router.get("/reunions/:reunionId/registrations/export", ...manage, requireReunio
         escape(attendees.map((a) => a.shirtSize).join("; ")),
         escape(attendees.map((a) => a.dietaryRestrictions ?? "").join("; ")),
         escape(attendees.map((a) => (a.includeDinner ? "Yes" : "No")).join("; ")),
+        escape(purchaseText),
       ].join(","),
     );
   }
@@ -1490,10 +1549,29 @@ router.get("/reunions/:reunionId/reports", ...manage, requireReunionPermission("
     ]);
 
   void paymentCounts;
+  const catalog = await db.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, reunionId));
+  const reportRegs = await db.select().from(registrationsTable).where(activeInReunion(reunionId));
+  const addOnGroups = new Map<string, { label: string; variation: string; quantity: number; totalCents: number; chargeType: "flat" | "per_person" }>();
+  for (const r of reportRegs) {
+    const people = await db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, r.id));
+    const selected = await db.select().from(registrationFeesTable).where(eq(registrationFeesTable.registrationId, r.id));
+    const all = [
+      ...(r.addOns ?? []).map(p => ({ p, chargeType: "flat" as const })),
+      ...hydrateAddOns(catalog, selected.map(f => f.feeId), people).flatMap(a => a.addOns.map(p => ({ p, chargeType: "per_person" as const }))),
+    ];
+    for (const { p, chargeType } of all) {
+      const variation = p.choices.map(c => `${c.groupLabel}: ${c.valueLabel}`).join(", ");
+      const key = JSON.stringify([p.feeId, p.label, variation, chargeType]);
+      const g = addOnGroups.get(key) ?? { label: p.label, variation, quantity: 0, totalCents: 0, chargeType };
+      g.quantity++; g.totalCents += p.unitPriceCents;
+      addOnGroups.set(key, g);
+    }
+  }
   const fin = await reunionFinance(reunionId);
   const payMap = { paid: fin.counts.paid, pending: fin.counts.unpaid + fin.counts.partial, waived: fin.counts.waived };
   res.json(
     GetReunionReportsResponse.parse({
+      addOnSummary: [...addOnGroups.values()],
       totalRegistrations: totals[0]?.totalRegistrations ?? 0,
       totalAttendees: totals[0]?.totalAttendees ?? 0,
       paidCount: payMap["paid"] ?? 0,
@@ -1950,6 +2028,7 @@ async function withChargeChange<T>(reunionId: number, actor: string, fn: (tx: Pa
   return db.transaction(async (tx) => {
     await lockReunionRow(tx, reunionId);
     await ensureReunionLedgersInitialized(tx, reunionId, actor);
+    await freezeAddOns(tx, reunionId);
     const out = await fn(tx);
     const regs = await tx.select({ id: registrationsTable.id }).from(registrationsTable).where(eq(registrationsTable.reunionId, reunionId));
     for (const r of regs) await syncLedgerStatus(tx, r.id);
@@ -2418,5 +2497,13 @@ router.post(
     res.status(201).json(CreateContributionPaymentSubmissionResponse.parse({ ...created, contributions }));
   },
 );
+
+router.use((error: unknown, _req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
+  if (error instanceof LedgerError) {
+    res.status(error.status).json({ error: error.message });
+    return;
+  }
+  next(error);
+});
 
 export default router;

@@ -1,3 +1,4 @@
+import { AddOnPurchaseList } from "../components/AddOnPicker";
 import { useLocation } from "wouter";
 import { DEFAULT_PAYMENT_PENDING_HEADING, DEFAULT_PAYMENT_PENDING_MESSAGE } from "../lib/paymentPendingNotice";
 import { useGetRegistration, getGetRegistrationQueryKey, useTransferRegistration, getListMyRegistrationsQueryKey, useGetReunionByCode, getGetReunionByCodeQueryKey } from "@workspace/api-client-react";
@@ -161,13 +162,26 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
                     {attendee.dietaryRestrictions && (
                       <div className="text-sm text-muted-foreground">Diet: {attendee.dietaryRestrictions}</div>
                     )}
+                    {(attendee.addOns ?? []).length > 0 && (
+                      <div className="mt-2" data-testid={`attendee-addons-${attendee.id}`}>
+                        <AddOnPurchaseList items={attendee.addOns} testIdPrefix={`attendee-${attendee.id}`} />
+                      </div>
+                    )}
                   </div>
-                  <div className="bg-muted px-3 py-1 rounded-lg text-sm font-medium">
-                    Size: {attendee.shirtSize}
-                  </div>
+                  {!(attendee.addOns ?? []).length && attendee.shirtSize && (
+                    <div className="bg-muted px-3 py-1 rounded-lg text-xs text-muted-foreground" title="Recorded before add-ons; not a purchase">
+                      Size on file: {attendee.shirtSize}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+            {(reg.addOns ?? []).length > 0 && (
+              <div className="mt-6 rounded-2xl border p-4" data-testid="household-addons">
+                <h3 className="font-bold text-sm uppercase tracking-widest text-muted-foreground mb-2">Household add-ons</h3>
+                <AddOnPurchaseList items={reg.addOns} testIdPrefix="household" />
+              </div>
+            )}
             
             <div className="mt-8 pt-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
               {!isPaid && !isCancelled ? (

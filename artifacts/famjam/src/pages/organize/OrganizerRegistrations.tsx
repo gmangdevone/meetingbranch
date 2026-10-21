@@ -39,7 +39,9 @@ import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
-import { computeTotal, isConfiguredDinner, isDinnerFee, isShirtFee } from "../../lib/fees";
+import { computeTotal, isConfiguredDinner, isDinnerFee, isAddOnFee } from "../../lib/fees";
+import { AddOnPicker, AddOnPurchaseList } from "../../components/AddOnPicker";
+import { addOnProblems, buildPurchases, centsLabel, describeChoices, offeredAddOns, picksToSelections, seedPicks, type AddOnPicks } from "../../lib/addOns";
 import { defaultDinnerIds, offeredDinners } from "../../lib/dinnerChoices";
 import { DinnerModeControls } from "../../components/DinnerModeControls";
 import { registrationAddOns, attendeeAddOns, attendeeDinnerStatus } from "../../lib/registrationAddOns";
@@ -49,7 +51,6 @@ import { RecordPaymentDialog, type PayableRegistration, type RecordPaymentPreset
 import { invalidateMoney, money, parseCents, transferMoneyIds } from "../../components/payments/money";
 import { Wallet, FileSpreadsheet } from "lucide-react";
 
-const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"] as const;
 
 const managedRegistrationSchema = z.object({
   memberFirstName: z.string().min(1, "First name is required"),
@@ -57,8 +58,7 @@ const managedRegistrationSchema = z.object({
   branchName: z.string().min(1, "Please select a branch"),
   attendees: z.array(z.object({
     name: z.string().min(1, "Name is required"),
-    shirtSize: z.enum(SHIRT_SIZES).nullable().optional(),
-    includeShirt: z.boolean(),
+    addOnPicks: z.record(z.string(), z.record(z.string(), z.string())).default({}),
     dietaryRestrictions: z.string().optional(),
     age: z.preprocess((val) => {
       if (val === "" || val === undefined || val === null) return undefined;
@@ -189,7 +189,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
       memberFirstName: "",
       memberLastName: "",
       branchName: "",
-      attendees: [{ name: "", shirtSize: null, dietaryRestrictions: "", age: undefined, includeDinner: true, includeShirt: false }],
+      attendees: [{ name: "", dietaryRestrictions: "", age: undefined, includeDinner: true, addOnPicks: {} }],
       selectedFeeIds: [],
     },
   });
@@ -224,6 +224,30 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     });
   }, [registerDialogOpen, hasManagedDinner, reunion?.id]);
   const [lastSyncedName, setLastSyncedName] = useState("");
+  const [managedHouseholdPicks, setManagedHouseholdPicks] = useState<AddOnPicks>({});
+  const [managedAddOnErrors, setManagedAddOnErrors] = useState<string[]>([]);
+  // Seed mandatory add-ons whenever the dialog opens fresh.
+  useEffect(() => {
+    if (!registerDialogOpen) return;
+    form.getValues("attendees").forEach((a, i) => {
+      if (Object.keys(a.addOnPicks ?? {}).length === 0) form.setValue(`attendees.${i}.addOnPicks`, seedPicks(managedFees, "attendee"));
+    });
+    setManagedHouseholdPicks(seedPicks(managedFees, "household"));
+    setManagedAddOnErrors([]);
+  }, [registerDialogOpen, reunion?.id]);
+  const managedHouseholdPurchases = buildPurchases(managedFees, managedHouseholdPicks);
+  const managedAttendeeFees = watchAttendees.map((a) => ({
+    age: a?.age == null || (a.age as unknown) === "" ? null : Number(a.age),
+    includeDinner: hasManagedDinner ? (a?.dinnerFeeIds ?? []).length > 0 : a?.includeDinner !== false,
+    dinnerFeeIds: hasManagedDinner ? a?.dinnerFeeIds ?? [] : null,
+    addOns: buildPurchases(managedFees, (a?.addOnPicks ?? {}) as AddOnPicks),
+  }));
+  const managedChosenFees = (attendees: { dinnerFeeIds?: number[] }[], selected: number[]) => [
+    ...selected.filter(id => !managedFees.some(f => f.id === id && (isConfiguredDinner(f) || isAddOnFee(f)))),
+    // Configured dinners are saved when any attendee picks them.
+    ...managedFees.filter((f) => isConfiguredDinner(f) && attendees.some((a) => (a.dinnerFeeIds ?? []).includes(f.id))).map((f) => f.id),
+  ];
+  const managedPreviewCents = Math.round(computeTotal(managedFees, managedAttendeeFees, managedChosenFees(watchAttendees, watchSelectedFees), managedHouseholdPurchases) * 100);
 
   useEffect(() => {
     if (fields.length > 0) {
@@ -238,23 +262,14 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   }, [firstName, lastName, fields.length]);
 
   const onSubmitManaged = (values: z.infer<typeof managedRegistrationSchema>) => {
-    if (reunion?.collectShirtSizes) {
-      let missing = false;
-      values.attendees.forEach((attendee, index) => {
-        if (attendee.includeShirt && !attendee.shirtSize) {
-          form.setError(`attendees.${index}.shirtSize`, { message: "Please select a T-shirt size" });
-          missing = true;
-        }
-      });
-      if (missing) return;
-    }
-    const shirtFees = (reunion?.fees ?? []).filter(fee => fee.isOptional && isShirtFee(fee));
-    const chosenFees = [
-      ...(values.selectedFeeIds ?? []).filter(id => !shirtFees.some(fee => fee.id === id) && !managedFees.some(f => f.id === id && isConfiguredDinner(f))),
-      // Configured dinners are saved when any attendee picks them.
-      ...managedFees.filter((f) => isConfiguredDinner(f) && values.attendees.some((a) => (a.dinnerFeeIds ?? []).includes(f.id))).map((f) => f.id),
-      ...(values.attendees.some(a => a.includeShirt) ? shirtFees.map(fee => fee.id) : []),
+    const problems = [
+      ...values.attendees.flatMap((a, i) =>
+        addOnProblems(managedFees, (a.addOnPicks ?? {}) as AddOnPicks, "attendee").map((m) => `${a.name?.trim() || `Person ${i + 1}`}: ${m}`)),
+      ...addOnProblems(managedFees, managedHouseholdPicks, "household").map((m) => `Household: ${m}`),
     ];
+    setManagedAddOnErrors(problems);
+    if (problems.length > 0) return;
+    const chosenFees = managedChosenFees(values.attendees, values.selectedFeeIds ?? []);
     createManagedRegistration.mutate({
       reunionId,
       data: {
@@ -263,8 +278,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
         branchName: values.branchName,
         attendees: values.attendees.map(a => ({
           name: a.name,
-          shirtSize: a.shirtSize,
-          includeShirt: a.includeShirt,
+          addOns: picksToSelections((a.addOnPicks ?? {}) as AddOnPicks),
           dietaryRestrictions: a.dietaryRestrictions || undefined,
           age: a.age,
           ...(hasManagedDinner
@@ -272,6 +286,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             : { includeDinner: a.includeDinner !== false }),
         })),
         selectedFeeIds: chosenFees,
+        addOns: picksToSelections(managedHouseholdPicks),
       }
     }, {
       onSuccess: () => {
@@ -287,7 +302,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   };
 
   const optionalFees = useMemo(() => {
-    return reunion?.fees?.filter(f => f.isOptional && !isShirtFee(f) && !isConfiguredDinner(f)) || [];
+    return reunion?.fees?.filter(f => f.isOptional && !isAddOnFee(f) && !isConfiguredDinner(f)) || [];
   }, [reunion?.fees]);
 
   const filteredRegistrations = useMemo(() => {
@@ -483,11 +498,13 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                     const isCancelled = reg.status === 'cancelled';
                     const addOns = registrationAddOns(reunion?.fees ?? [], reg.selectedFeeIds ?? [], reg.attendees);
                     const addOnQuantity = addOns.reduce((sum, item) => sum + item.quantity, 0);
-                    const shirtSizes = reg.attendees.filter(a => a.shirtSize).length;
+                    const purchases = [...reg.attendees.flatMap(a => a.addOns ?? []), ...(reg.addOns ?? [])];
+                    const shirtSizes = purchases.length === 0 ? reg.attendees.filter(a => a.shirtSize).length : 0;
                     const registrationTotal = computeTotal(
                       reunion?.fees ?? [],
                       reg.attendees,
                       reg.selectedFeeIds ?? [],
+                      reg.addOns ?? [],
                     );
                     return (
                     <tr key={reg.id} className={`hover:bg-muted/30 transition-colors ${isCancelled ? 'opacity-60 bg-muted/10' : ''}`}>
@@ -514,13 +531,18 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-col">
-                          <span className="font-bold">{addOnQuantity} {addOnQuantity === 1 ? "add-on" : "add-ons"}</span>
+                          <span className="font-bold">{addOnQuantity + purchases.length} {addOnQuantity + purchases.length === 1 ? "add-on" : "add-ons"}</span>
                           {addOns.map(({ fee, quantity }) => (
                             <span key={fee.id} className="text-xs text-muted-foreground">
                               {fee.label} × {quantity}{fee.chargeType === "flat" ? " (household)" : ""}
                             </span>
                           ))}
-                          {shirtSizes > 0 && <span className="text-xs text-muted-foreground">{shirtSizes} T-shirt {shirtSizes === 1 ? "size" : "sizes"} recorded</span>}
+                          {purchases.map((p, i) => (
+                            <span key={`p-${i}`} className="text-xs text-muted-foreground" data-testid={`text-addon-${reg.id}-${i}`}>
+                              {p.label}{p.choices.length ? ` (${describeChoices(p)})` : ""} · {centsLabel(p.unitPriceCents)}{(reg.addOns ?? []).includes(p) ? " (household)" : ""}
+                            </span>
+                          ))}
+                          {shirtSizes > 0 && <span className="text-xs text-muted-foreground/70">{shirtSizes} historical {shirtSizes === 1 ? "size" : "sizes"} on file (not a purchase)</span>}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-muted-foreground text-xs">
@@ -1022,43 +1044,14 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                           </FormItem>
                         )}
                       />
-                      {(reunion?.collectShirtSizes || reunion?.fees.some(isShirtFee)) && <FormField
-                        control={form.control}
-                        name={`attendees.${index}.includeShirt`}
-                        render={({ field: inputField }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              <Checkbox checked={inputField.value} onCheckedChange={checked => {
-                                inputField.onChange(checked === true);
-                                if (checked !== true) form.setValue(`attendees.${index}.shirtSize`, null);
-                              }} />
-                              Include T-shirt
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />}
-                      {reunion?.collectShirtSizes && watchAttendees[index]?.includeShirt && <FormField
-                        control={form.control}
-                        name={`attendees.${index}.shirtSize`}
-                        render={({ field: inputField }) => (
-                          <FormItem>
-                            <FormLabel>T-Shirt Size</FormLabel>
-                            <Select onValueChange={inputField.onChange} value={inputField.value ?? ""}>
-                              <FormControl>
-                                <SelectTrigger className="rounded-xl">
-                                  <SelectValue placeholder="Size" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {SHIRT_SIZES.map(size => (
-                                  <SelectItem key={size} value={size}>{size}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />}
+                      {offeredAddOns(managedFees, "attendee").length > 0 && (
+                        <div className="col-span-full">
+                          <AddOnPicker fees={managedFees} scope="attendee"
+                            picks={(watchAttendees[index]?.addOnPicks ?? {}) as AddOnPicks}
+                            onChange={(next) => form.setValue(`attendees.${index}.addOnPicks`, next as Record<string, Record<string, string>>)}
+                            testIdPrefix={`managed-attendee-${index}`} showErrors={managedAddOnErrors.length > 0} />
+                        </div>
+                      )}
 
                       <FormField
                         control={form.control}
@@ -1124,7 +1117,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ name: "", shirtSize: null, dietaryRestrictions: "", age: undefined, includeDinner: newDinnerIds.length > 0 || !hasManagedDinner, dinnerFeeIds: hasManagedDinner ? newDinnerIds : undefined, includeShirt: false })}
+                  onClick={() => append({ name: "", dietaryRestrictions: "", age: undefined, includeDinner: newDinnerIds.length > 0 || !hasManagedDinner, dinnerFeeIds: hasManagedDinner ? newDinnerIds : undefined, addOnPicks: seedPicks(managedFees, "attendee") })}
                   className="w-full py-4 border-dashed rounded-2xl text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="mr-2 w-4 h-4" /> Add Another Person
@@ -1175,6 +1168,25 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                   </div>
                 </div>
               )}
+
+              {offeredAddOns(managedFees, "household").length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <h3 className="font-serif text-lg font-bold">Household Add-ons</h3>
+                  </div>
+                  <AddOnPicker fees={managedFees} scope="household" picks={managedHouseholdPicks} onChange={setManagedHouseholdPicks}
+                    testIdPrefix="managed-household" showErrors={managedAddOnErrors.length > 0} />
+                </div>
+              )}
+              {managedAddOnErrors.length > 0 && (
+                <ul className="p-3 bg-destructive/10 text-destructive text-sm rounded-xl space-y-1" data-testid="managed-addon-errors">
+                  {managedAddOnErrors.map((m) => <li key={m}>{m}</li>)}
+                </ul>
+              )}
+              <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-3" data-testid="managed-preview-total">
+                <span className="text-sm text-muted-foreground">Estimated total (server confirms)</span>
+                <span className="font-serif text-xl font-bold tabular-nums">{centsLabel(managedPreviewCents)}</span>
+              </div>
 
               {createManagedRegistration.isError && (
                 <div className="p-3 bg-destructive/10 text-destructive text-sm font-medium rounded-xl">
@@ -1231,7 +1243,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
                           <span className={included ? "font-bold text-green-700 dark:text-green-400" : "font-bold text-muted-foreground"}>{included ? "Included" : "Not included"}</span>
                         </div>
                       ))}
-                      {a.shirtSize && <div className="text-xs text-muted-foreground">T-Shirt Size: {a.shirtSize}</div>}
+                      {!(a.addOns ?? []).length && a.shirtSize && <div className="text-xs text-muted-foreground/70">Historical size on file: {a.shirtSize}</div>}
                       {isIn && a.checkedInAt && (
                         <div className="text-xs text-muted-foreground">
                           Checked in {format(new Date(a.checkedInAt), 'MMM d, h:mm a')}
@@ -1243,11 +1255,12 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
               );
             })}
           </div>
-          {householdAddOns.length > 0 && (
+          {(householdAddOns.length > 0 || (checkInReg?.addOns ?? []).length > 0) && (
             <div className="rounded-xl border p-3 text-sm">
               <h3 className="font-medium">Household add-ons</h3>
               <p className="text-xs text-muted-foreground">Shared with this registration; not assigned to an individual.</p>
               {householdAddOns.map(({ fee, quantity }) => <div key={fee.id}>{fee.label} × {quantity}</div>)}
+              <AddOnPurchaseList items={checkInReg?.addOns} testIdPrefix="checkin-household" />
             </div>
           )}
           <div className="flex justify-between items-center gap-3 pt-4 border-t mt-2">

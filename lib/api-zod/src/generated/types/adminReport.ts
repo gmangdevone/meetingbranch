@@ -5,12 +5,14 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnSummaryRow } from './addOnSummaryRow';
 import type { DayRegistrationCount } from './dayRegistrationCount';
 import type { FinanceSummary } from './financeSummary';
 import type { GroupCount } from './groupCount';
 import type { ShirtSizeCount } from './shirtSizeCount';
 
 export interface AdminReport {
+  addOnSummary?: AddOnSummaryRow[];
   totalRegistrations: number;
   totalAttendees: number;
   paidCount: number;

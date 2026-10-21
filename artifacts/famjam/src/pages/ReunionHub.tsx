@@ -124,7 +124,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   );
   const myRegistration = myActiveRegistrations[0];
   const myAccountTotal = myActiveRegistrations.reduce(
-    (sum, r) => sum + (r.ledger ? r.ledger.chargeCents / 100 : computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? [])),
+    (sum, r) => sum + (r.ledger ? r.ledger.chargeCents / 100 : computeTotal(reunion?.fees ?? [], r.attendees, r.selectedFeeIds ?? [], r.addOns ?? [])),
     0,
   );
   const { data: myContributionsData } = useGetMyContributions(reunion?.id ?? 0, {
@@ -488,7 +488,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                                          : "text-muted-foreground"
                                    }`}
                                  >
-                                  {money(reg.ledger ? reg.ledger.chargeCents : Math.round(computeTotal(reunion.fees, reg.attendees, reg.selectedFeeIds ?? []) * 100))}
+                                  {money(reg.ledger ? reg.ledger.chargeCents : Math.round(computeTotal(reunion.fees, reg.attendees, reg.selectedFeeIds ?? [], reg.addOns ?? []) * 100))}
                                 </span>
                               </div>
                             </div>

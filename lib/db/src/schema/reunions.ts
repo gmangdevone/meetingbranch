@@ -91,6 +91,19 @@ export interface FeeAgeTier {
   amount: number;
 }
 
+export interface AddOnOptionGroup {
+  id: string;
+  label: string;
+  values: { id: string; label: string; adjustmentCents: number; active: boolean }[];
+}
+
+export interface AddOnPurchase {
+  feeId: number;
+  label: string;
+  unitPriceCents: number;
+  choices: { groupId: string; valueId: string; groupLabel: string; valueLabel: string }[];
+}
+
 /**
  * Labeled fees & dues for a reunion (e.g. "Registration Fee", "T-Shirt", "Facility Dues").
  * Replaces the old single `reunions.fee_per_person`.
@@ -117,6 +130,10 @@ export const reunionFeesTable = pgTable("reunion_fees", {
   dinnerMode: text("dinner_mode").$type<"hidden" | "optional" | "mandatory">(),
   // NULL preserves legacy label detection until an organizer saves the fee.
   isShirt: boolean("is_shirt"),
+  isAddOn: boolean("is_add_on").notNull().default(false),
+  optionGroups: jsonb("option_groups").$type<AddOnOptionGroup[]>().notNull().default([]),
+  retired: boolean("retired").notNull().default(false),
+  basePriceCents: integer("base_price_cents"),
 });
 
 export const reunionBranchesTable = pgTable("reunion_branches", {

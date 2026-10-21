@@ -1,11 +1,13 @@
-import type { ReunionFee } from "@workspace/db";
+import type { ReunionFee, AddOnPurchase } from "@workspace/db";
 import { logger } from "./logger";
 import { feeApplies, computeFeeAmount, isDinnerFee } from "./fees";
+import { hydrateAddOns, isAddOn } from "./addOns";
 import type { PublicRecipient } from "./paymentRecipients/validation";
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY ?? null;
 
 interface AttendeeInfo {
+  addOns?: AddOnPurchase[] | null;
   name: string;
   shirtSize: string | null;
   dietaryRestrictions?: string | null;
@@ -24,6 +26,7 @@ interface ReunionInfo {
 }
 
 export interface SendConfirmationEmailParams {
+  addOns?: AddOnPurchase[] | null;
   toEmail: string;
   toName: string;
   branchName: string;
@@ -100,10 +103,14 @@ function formatDateRange(startDate: string, endDate: string): string {
 export function buildEmailHtml(params: SendConfirmationEmailParams): string {
   const { toName, branchName, attendees, selectedFeeIds, registrationId, registeredAt, reunion } =
     params;
+  const people = hydrateAddOns(reunion.fees, selectedFeeIds, attendees);
+  const purchaseLabel = (p: AddOnPurchase) => `${p.label}${p.choices.length ? ` (${p.choices.map(c => `${c.groupLabel}: ${c.valueLabel}`).join(", ")})` : ""}`;
   const feeLines = reunion.fees
-    .filter((fee) => feeApplies(fee, selectedFeeIds))
+    .filter((fee) => !isAddOn(fee) && feeApplies(fee, selectedFeeIds))
     .map((fee) => ({ label: fee.label, amount: computeFeeAmount(fee, attendees) }))
     .filter((line) => line.amount > 0);
+  for (const p of params.addOns ?? []) feeLines.push({ label: `${purchaseLabel(p)} — household`, amount: p.unitPriceCents / 100 });
+  for (const a of people) for (const p of a.addOns) feeLines.push({ label: `${purchaseLabel(p)} — ${a.name}`, amount: p.unitPriceCents / 100 });
   const totalFee = feeLines.reduce((sum, line) => sum + line.amount, 0);
   const dateRange = formatDateRange(reunion.startDate, reunion.endDate);
   const formattedDate = registeredAt.toLocaleString("en-US", {
@@ -134,13 +141,13 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
   const payUrl = approved && r.paymentUrl ? escapeHtml(r.paymentUrl) : null;
 
   const hasDinner = reunion.fees.some((f) => feeApplies(f, selectedFeeIds) && isDinnerFee(f));
-  const attendeeRows = attendees
+  const attendeeRows = people
     .map(
       (a, i) => `
       <tr style="background:${i % 2 === 0 ? "#f9fafb" : "#ffffff"}">
-        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.name}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">${a.shirtSize || "—"}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${a.dietaryRestrictions || "None"}${hasDinner && a.includeDinner === false ? " (no dinner)" : ""}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${escapeHtml(a.name)}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;text-align:center;">${a.addOns.map(p => escapeHtml(`${purchaseLabel(p)} — $${(p.unitPriceCents / 100).toFixed(2)}`)).join("<br>") || "—"}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e5e7eb;">${escapeHtml(a.dietaryRestrictions || "None")}${hasDinner && a.includeDinner === false ? " (no dinner)" : ""}</td>
       </tr>`,
     )
     .join("");
@@ -203,7 +210,7 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
                 <thead>
                   <tr style="background:#f3f4f6;">
                     <th style="padding:10px 16px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Name</th>
-                    <th style="padding:10px 16px;text-align:center;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">T-Shirt</th>
+                    <th style="padding:10px 16px;text-align:center;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Add-ons</th>
                     <th style="padding:10px 16px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Dietary</th>
                   </tr>
                 </thead>
@@ -220,7 +227,7 @@ export function buildEmailHtml(params: SendConfirmationEmailParams): string {
                     ${feeLines
                       .map(
                         (line) =>
-                          `<p style="margin:0;color:#6b7280;font-size:13px;">${line.label}: ${line.amount.toFixed(2)}</p>`,
+                           `<p style="margin:0;color:#6b7280;font-size:13px;">${escapeHtml(line.label)}: $${line.amount.toFixed(2)}</p>`,
                       )
                       .join("")}
                   </td>

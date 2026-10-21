@@ -5,9 +5,11 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnSelection } from './addOnSelection';
 import type { AttendeeInput } from './attendeeInput';
 
 export interface RegistrationInput {
+  addOns?: AddOnSelection[];
   reunionId: number;
   /** @minLength 1 */
   branchName: string;

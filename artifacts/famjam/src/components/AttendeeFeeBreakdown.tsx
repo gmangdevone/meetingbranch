@@ -1,5 +1,6 @@
 import type { ReunionFee } from "@workspace/api-client-react";
-import { computeFeeAmount, feeApplies, type FeeAttendee } from "../lib/fees";
+import { computeFeeAmount, feeApplies, isAddOnFee, type FeeAttendee } from "../lib/fees";
+import { describeChoices } from "../lib/addOns";
 import { money } from "./payments/money";
 
 /** Household/branch fees and contributions are not assigned to individual attendees. */
@@ -11,8 +12,13 @@ export function AttendeeFeeBreakdown({ fees, attendee, selectedFeeIds, ready = t
 }) {
   if (!ready) return <p className="mt-3 text-sm text-muted-foreground">Enter this attendee's name and valid age to see their fees.</p>;
   const lines = fees
-    .filter(fee => fee.chargeType === "per_person" && feeApplies(fee, selectedFeeIds))
-    .map(fee => ({ id: fee.id, label: fee.label, cents: Math.round(computeFeeAmount(fee, [attendee]) * 100) }));
+    .filter(fee => fee.chargeType === "per_person" && !isAddOnFee(fee) && feeApplies(fee, selectedFeeIds))
+    .map(fee => ({ id: String(fee.id), label: fee.label, cents: Math.round(computeFeeAmount(fee, [attendee]) * 100) }))
+    .concat((attendee.addOns ?? []).map((p, i) => ({
+      id: `addon-${p.feeId}-${i}`,
+      label: p.choices.length ? `${p.label} (${describeChoices(p)})` : p.label,
+      cents: p.unitPriceCents,
+    })));
   const total = lines.reduce((sum, line) => sum + line.cents, 0);
   return (
     <div className="mt-3 space-y-1 text-sm" aria-label="Attendee fee breakdown">

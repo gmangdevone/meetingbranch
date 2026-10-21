@@ -1,5 +1,6 @@
 import type { ReunionFee } from "@workspace/api-client-react";
-import { attendeeGetsDinner, feeApplies, isDinnerFee, isShirtFee, type FeeAttendee } from "./fees";
+import { attendeeGetsDinner, feeApplies, isAddOnFee, isDinnerFee, isShirtFee, type FeeAttendee } from "./fees";
+import { describeChoices } from "./addOns";
 
 /**
  * Add-ons on a registration: selected optional fees plus every applicable dinner
@@ -11,7 +12,7 @@ export function registrationAddOns(
   attendees: FeeAttendee[],
 ) {
   return fees
-    .filter(fee => (fee.isOptional || isDinnerFee(fee)) && feeApplies(fee, selectedFeeIds))
+    .filter(fee => !isAddOnFee(fee) && (fee.isOptional || isDinnerFee(fee)) && feeApplies(fee, selectedFeeIds))
     .map(fee => ({
       fee,
       quantity: fee.chargeType === "flat" ? 1 : attendees.filter(
@@ -24,7 +25,8 @@ export function registrationAddOns(
 export function attendeeAddOns(fees: ReunionFee[], selectedFeeIds: number[], attendee: FeeAttendee) {
   return registrationAddOns(fees, selectedFeeIds, [attendee])
     .filter(item => item.fee.chargeType === "per_person" && item.quantity > 0)
-    .map(item => item.fee.label);
+    .map(item => item.fee.label)
+    .concat((attendee.addOns ?? []).map(p => p.choices.length ? `${p.label} (${describeChoices(p)})` : p.label));
 }
 
 /** Every applicable dinner for a registration, with Included/Not included for this attendee. */

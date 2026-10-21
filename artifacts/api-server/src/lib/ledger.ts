@@ -99,11 +99,11 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
   if (!ids.length) return out;
   const L = idList(ids);
   const [regs, fees, attendees, selected, sponsored, allocs, contribs, pending] = await Promise.all([
-    rows<{ id: number; reunion_id: number; payment_status: string; ledger_initialized_at: Date | null }>(
-      ex, sql`SELECT id, reunion_id, payment_status, ledger_initialized_at FROM registrations WHERE id IN (${L})`),
-    rows<{ id: number; reunion_id: number; label: string; amount: number; charge_type: string; is_optional: boolean; age_tiers: unknown; is_dinner: boolean | null; is_shirt: boolean | null; dinner_mode: "hidden" | "optional" | "mandatory" | null }>(
+    rows<{ id: number; reunion_id: number; payment_status: string; ledger_initialized_at: Date | null; add_ons: import("@workspace/db").AddOnPurchase[] | null }>(
+      ex, sql`SELECT id, reunion_id, payment_status, ledger_initialized_at, add_ons FROM registrations WHERE id IN (${L})`),
+    rows<{ id: number; reunion_id: number; label: string; amount: number; charge_type: string; is_optional: boolean; age_tiers: unknown; is_dinner: boolean | null; is_shirt: boolean | null; is_add_on: boolean; dinner_mode: "hidden" | "optional" | "mandatory" | null }>(
       ex, sql`SELECT f.* FROM reunion_fees f WHERE f.reunion_id IN (SELECT reunion_id FROM registrations WHERE id IN (${L}))`),
-    rows<{ registration_id: number; age: number | null; include_dinner: boolean; include_shirt: boolean; dinner_fee_ids: number[] | null }>(ex, sql`SELECT registration_id, age, include_dinner, include_shirt, dinner_fee_ids FROM attendees WHERE registration_id IN (${L})`),
+    rows<{ registration_id: number; age: number | null; include_dinner: boolean; include_shirt: boolean; dinner_fee_ids: number[] | null; add_ons: import("@workspace/db").AddOnPurchase[] | null }>(ex, sql`SELECT registration_id, age, include_dinner, include_shirt, dinner_fee_ids, add_ons FROM attendees WHERE registration_id IN (${L})`),
     rows<{ registration_id: number; fee_id: number }>(ex, sql`SELECT registration_id, fee_id FROM registration_fees WHERE registration_id IN (${L})`),
     rows<{ registration_id: number; cents: string }>(ex, sql`SELECT registration_id, sum(amount)*100 AS cents FROM sponsorship_allocations WHERE registration_id IN (${L}) GROUP BY registration_id`),
     rows<{ registration_id: number | null; contribution_id: number | null; kind: string; cents: string }>(ex, sql`
@@ -126,13 +126,14 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
   for (const reg of regs) {
     const regFees = fees
       .filter((f) => f.reunion_id === reg.reunion_id)
-      .map((f) => ({ id: f.id, label: f.label, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers, isDinner: f.is_dinner, isShirt: f.is_shirt, dinnerMode: f.dinner_mode }));
+      .map((f) => ({ id: f.id, label: f.label, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers, isDinner: f.is_dinner, isShirt: f.is_shirt, isAddOn: f.is_add_on, dinnerMode: f.dinner_mode }));
     const chargeCents =
       computeTotal(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         regFees as any,
-        attendees.filter((a) => a.registration_id === reg.id).map((a) => ({ age: a.age, includeDinner: a.include_dinner, includeShirt: a.include_shirt, dinnerFeeIds: a.dinner_fee_ids })),
+        attendees.filter((a) => a.registration_id === reg.id).map((a) => ({ age: a.age, includeDinner: a.include_dinner, includeShirt: a.include_shirt, dinnerFeeIds: a.dinner_fee_ids, addOns: a.add_ons })),
         selected.filter((s) => s.registration_id === reg.id).map((s) => s.fee_id),
+        reg.add_ons ?? [],
       ) * 100;
     const sponsoredCents = Number(sponsored.find((s) => s.registration_id === reg.id)?.cents ?? 0);
     const initialized = !!reg.ledger_initialized_at;

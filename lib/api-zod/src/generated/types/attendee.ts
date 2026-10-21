@@ -5,9 +5,12 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnPurchase } from './addOnPurchase';
 import type { AttendeeShirtSize } from './attendeeShirtSize';
 
 export interface Attendee {
+  /** @nullable */
+  addOns?: AddOnPurchase[] | null;
   /**
      * Server-owned dinner eligibility snapshot. Null retains legacy eligibility.
      * @nullable

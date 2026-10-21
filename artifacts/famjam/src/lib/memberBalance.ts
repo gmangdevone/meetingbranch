@@ -12,6 +12,8 @@ export type MemberRegistration = {
   paymentStatus: string;
   attendees: Parameters<typeof computeTotal>[1];
   selectedFeeIds?: number[] | null;
+  /** Household add-on snapshots (attendee snapshots live on each attendee). */
+  addOns?: Parameters<typeof computeTotal>[3];
   ledger?: Ledger | null;
 };
 export type MemberContribution = { id: number; registrationId?: number | null; paymentStatus: string; amount: number };
@@ -35,7 +37,7 @@ export function memberBalance<R extends MemberRegistration, C extends MemberCont
       ? r.ledger.balanceCents + r.ledger.contributions.reduce((s, c) => s + c.outstandingCents, 0)
       : r.paymentStatus === "paid" || r.paymentStatus === "waived"
         ? 0
-        : Math.round(computeTotal(fees, r.attendees, r.selectedFeeIds ?? []) * 100) +
+        : Math.round(computeTotal(fees, r.attendees, r.selectedFeeIds ?? [], r.addOns ?? []) * 100) +
           contributions
             .filter((c) => c.registrationId === r.id && c.paymentStatus === "pending")
             .reduce((s, c) => s + Math.round(c.amount * 100), 0);

@@ -1,7 +1,7 @@
-import { pgTable, text, integer, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, pgEnum, boolean, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
-import { reunionsTable, reunionFeesTable } from "./reunions";
+import { reunionsTable, reunionFeesTable, type AddOnPurchase } from "./reunions";
 
 export const shirtSizeEnum = pgEnum("shirt_size", [
   "XS",
@@ -45,6 +45,7 @@ export const registrationsTable = pgTable("registrations", {
   // Free-form branch name, validated against the reunion's own branch list
   branchName: text("branch_name").notNull(),
   attendeeCount: integer("attendee_count").notNull(),
+  addOns: jsonb("add_ons").$type<AddOnPurchase[]>(),
   paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
   status: registrationStatusEnum("status").notNull().default("active"),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
@@ -74,6 +75,7 @@ export const attendeesTable = pgTable("attendees", {
   // not charge it to a newly added attendee or erase it from an existing one.
   dinnerFeeIds: integer("dinner_fee_ids").array(),
   includeShirt: boolean("include_shirt").notNull().default(true),
+  addOns: jsonb("add_ons").$type<AddOnPurchase[]>(),
 });
 
 /**

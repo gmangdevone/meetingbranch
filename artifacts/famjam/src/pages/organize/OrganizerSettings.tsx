@@ -35,7 +35,8 @@ import { Switch } from "../../components/ui/switch";
 import { useToast } from "../../hooks/use-toast";
 import { ImageLibraryDialog } from "../../components/ImageLibraryDialog";
 import { useCreateReunionImage, getListReunionImagesQueryKey } from "@workspace/api-client-react";
-import { describeFee, isDinnerFee } from "../../lib/fees";
+import { describeFee, isDinnerFee, isAddOnFee } from "../../lib/fees";
+import { AddOnCatalogEditor, emptyAddOnDraft, addOnDraftFromFee, addOnDraftToPayload, type AddOnDraft } from "../../components/AddOnCatalogEditor";
 import { DinnerModeControls } from "../../components/DinnerModeControls";
 import { ROLE_OPTIONS, ROLE_LABELS } from "../../lib/roles";
 import {
@@ -363,7 +364,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
 
         <HubImagesManager reunionId={reunionId} reunion={summary.reunion} />
 
-        <FeesManager reunionId={reunionId} fees={summary.reunion.fees} collectShirtSizes={summary.reunion.collectShirtSizes ?? false} canManageDinner={!!summary.viewer?.roles.includes("registration")} />
+        <FeesManager reunionId={reunionId} fees={summary.reunion.fees} canManageDinner={!!summary.viewer?.roles.includes("registration")} />
 
         {summary.viewer?.canManageOrganizers && <CoOrganizers reunionId={reunionId} />}
         {/* CoOrganizers is only shown to owner/admin (canManageOrganizers), so all
@@ -833,9 +834,10 @@ type FeeFormState = {
   chargeType: "per_person" | "flat";
   isOptional: boolean;
   isDinner: boolean;
-  isShirt: boolean;
   amount: string;
   tiers: TierFormRow[];
+  isAddOn: boolean;
+  addOn: AddOnDraft;
 };
 
 const EMPTY_FEE: FeeFormState = {
@@ -843,9 +845,10 @@ const EMPTY_FEE: FeeFormState = {
   chargeType: "per_person",
   isOptional: false,
   isDinner: false,
-  isShirt: false,
   amount: "",
   tiers: [],
+  isAddOn: false,
+  addOn: emptyAddOnDraft(),
 };
 
 function feeToFormState(fee: ReunionFee): FeeFormState {
@@ -854,7 +857,8 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
     chargeType: fee.chargeType,
     isOptional: fee.isOptional,
     isDinner: fee.isDinner,
-    isShirt: fee.isShirt,
+    isAddOn: isAddOnFee(fee),
+    addOn: addOnDraftFromFee(fee),
     amount: String(fee.amount),
     tiers: (fee.ageTiers ?? []).map((t) => ({
       kind: (t.maxAge == null ? "above" : t.minAge == null ? "below" : "range") as TierKind,
@@ -865,20 +869,8 @@ function feeToFormState(fee: ReunionFee): FeeFormState {
   };
 }
 
-function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { reunionId: number; fees: ReunionFee[]; collectShirtSizes: boolean; canManageDinner: boolean }) {
+function FeesManager({ reunionId, fees, canManageDinner }: { reunionId: number; fees: ReunionFee[]; canManageDinner: boolean }) {
   const queryClient = useQueryClient();
-  const shirtMutation = useUpdateReunion();
-  const [shirtFeedback, setShirtFeedback] = useState("");
-  const toggleShirts = async (checked: boolean) => {
-    setShirtFeedback("");
-    try {
-      await shirtMutation.mutateAsync({ reunionId, data: { collectShirtSizes: checked } });
-      await queryClient.invalidateQueries();
-      setShirtFeedback(checked ? "T-shirt sizes enabled for registration." : "T-shirt sizes hidden from registration. Saved sizes are preserved.");
-    } catch {
-      setShirtFeedback("Could not save the T-shirt setting. Please try again.");
-    }
-  };
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<FeeFormState>(EMPTY_FEE);
@@ -909,6 +901,29 @@ function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { 
 
   const buildPayload = (): FeeInput | null => {
     const label = draft.label.trim();
+    if (draft.isAddOn) {
+      if (!label) {
+        setError("Please give this add-on a name.");
+        return null;
+      }
+      const res = addOnDraftToPayload(draft.addOn);
+      if ("error" in res) {
+        setError(res.error);
+        return null;
+      }
+      return {
+        label,
+        chargeType: draft.chargeType,
+        isOptional: draft.isOptional,
+        isAddOn: true,
+        retired: draft.addOn.retired,
+        basePriceCents: res.basePriceCents,
+        amount: Math.round(res.basePriceCents / 100),
+        optionGroups: res.optionGroups,
+        ageTiers: [],
+        isDinner: false,
+      };
+    }
     const amount = Number(draft.amount);
     if (!label) {
       setError("Please give this fee a label.");
@@ -964,7 +979,7 @@ function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { 
       ageTiers: useTiers ? ageTiers : [],
       // Saved explicitly so a rename never changes dinner treatment. Flat fees can't be dinner.
       isDinner: draft.chargeType === "per_person" ? draft.isDinner : false,
-      isShirt: draft.chargeType === "per_person" ? draft.isShirt : false,
+      isAddOn: false,
       // Never reset an existing dinner mode through the full fee editor.
       ...(() => {
         const mode = typeof editingId === "number" ? fees.find((f) => f.id === editingId)?.dinnerMode : null;
@@ -992,7 +1007,7 @@ function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { 
   };
 
   const remove = (fee: ReunionFee) => {
-    if (!window.confirm(`Remove "${fee.label}"? Families will no longer be charged this fee.`)) return;
+    if (!window.confirm(isAddOnFee(fee) ? `Remove "${fee.label}"? Saved purchases are kept, but to simply stop new orders you can edit it and mark it Retired instead.` : `Remove "${fee.label}"? Families will no longer be charged this fee.`)) return;
     deleteMutation.mutate(
       { reunionId, feeId: fee.id },
       {
@@ -1009,18 +1024,10 @@ function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { 
     <div className="bg-card border shadow-sm rounded-3xl p-6 md:p-8 space-y-5">
       <div>
         <h2 className="font-serif text-2xl font-bold">Fees &amp; Dues</h2>
-        <div className="my-4 border rounded-xl p-4 space-y-2">
-          <div className="flex items-center justify-between gap-4">
-            <label htmlFor="collect-shirt-sizes" className="font-medium">Collect T-shirt sizes</label>
-            <Switch id="collect-shirt-sizes" checked={collectShirtSizes} disabled={shirtMutation.isPending} onCheckedChange={toggleShirts} />
-          </div>
-          <p className="text-sm text-muted-foreground">Show a size selector for each attendee during registration. Turning this off hides it and preserves saved sizes. This does not add a charge.</p>
-          {shirtFeedback && <p role="status" className="text-sm">{shirtFeedback}</p>}
-        </div>
-        {canManageDinner && <div className="mb-4"><DinnerModeControls reunionId={reunionId} fees={fees} /></div>}
+{canManageDinner && <div className="mb-4"><DinnerModeControls reunionId={reunionId} fees={fees} /></div>}
         <p className="text-sm text-muted-foreground mt-1">
-          Add every charge for this reunion — registration fees, dues, T-shirts, and more. Choose how
-          each is charged, whether it's optional, and set an age-based price if you like.
+          Add every charge for this reunion. Fees and dues can use age-based pricing. Add-on items
+          (anything families pick, from apparel to keepsakes) can have option groups with price adjustments.
         </p>
       </div>
 
@@ -1049,11 +1056,13 @@ function FeesManager({ reunionId, fees, collectShirtSizes, canManageDinner }: { 
                           Optional
                         </span>
                       )}
-                      {fee.isShirt && (
-                        <span className="text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5"
-                          title="Edit and save to keep T-shirt pricing unchanged when renaming">
-                          {fee.shirtClassification === "detected" ? "T-shirt (detected)" : "T-shirt"}
+                      {isAddOnFee(fee) && (
+                        <span className="text-xs font-bold text-primary bg-primary/10 rounded-full px-2 py-0.5" data-testid={`fee-addon-badge-${fee.id}`}>
+                          Add-on{fee.isOptional ? "" : " · Mandatory"}{(fee.optionGroups ?? []).length ? ` · ${(fee.optionGroups ?? []).length} option ${(fee.optionGroups ?? []).length === 1 ? "group" : "groups"}` : ""}
                         </span>
+                      )}
+                      {fee.retired && (
+                        <span className="text-xs font-bold text-muted-foreground bg-muted rounded-full px-2 py-0.5">Retired</span>
                       )}
                       {fee.isDinner && (
                         <span
@@ -1156,9 +1165,24 @@ function FeeEditor({
 
   return (
     <div className="p-4 space-y-4">
+      <div className="inline-flex rounded-full border bg-background p-1" role="tablist" aria-label="Item kind">
+        {([false, true] as const).map((addOn) => (
+          <button
+            key={String(addOn)}
+            type="button"
+            role="tab"
+            aria-selected={draft.isAddOn === addOn}
+            data-testid={addOn ? "fee-kind-addon" : "fee-kind-fee"}
+            onClick={() => setDraft((prev) => ({ ...prev, isAddOn: addOn, ...(addOn ? { isDinner: false, tiers: [] } : {}) }))}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${draft.isAddOn === addOn ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {addOn ? "Add-on item" : "Fee or dues"}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
-          <label className="text-sm font-bold block mb-1">Label</label>
+          <label className="text-sm font-bold block mb-1">{draft.isAddOn ? "Item name" : "Label"}</label>
           <Input
             className="rounded-xl bg-background"
             placeholder="e.g. Registration Fee, T-Shirt, Facility Dues"
@@ -1187,7 +1211,7 @@ function FeeEditor({
           </div>
         </div>
 
-        <div>
+        {!draft.isAddOn && <div>
           <label className="text-sm font-bold block mb-1">
             {draft.chargeType === "per_person" && draft.tiers.length > 0 ? "Standard amount ($)" : "Amount ($)"}
           </label>
@@ -1199,7 +1223,7 @@ function FeeEditor({
             value={draft.amount}
             onChange={(e) => set("amount", e.target.value)}
           />
-        </div>
+        </div>}
       </div>
 
       <label className="flex items-center gap-3 cursor-pointer">
@@ -1209,11 +1233,21 @@ function FeeEditor({
         />
         <span className="text-sm">
           <span className="font-medium">Optional</span>
-          <span className="text-muted-foreground"> — families choose whether to add this</span>
+          <span className="text-muted-foreground">
+            {draft.isAddOn
+              ? draft.isOptional
+                ? ` · families can decline this ${draft.chargeType === "flat" ? "for the household" : "per attendee"}`
+                : ` · unchecked = Mandatory: included for every ${draft.chargeType === "flat" ? "household" : "attendee"} on new registrations and edits`
+              : " · families choose whether to add this"}
+          </span>
         </span>
       </label>
 
-      {draft.chargeType === "per_person" ? (
+      {draft.isAddOn && (
+        <AddOnCatalogEditor value={draft.addOn} onChange={(addOn) => setDraft((prev) => ({ ...prev, addOn }))} />
+      )}
+
+      {draft.isAddOn ? null : draft.chargeType === "per_person" ? (
         <label className="flex items-center gap-3 cursor-pointer">
           <Checkbox
             checked={draft.isDinner}
@@ -1229,19 +1263,8 @@ function FeeEditor({
         <p className="text-xs text-muted-foreground">Flat fees can't be dinner fees: one household charge can't be removed for a single attendee.</p>
       )}
 
-      {draft.chargeType === "per_person" ? (
-        <label className="flex items-center gap-3 cursor-pointer">
-          <Checkbox checked={draft.isShirt} onCheckedChange={(v) => set("isShirt", v === true)} data-testid="fee-is-shirt" />
-          <span className="text-sm">
-            <span className="font-medium">T-shirt fee</span>
-            <span className="text-muted-foreground"> — charge only attendees who choose a T-shirt, regardless of the fee name</span>
-          </span>
-        </label>
-      ) : (
-        <p className="text-xs text-muted-foreground">Flat fees remain household-wide and cannot be T-shirt fees.</p>
-      )}
 
-      {draft.chargeType === "per_person" && (
+      {!draft.isAddOn && draft.chargeType === "per_person" && (
         <div className="space-y-3">
           <div>
             <p className="text-sm font-medium">Age-based pricing</p>

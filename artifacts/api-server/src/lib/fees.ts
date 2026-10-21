@@ -1,6 +1,8 @@
-import type { ReunionFee, FeeAgeTier } from "@workspace/db";
+import type { ReunionFee, FeeAgeTier, AddOnPurchase } from "@workspace/db";
+import { catalogFee } from "./addOns";
 
 export interface FeeAttendee {
+  addOns?: AddOnPurchase[] | null;
   dinnerFeeIds?: number[] | null;
   includeShirt?: boolean | null;
   age?: number | null;
@@ -17,6 +19,7 @@ export function isShirtFee(fee: { chargeType: string; label?: string | null; isS
 
 /** Fields needed to classify a fee as dinner. */
 export interface DinnerClassifiable {
+  isAddOn?: boolean;
   id?: number;
   dinnerMode?: "hidden" | "optional" | "mandatory" | null;
   chargeType: string;
@@ -31,6 +34,7 @@ export interface DinnerClassifiable {
  * a label containing "dinner". Mirrors the web app copy.
  */
 export function isDinnerFee(fee: DinnerClassifiable): boolean {
+  if (fee.isAddOn) return false;
   if (fee.chargeType !== "per_person") return false;
   if (fee.isDinner != null) return fee.isDinner;
   return /dinner/i.test(fee.label ?? "");
@@ -38,7 +42,8 @@ export function isDinnerFee(fee: DinnerClassifiable): boolean {
 
 /** API shape: resolved isDinner plus where it came from. */
 export function serializeFee<T extends DinnerClassifiable>(fee: T): Omit<T, "isDinner" | "isShirt"> & { isDinner: boolean; dinnerClassification: "explicit" | "detected"; isShirt: boolean; shirtClassification: "explicit" | "detected" } {
-  return { ...fee, isDinner: isDinnerFee(fee), dinnerClassification: fee.isDinner == null ? "detected" : "explicit", isShirt: isShirtFee(fee), shirtClassification: fee.isShirt == null ? "detected" : "explicit" };
+  const mapped = catalogFee(fee as unknown as ReunionFee);
+  return { ...fee, ...mapped, isDinner: isDinnerFee(mapped), dinnerClassification: fee.isDinner == null ? "detected" : "explicit", isShirt: mapped.isAddOn ? false : isShirtFee(fee), shirtClassification: fee.isShirt == null ? "detected" : "explicit" };
 }
 
 /** A mandatory fee always applies; an optional fee applies only if it was selected. */
@@ -90,10 +95,14 @@ export function computeTotal(
   fees: (Pick<ReunionFee, "id" | "isOptional" | "chargeType" | "amount" | "ageTiers"> & DinnerClassifiable)[],
   attendees: FeeAttendee[],
   selectedFeeIds: number[],
+  householdAddOns: AddOnPurchase[] = [],
 ): number {
-  return fees.reduce(
-    (sum, fee) =>
-      feeApplies(fee, selectedFeeIds) ? sum + computeFeeAmount(fee, attendees) : sum,
-    0,
-  );
+  const regular = fees.reduce((sum, fee) => {
+    if (fee.isAddOn) return sum;
+    const people = isShirtFee(fee) ? attendees.filter(a => a.addOns == null) : attendees;
+    return feeApplies(fee, selectedFeeIds) ? sum + computeFeeAmount(fee, people) : sum;
+  }, 0);
+  return (Math.round(regular * 100) +
+    attendees.flatMap(a => a.addOns ?? []).reduce((s, p) => s + p.unitPriceCents, 0) +
+    householdAddOns.reduce((s, p) => s + p.unitPriceCents, 0)) / 100;
 }

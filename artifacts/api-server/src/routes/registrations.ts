@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 import {
   db,
   registrationsTable,
@@ -35,6 +35,7 @@ import { requireAuth } from "../middlewares/requireAuth";
 import { ensureLedgerInitialized, rows, isValidCents, isValidIsoDate, parseDollarsToCents, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { sendRegistrationConfirmation } from "../lib/email";
 import { resolveDinnerSelections } from "../lib/dinnerSelections";
+import { hydrateAddOns, resolveAddOns } from "../lib/addOns";
 import { dinnerSelectionChanges, recordDinnerChanges } from "../lib/dinnerHistory";
 import { upsertUserFromClerk } from "../lib/users";
 
@@ -46,6 +47,7 @@ async function getFullRegistration(id: number) {
   const [row] = await db
     .select({
       id: registrationsTable.id,
+      addOns: registrationsTable.addOns,
       reunionId: registrationsTable.reunionId,
       userId: registrationsTable.userId,
       branchName: registrationsTable.branchName,
@@ -64,7 +66,7 @@ async function getFullRegistration(id: number) {
   if (!row) return null;
 
   const [attendees, selectedFees] = await Promise.all([
-    db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, id)),
+    db.select().from(attendeesTable).where(eq(attendeesTable.registrationId, id)).orderBy(asc(attendeesTable.id)),
     db
       .select({ feeId: registrationFeesTable.feeId })
       .from(registrationFeesTable)
@@ -72,7 +74,8 @@ async function getFullRegistration(id: number) {
   ]);
 
   const ledger = (await loadLedgers(db, [row.id])).get(row.id);
-  return { ...row, attendees, selectedFeeIds: selectedFees.map((f) => f.feeId), ledger };
+  const fees = await db.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, row.reunionId));
+  return { ...row, addOns: row.addOns ?? [], attendees: hydrateAddOns(fees, selectedFees.map(f => f.feeId), attendees), selectedFeeIds: selectedFees.map((f) => f.feeId), ledger };
 }
 
 // POST /registrations
@@ -100,10 +103,6 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     res.status(403).json({
       error: "Registration is currently closed for this reunion. Check back later or contact your organizer.",
     });
-    return;
-  }
-  if (reunion.collectShirtSizes && attendees.some(a => a.includeShirt !== false && !a.shirtSize)) {
-    res.status(400).json({ error: "Please select a T-shirt size for every attendee." });
     return;
   }
 
@@ -135,14 +134,20 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
   const { email: clerkEmail, firstName: clerkFirstName } =
     await upsertUserFromClerk(userId, req.log);
 
-  const registration = await db.transaction(async tx => {
+  let registration;
+  try {
+  registration = await db.transaction(async tx => {
+  await lockReunionRow(tx, reunionId);
+  const liveFees = await tx.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, reunionId));
+  const merchandise = resolveAddOns(liveFees, dinner.attendees, parsed.data.addOns, undefined, selectedFeeIds ?? []);
   const [created] = await tx
     .insert(registrationsTable)
-    .values({ reunionId, userId, branchName, attendeeCount: attendees.length })
+    .values({ reunionId, userId, branchName, attendeeCount: attendees.length, addOns: merchandise.addOns })
     .returning();
 
   await tx.insert(attendeesTable).values(
-    dinner.attendees.map((a) => ({
+    merchandise.attendees.map((a) => ({
+      addOns: a.addOns,
       registrationId: created.id,
       name: a.name,
       shirtSize: a.includeShirt === false ? null : a.shirtSize,
@@ -163,6 +168,12 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
     dinnerSelectionChanges(fees, dinner.attendees, dinner.previous, [], chosenFeeIds), created.id);
   return created;
   });
+  } catch (error) {
+    if (error instanceof Error && /add-on|attendee/i.test(error.message)) {
+      res.status(400).json({ error: error.message }); return;
+    }
+    throw error;
+  }
 
   if (sponsorshipContribution && sponsorshipContribution > 0) {
     await db.insert(sponsorshipContributionsTable).values({
@@ -183,6 +194,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
       toName: clerkFirstName || "Family Member",
       branchName,
       attendees: full.attendees,
+      addOns: full.addOns,
       selectedFeeIds: chosenFeeIds,
       registrationId: registration.id,
       registeredAt: registration.createdAt,
@@ -324,10 +336,6 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
   }
 
   const { branchName, attendees, selectedFeeIds } = body.data;
-  if (reunion.collectShirtSizes && attendees.some(a => a.includeShirt !== false && !a.shirtSize)) {
-    res.status(400).json({ error: "Please select a T-shirt size for every attendee." });
-    return;
-  }
 
   // Branch must be one of the reunion's configured branches (when it has any)
   const branches = await db
@@ -346,6 +354,10 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     .where(eq(reunionFeesTable.reunionId, registration.reunionId));
   try {
     await db.transaction(async (tx) => {
+    await lockReunionRow(tx, registration.reunionId);
+    const liveFees = await tx.select().from(reunionFeesTable).where(eq(reunionFeesTable.reunionId, registration.reunionId));
+    const [currentReg] = await tx.select().from(registrationsTable).where(eq(registrationsTable.id, registration.id)).for("update");
+    if (currentReg.status !== "active") throw new Error("Cancelled registration attendees cannot be edited.");
     // Attendee/fee edits recalculate charges: freeze legacy paid money first,
     // and re-sync the status columns in the same transaction.
     await ensureLedgerInitialized(tx, registration.id, userId);
@@ -354,43 +366,47 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
       .set({ branchName, attendeeCount: attendees.length })
       .where(eq(registrationsTable.id, registration.id));
 
-    // Replace attendees wholesale, preserving check-in state by matching names
-    // (attendee ids are not exposed in the edit form input). Matches are
-    // consumed one-to-one so duplicate names cannot double-assign a check-in.
+    // Keep existing attendee identities stable across edits and purchase changes.
     const existing = await tx
       .select()
       .from(attendeesTable)
       .where(eq(attendeesTable.registrationId, registration.id));
     const oldFees = await tx.select().from(registrationFeesTable).where(eq(registrationFeesTable.registrationId, registration.id));
-    const dinner = resolveDinnerSelections(fees, attendees, selectedFeeIds ?? [], isManager, {
+    const dinner = resolveDinnerSelections(liveFees, attendees, selectedFeeIds ?? [], isManager, {
       attendees: existing, selectedFeeIds: oldFees.map(f => f.feeId),
     });
     const chosenFeeIds = dinner.selectedFeeIds;
+    const merchandise = resolveAddOns(liveFees, dinner.attendees, body.data.addOns, {
+      attendees: hydrateAddOns(liveFees, oldFees.map(f => f.feeId), existing),
+      addOns: currentReg.addOns ?? [],
+    }, selectedFeeIds ?? []);
+    await tx.update(registrationsTable).set({ addOns: merchandise.addOns }).where(eq(registrationsTable.id, registration.id));
     await recordDinnerChanges(tx, registration.reunionId, userId, "selection",
       dinnerSelectionChanges(fees, dinner.attendees, dinner.previous, oldFees.map(f => f.feeId), chosenFeeIds),
       registration.id);
-    const checkInsByName = new Map<string, Date[]>();
-    for (const a of existing) {
-      if (!a.checkedInAt) continue;
-      const key = a.name.trim().toLowerCase();
-      const list = checkInsByName.get(key) ?? [];
-      list.push(a.checkedInAt);
-      checkInsByName.set(key, list);
-    }
-    await tx.delete(attendeesTable).where(eq(attendeesTable.registrationId, registration.id));
-    await tx.insert(attendeesTable).values(
-      dinner.attendees.map((a) => ({
+    const retainedIds = new Set<number>();
+    for (const [index, a] of merchandise.attendees.entries()) {
+      const old = dinner.previous[index];
+      const values = {
+        addOns: a.addOns,
         registrationId: registration.id,
         name: a.name,
-        shirtSize: a.includeShirt === false ? null : a.shirtSize,
+        shirtSize: a.shirtSize,
         includeShirt: a.includeShirt ?? true,
         dietaryRestrictions: a.dietaryRestrictions ?? null,
         age: a.age ?? null,
         includeDinner: a.includeDinner ?? true,
         dinnerFeeIds: a.dinnerFeeIds,
-        checkedInAt: checkInsByName.get(a.name.trim().toLowerCase())?.shift() ?? null,
-      })),
-    );
+      };
+      if (old?.id != null) {
+        retainedIds.add(old.id);
+        await tx.update(attendeesTable).set(values).where(and(eq(attendeesTable.id, old.id), eq(attendeesTable.registrationId, registration.id)));
+      } else {
+        await tx.insert(attendeesTable).values(values);
+      }
+    }
+    const removedIds = existing.filter(a => !retainedIds.has(a.id)).map(a => a.id);
+    if (removedIds.length) await tx.delete(attendeesTable).where(inArray(attendeesTable.id, removedIds));
 
     await tx
       .delete(registrationFeesTable)
@@ -403,7 +419,7 @@ router.put("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     await syncLedgerStatus(tx, registration.id);
     });
   } catch (error) {
-    if (error instanceof Error && /dinner|attendee|selected fees/i.test(error.message)) {
+    if (error instanceof Error && /dinner|attendee|selected fees|add-on/i.test(error.message)) {
       res.status(400).json({ error: error.message });
       return;
     }

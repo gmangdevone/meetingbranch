@@ -5,6 +5,7 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+import type { AddOnOptionGroup } from './addOnOptionGroup';
 import type { FeeAgeTier } from './feeAgeTier';
 import type { FeeChargeType } from './feeChargeType';
 import type { ReunionFeeDinnerClassification } from './reunionFeeDinnerClassification';
@@ -12,6 +13,11 @@ import type { ReunionFeeDinnerMode } from './reunionFeeDinnerMode';
 import type { ReunionFeeShirtClassification } from './reunionFeeShirtClassification';
 
 export interface ReunionFee {
+  isAddOn?: boolean;
+  retired?: boolean;
+  /** @nullable */
+  basePriceCents?: number | null;
+  optionGroups?: AddOnOptionGroup[];
   /**
      * Null retains legacy behavior. Configured dinner fees apply only when saved in selectedFeeIds, regardless of current visibility.
      * @nullable

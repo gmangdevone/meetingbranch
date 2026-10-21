@@ -179,10 +179,10 @@ it("shows add-on quantities and the correct recipients in the check-in dialog", 
     fireEvent.click(screen.getByRole("button", { name: /0\/2/ }));
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Dinner: Included");
-    expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("T-Shirt Size: L");
+    expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Historical size on file: L");
     expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("No individual add-ons");
     expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("Dinner: Not included");
-    expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("T-Shirt Size: S");
+    expect(dialog.getByText("Sam Child").parentElement).toHaveTextContent("Historical size on file: S");
     expect(dialog.getByText("Household add-ons")).toBeInTheDocument();
     expect(dialog.getByText("Photo package × 1")).toBeInTheDocument();
   } finally {
