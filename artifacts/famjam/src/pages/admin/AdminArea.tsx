@@ -24,13 +24,13 @@ export function AdminArea() {
     query: { retry: false, queryKey: getAdminListReunionsQueryKey() }
   });
 
-  const { data: adminSettings } = useAdminGetSettings({
+  const { data: adminSettings, isError: settingsError, isFetching: fetchingSettings, refetch: refetchSettings } = useAdminGetSettings({
     query: { enabled: !!adminReunions, queryKey: getAdminGetSettingsQueryKey() }
   });
   const updateSettingsMutation = useAdminUpdateSettings();
   const toggleAdminMutation = useAdminToggleAdminFlag();
   const removeUserMutation = useAdminRemoveUser();
-  const { data: users } = useAdminListUsers({ query: { enabled: !!adminReunions, queryKey: getAdminListUsersQueryKey() } });
+  const { data: users, isError: usersError, isFetching: fetchingUsers, refetch: refetchUsers } = useAdminListUsers({ query: { enabled: !!adminReunions, queryKey: getAdminListUsersQueryKey() } });
   const { userId: myUserId } = useAuth();
 
   const [newTesterEmail, setNewTesterEmail] = useState("");
@@ -159,7 +159,35 @@ export function AdminArea() {
     );
   }
 
-  if (loadingReunions || !adminReunions || !adminSettings || !users) {
+  if (loadingReunions || !adminReunions) {
+    return <div className="p-8 text-center text-muted-foreground">Loading admin area...</div>;
+  }
+
+  if (settingsError || usersError) {
+    return (
+      <div className="max-w-xl mx-auto py-12 space-y-6">
+        <h1 className="font-serif text-3xl font-bold">Unable to load admin area</h1>
+        {settingsError && (
+          <div role="alert" className="bg-card border rounded-3xl p-6 space-y-4">
+            <p>Could not load settings. Please try again.</p>
+            <Button variant="outline" onClick={() => void refetchSettings()} disabled={fetchingSettings}>
+              {fetchingSettings ? "Retrying settings..." : "Retry settings"}
+            </Button>
+          </div>
+        )}
+        {usersError && (
+          <div role="alert" className="bg-card border rounded-3xl p-6 space-y-4">
+            <p>Could not load users. Please try again.</p>
+            <Button variant="outline" onClick={() => void refetchUsers()} disabled={fetchingUsers}>
+              {fetchingUsers ? "Retrying users..." : "Retry users"}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!adminSettings || !users) {
     return <div className="p-8 text-center text-muted-foreground">Loading admin area...</div>;
   }
 
