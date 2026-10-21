@@ -9,6 +9,7 @@ import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
 import { AccessGate } from "./components/AccessGate";
 import { PostLoginLanding } from "./components/PostLoginLanding";
+import { clearOrganizerChoice } from "./lib/organizerSession";
 import { ProfileProvider } from "./lib/profile";
 import { Home } from "./pages/Home";
 import { Dashboard } from "./pages/Dashboard";
@@ -161,6 +162,7 @@ function ClerkQueryClientCacheInvalidator() {
         prevUserIdRef.current !== userId
       ) {
         queryClient.clear();
+        clearOrganizerChoice();
       }
       prevUserIdRef.current = userId;
     });
@@ -287,6 +289,9 @@ function ClerkProviderWithRoutes() {
           </Route>
 
           {/* Organizer routes */}
+          <Route path="/organize/select-event">
+            {() => <ProtectedRoute component={() => <PostLoginLanding chooseEvent />} />}
+          </Route>
           <Route path="/organize/:reunionId">
             {(params) => <ProtectedRoute component={() => <OrganizerOverview params={params} />} />}
           </Route>

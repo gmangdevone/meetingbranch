@@ -4448,7 +4448,7 @@ components:
 
     EventMembership:
       type: object
-      required: [reunionId, code, name, startDate, endDate, isOrganizer, isCoOrganizer, activeRegistrationCount, activeBranchFeeElectionCount]
+      required: [reunionId, code, name, startDate, endDate, isOrganizer, isCoOrganizer, canViewReports, activeRegistrationCount, activeBranchFeeElectionCount]
       properties:
         reunionId:
           type: integer
@@ -4464,6 +4464,9 @@ components:
           type: boolean
         isCoOrganizer:
           type: boolean
+        canViewReports:
+          type: boolean
+          description: Effective Reports permission for an owned or co-organized event. Admin visibility or regular membership alone does not qualify.
         activeBranchFeeElectionCount:
           type: integer
           description: Active branch fees this member chose to pay (fee-only members have no registration). Not headcount.

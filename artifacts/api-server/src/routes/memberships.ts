@@ -4,6 +4,8 @@ import { db, reunionsTable, reunionOrganizersTable, registrationsTable, branchFe
 import { ListMyEventMembershipsResponse } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/requireAuth";
 import { mergeMemberships } from "../lib/memberships";
+import { attachAuth } from "../middlewares/requireAdmin";
+import { hasReunionPermission } from "../middlewares/requireReunionManager";
 
 const router: IRouter = Router();
 
@@ -16,12 +18,12 @@ const cols = {
 };
 
 // GET /me/event-memberships — see lib/memberships.ts for the exact sources.
-router.get("/me/event-memberships", requireAuth, async (req, res): Promise<void> => {
+router.get("/me/event-memberships", requireAuth, attachAuth, async (req, res): Promise<void> => {
   const userId = (req as any).userId as string;
   const [owned, coOrganized, regs, elections] = await Promise.all([
     db.select(cols).from(reunionsTable).where(eq(reunionsTable.organizerId, userId)),
     db
-      .select(cols)
+      .select({ ...cols, roles: reunionOrganizersTable.roles })
       .from(reunionOrganizersTable)
       .innerJoin(reunionsTable, eq(reunionOrganizersTable.reunionId, reunionsTable.id))
       .where(eq(reunionOrganizersTable.userId, userId)),
@@ -37,7 +39,15 @@ router.get("/me/event-memberships", requireAuth, async (req, res): Promise<void>
       .where(and(eq(branchFeeElectionsTable.userId, userId), eq(branchFeeElectionsTable.status, "active"))),
   ]);
   res.set("Cache-Control", "private, no-store");
-  res.json(ListMyEventMembershipsResponse.parse(mergeMemberships({ owned, coOrganized, registrations: regs, branchFeeElections: elections })));
+  const memberships = mergeMemberships({ owned, coOrganized, registrations: regs, branchFeeElections: elections });
+  res.json(ListMyEventMembershipsResponse.parse(memberships.map(m => ({
+    ...m,
+    canViewReports: (m.isOrganizer || m.isCoOrganizer) && hasReunionPermission({
+      isOwner: m.isOrganizer,
+      isAdmin: req.isAdmin === true,
+      roles: coOrganized.find(r => r.id === m.reunionId)?.roles ?? [],
+    }, "reports"),
+  }))));
 });
 
 export default router;

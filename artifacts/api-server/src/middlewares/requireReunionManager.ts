@@ -15,6 +15,13 @@ export interface ReunionAccess {
   roles: ReunionRole[];
 }
 
+export function hasReunionPermission(
+  access: Pick<ReunionAccess, "isOwner" | "isAdmin" | "roles">,
+  role: ReunionRole,
+): boolean {
+  return access.isOwner || access.isAdmin || access.roles.includes(role);
+}
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
@@ -114,7 +121,7 @@ export function requireReunionPermission(role: ReunionRole) {
         .json({ error: "requireReunionPermission must run after requireReunionManager" });
       return;
     }
-    if (access.isOwner || access.isAdmin || access.roles.includes(role)) {
+    if (hasReunionPermission(access, role)) {
       next();
       return;
     }

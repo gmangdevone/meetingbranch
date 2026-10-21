@@ -852,6 +852,7 @@ export const ListMyEventMembershipsResponseItem = zod.object({
   "endDate": zod.string(),
   "isOrganizer": zod.boolean(),
   "isCoOrganizer": zod.boolean(),
+  "canViewReports": zod.boolean().describe('Effective Reports permission for an owned or co-organized event. Admin visibility or regular membership alone does not qualify.'),
   "activeBranchFeeElectionCount": zod.number().describe('Active branch fees this member chose to pay (fee-only members have no registration). Not headcount.'),
   "activeRegistrationCount": zod.number()
 })

@@ -89,6 +89,9 @@ export function OrganizerLayout({
           <div className="mb-4 px-4 pt-2 pb-4 border-b">
             <h2 className="font-bold text-lg truncate" title={reunion.name}>{reunion.name}</h2>
             <div className="text-xs text-muted-foreground font-mono mt-1">Event Code: {reunion.code}</div>
+            <Link href="/organize/select-event" className="inline-flex py-3 text-sm font-bold text-primary hover:underline">
+              Switch event
+            </Link>
           </div>
 
           <nav className="flex flex-col gap-1">

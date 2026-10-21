@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 
 const authState = vi.hoisted(() => ({ userId: null as string | null }));
 vi.mock("@clerk/express", () => ({
@@ -58,19 +58,40 @@ describe.skipIf(!hasDb)("GET /api/me/event-memberships (real DB)", () => {
     expect(res.status).toBe(200);
     expect(res.headers["cache-control"]).toContain("no-store");
     expect(res.body.map((m: any) => m.reunionId)).toEqual([ids[0], ids[1]]);
-    expect(res.body[0]).toMatchObject({ activeRegistrationCount: 2, isCoOrganizer: false });
-    expect(res.body[1]).toMatchObject({ activeRegistrationCount: 0, isCoOrganizer: true });
+    expect(res.body[0]).toMatchObject({ activeRegistrationCount: 2, isCoOrganizer: false, canViewReports: false });
+    expect(res.body[1]).toMatchObject({ activeRegistrationCount: 0, isCoOrganizer: true, canViewReports: false });
   });
   it("lists every owned event for the organizer", async () => {
     authState.userId = OWNER;
     const res = await request(app).get("/api/me/event-memberships");
     expect(res.body.map((m: any) => m.reunionId)).toEqual(ids);
     expect(res.body.every((m: any) => m.isOrganizer)).toBe(true);
+    expect(res.body.every((m: any) => m.canViewReports)).toBe(true);
   });
   it("does not treat admin visibility or no association as membership", async () => {
     for (const u of [ADMIN, NOBODY]) {
       authState.userId = u;
       expect((await request(app).get("/api/me/event-memberships")).body).toEqual([]);
     }
+  });
+  it("uses effective Reports permission, including grants and revocation", async () => {
+    authState.userId = MEMBER;
+    for (const [roles, allowed] of [
+      [["reports"], true], [["power_user"], false], [["power_user", "reports"], true], [[], false],
+    ] as const) {
+      await db.update(reunionOrganizersTable).set({ roles: [...roles] }).where(eq(reunionOrganizersTable.userId, MEMBER));
+      const res = await request(app).get("/api/me/event-memberships");
+      expect(res.status).toBe(200);
+      expect(res.body.find((m: any) => m.reunionId === ids[1]).canViewReports).toBe(allowed);
+    }
+  });
+  it("admin access qualifies only events actually managed, not attendee-only membership", async () => {
+    await db.insert(registrationsTable).values({ reunionId: ids[0], userId: ADMIN, branchName: "Admin", attendeeCount: 1 });
+    await db.insert(reunionOrganizersTable).values({ reunionId: ids[1], userId: ADMIN, roles: [] });
+    authState.userId = ADMIN;
+    const res = await request(app).get("/api/me/event-memberships");
+    expect(res.body).toHaveLength(2);
+    expect(res.body[0].canViewReports).toBe(false);
+    expect(res.body[1].canViewReports).toBe(true);
   });
 });
