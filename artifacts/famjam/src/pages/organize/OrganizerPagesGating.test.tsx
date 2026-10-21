@@ -10,7 +10,9 @@ import type { ReunionRole, ReunionViewerPermissions } from "@workspace/api-clien
 //
 // `summary` must be a STABLE reference across renders (OrganizerSettings resets
 // a form in an effect keyed on it), so each test assigns it once via setSummary.
-const hoisted = vi.hoisted(() => ({ summary: null as unknown, registrations: [] as unknown[] }));
+const hoisted = vi.hoisted(() => ({ summary: null as unknown, registrations: [] as unknown[], viewFields: ["date", "balance", "payment"] as string[] }));
+
+vi.mock("@clerk/react", () => ({ useUser: () => ({ user: { id: "user_1" } }) }));
 
 vi.mock("wouter", () => ({
   Link: ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -51,6 +53,10 @@ vi.mock("@workspace/api-client-react", () => {
     getGetSponsorshipFundQueryKey: (id: number) => ["sponsorshipFund", id],
     useExportReunionRegistrations: () => ({ refetch: vi.fn(), isFetching: false }),
     getGetReunionSummaryQueryKey: (id: number) => ["reunionSummary", id],
+    useGetMyRegistrationView: () => ({ data: { fields: hoisted.viewFields, resetInvalid: false }, isLoading: false, isError: false, refetch: vi.fn() }),
+    getGetMyRegistrationViewQueryKey: () => ["/api/me/registration-view"],
+    useUpdateMyRegistrationView: () => ({ mutate: vi.fn(), isPending: false, reset: vi.fn() }),
+    RegistrationViewField: {},
     // Reports
     useGetReunionReports: () => ({
       data: {
@@ -172,11 +178,12 @@ it("shows add-on quantities and the correct recipients in the check-in dialog", 
       { id: 21, name: "Sam Child", age: 8, includeDinner: false, shirtSize: "S", checkedInAt: null },
     ],
   }];
+  hoisted.viewFields = ["addons", "checkin"];
   try {
     render(<OrganizerRegistrations params={{ reunionId: "1" }} />);
     expect(screen.getByText("2 add-ons")).toBeInTheDocument();
     expect(screen.getByText("Dinner × 1")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /0\/2/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Check in Alex: 0 of 2/ }));
     const dialog = within(screen.getByRole("dialog"));
     expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Dinner: Included");
     expect(dialog.getByText("Alex Adult").parentElement).toHaveTextContent("Historical size on file: L");
@@ -187,6 +194,7 @@ it("shows add-on quantities and the correct recipients in the check-in dialog", 
     expect(dialog.getByText("Photo package × 1")).toBeInTheDocument();
   } finally {
     hoisted.registrations = [];
+    hoisted.viewFields = ["date", "balance", "payment"];
   }
 });
 

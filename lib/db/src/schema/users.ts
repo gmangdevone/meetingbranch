@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,7 @@ export const usersTable = pgTable("users", {
   // True for accounts created by an organizer on behalf of a family member
   // (no Clerk identity — they can never sign in themselves).
   isManaged: boolean("is_managed").notNull().default(false),
+  registrationViewFields: jsonb("registration_view_fields").$type<string[] | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

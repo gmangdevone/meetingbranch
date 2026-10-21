@@ -24,6 +24,47 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /me/registration-view:
+    get:
+      operationId: getMyRegistrationView
+      tags: [settings]
+      security:
+        - clerkAuth: []
+      responses:
+        "200":
+          description: Current account's registration view (default when unset)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationView"
+        "401":
+          description: Unauthorized
+        "503":
+          description: Preferences unavailable
+    put:
+      operationId: updateMyRegistrationView
+      tags: [settings]
+      security:
+        - clerkAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationViewInput"
+      responses:
+        "200":
+          description: Saved personal view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegistrationView"
+        "400":
+          description: Invalid fields
+        "401":
+          description: Unauthorized
+        "503":
+          description: Could not save preferences
   /reunions/{reunionId}/checklist/config:
     get:
       operationId: getChecklistConfig
@@ -3002,6 +3043,30 @@ components:
         type: integer
 
   schemas:
+    RegistrationViewField:
+      type: string
+      enum: [date, branch, attendees, addons, checkin, balance, payment, edit, transfer]
+    RegistrationViewInput:
+      type: object
+      additionalProperties: false
+      required: [fields]
+      properties:
+        fields:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/RegistrationViewField"
+    RegistrationView:
+      type: object
+      required: [fields, resetInvalid]
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/RegistrationViewField"
+        resetInvalid:
+          type: boolean
+          description: True when malformed stored preferences were replaced by the default for this response; show an explanatory notice.
     ChecklistCompletionInput:
       type: object
       required: [completed]

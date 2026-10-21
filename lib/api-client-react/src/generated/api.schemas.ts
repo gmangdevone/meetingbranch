@@ -5,6 +5,32 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+export type RegistrationViewField = typeof RegistrationViewField[keyof typeof RegistrationViewField];
+
+
+export const RegistrationViewField = {
+  date: 'date',
+  branch: 'branch',
+  attendees: 'attendees',
+  addons: 'addons',
+  checkin: 'checkin',
+  balance: 'balance',
+  payment: 'payment',
+  edit: 'edit',
+  transfer: 'transfer',
+} as const;
+
+export interface RegistrationViewInput {
+  /** @maxItems 30 */
+  fields: RegistrationViewField[];
+}
+
+export interface RegistrationView {
+  fields: RegistrationViewField[];
+  /** True when malformed stored preferences were replaced by the default for this response; show an explanatory notice. */
+  resetInvalid: boolean;
+}
+
 export interface ChecklistCompletionInput {
   completed: boolean;
 }

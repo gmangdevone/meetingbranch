@@ -25,7 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Search, Download, Filter, Ban, Send, AlertTriangle, Plus, Trash2, ClipboardCheck, Pencil, Receipt, CheckCircle2, Clock } from "lucide-react";
+import { Search, Download, Filter, AlertTriangle, Plus, Trash2, ClipboardCheck, CheckCircle2, Clock } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
@@ -41,15 +41,20 @@ import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
 import { computeTotal, isConfiguredDinner, isDinnerFee, isAddOnFee } from "../../lib/fees";
 import { AddOnPicker, AddOnPurchaseList } from "../../components/AddOnPicker";
-import { addOnProblems, buildPurchases, centsLabel, describeChoices, offeredAddOns, picksToSelections, seedPicks, type AddOnPicks } from "../../lib/addOns";
+import { addOnProblems, buildPurchases, centsLabel, offeredAddOns, picksToSelections, seedPicks, type AddOnPicks } from "../../lib/addOns";
 import { defaultDinnerIds, offeredDinners } from "../../lib/dinnerChoices";
 import { DinnerModeControls } from "../../components/DinnerModeControls";
 import { registrationAddOns, attendeeAddOns, attendeeDinnerStatus } from "../../lib/registrationAddOns";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "../../components/ui/sheet";
-import { LedgerHistory, LedgerStatusBadge } from "../../components/payments/LedgerPanel";
+import { LedgerHistory } from "../../components/payments/LedgerPanel";
 import { RecordPaymentDialog, type PayableRegistration, type RecordPaymentPreset } from "../../components/payments/RecordPaymentDialog";
 import { invalidateMoney, money, parseCents, transferMoneyIds } from "../../components/payments/money";
-import { Wallet, FileSpreadsheet } from "lucide-react";
+import { Wallet, FileSpreadsheet, SlidersHorizontal } from "lucide-react";
+import { RegistrationTable, type DetailKind, type RegistrationActions } from "../../components/registrations/RegistrationTable";
+import { RegistrationDetailsSheet } from "../../components/registrations/RegistrationDetailsSheet";
+import { CustomizeViewDialog } from "../../components/registrations/CustomizeViewDialog";
+import { useRegistrationView } from "../../components/registrations/useRegistrationView";
+import { DEFAULT_FIELDS, FIELD_LABEL, PRESETS, matchPreset } from "../../lib/registrationView";
 
 
 const managedRegistrationSchema = z.object({
@@ -379,6 +384,26 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     }
   };
 
+  // Personal view (account-scoped) and per-row routing. Rows are looked up by
+  // ID from the live list so actions always target the clicked registration.
+  const view = useRegistrationView();
+  const viewFields = view.fields ?? (view.isError ? DEFAULT_FIELDS : null);
+  const tableFields = viewFields ?? DEFAULT_FIELDS;
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [viewSaved, setViewSaved] = useState(false);
+  const [details, setDetails] = useState<{ id: number; kind: DetailKind } | null>(null);
+  const detailsReg = useMemo(() => registrations?.find((r) => r.id === details?.id) ?? null, [registrations, details?.id]);
+  const byId = (id: number) => registrations?.find((r) => r.id === id) ?? null;
+  const rowActions: RegistrationActions = {
+    onCheckIn: (id) => setCheckInRegId(id),
+    onPayments: (id) => setMoneyRegId(id),
+    onSubmissions: (id) => setSubmissionsRegId(id),
+    onEdit: reunion?.code ? (id) => setLocation(eventCodePath(reunion.code, `/register/edit/${id}`)) : null,
+    onTransfer: (id) => setTransferReg(byId(id)),
+    onCancel: (id) => setCancelReg(byId(id)),
+    onDetails: (id, kind) => setDetails({ id, kind }),
+  };
+
   const handleCancel = () => {
     if (!cancelReg) return;
     const isPaid = (cancelReg.ledger ? cancelReg.ledger.confirmedCents + cancelReg.ledger.legacyCreditCents : 0) > 0 || cancelReg.paymentStatus === 'paid';
@@ -473,179 +498,40 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-muted-foreground uppercase bg-muted/50 rounded-t-xl">
-                <tr>
-                  <th className="px-4 py-3 rounded-tl-xl">Registrant</th>
-                  <th className="px-4 py-3">Branch</th>
-                  <th className="px-4 py-3">Attendees</th>
-                  <th className="px-4 py-3">Add-ons</th>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Check-in</th>
-                  <th className="px-4 py-3">Balance</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3 rounded-tr-xl">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {isLoading ? (
-                  <tr><td colSpan={9} className="text-center py-8">Loading...</td></tr>
-                ) : filteredRegistrations.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No registrations found.</td></tr>
-                ) : (
-                  filteredRegistrations.map((reg) => {
-                    const isCancelled = reg.status === 'cancelled';
-                    const addOns = registrationAddOns(reunion?.fees ?? [], reg.selectedFeeIds ?? [], reg.attendees);
-                    const addOnQuantity = addOns.reduce((sum, item) => sum + item.quantity, 0);
-                    const purchases = [...reg.attendees.flatMap(a => a.addOns ?? []), ...(reg.addOns ?? [])];
-                    const shirtSizes = purchases.length === 0 ? reg.attendees.filter(a => a.shirtSize).length : 0;
-                    const registrationTotal = computeTotal(
-                      reunion?.fees ?? [],
-                      reg.attendees,
-                      reg.selectedFeeIds ?? [],
-                      reg.addOns ?? [],
-                    );
-                    return (
-                    <tr key={reg.id} className={`hover:bg-muted/30 transition-colors ${isCancelled ? 'opacity-60 bg-muted/10' : ''}`}>
-                      <td className="px-4 py-4">
-                        <div className="font-medium text-foreground flex items-center gap-2">
-                          {reg.userName || "Unknown"}
-                          <span className="text-xs text-muted-foreground font-mono bg-muted px-1 rounded">#{reg.id}</span>
-                        </div>
-                        <div className="text-muted-foreground text-xs flex items-center gap-2 mt-1">
-                          <span className="truncate max-w-[150px]">{reg.userEmail}</span>
-                          {reg.registrantIsManaged && (
-                            <span className="inline-block bg-primary/10 text-primary px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
-                              Registered by organizer
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 font-medium">{reg.branchName}</td>
-                      <td className="px-4 py-4">
-                        <div className="font-bold">{reg.attendeeCount}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[150px]" title={reg.attendees.map(a => a.name).join(", ")}>
-                          {reg.attendees.map(a => a.name).join(", ")}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold">{addOnQuantity + purchases.length} {addOnQuantity + purchases.length === 1 ? "add-on" : "add-ons"}</span>
-                          {addOns.map(({ fee, quantity }) => (
-                            <span key={fee.id} className="text-xs text-muted-foreground">
-                              {fee.label} × {quantity}{fee.chargeType === "flat" ? " (household)" : ""}
-                            </span>
-                          ))}
-                          {purchases.map((p, i) => (
-                            <span key={`p-${i}`} className="text-xs text-muted-foreground" data-testid={`text-addon-${reg.id}-${i}`}>
-                              {p.label}{p.choices.length ? ` (${describeChoices(p)})` : ""} · {centsLabel(p.unitPriceCents)}{(reg.addOns ?? []).includes(p) ? " (household)" : ""}
-                            </span>
-                          ))}
-                          {shirtSizes > 0 && <span className="text-xs text-muted-foreground/70">{shirtSizes} historical {shirtSizes === 1 ? "size" : "sizes"} on file (not a purchase)</span>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-muted-foreground text-xs">
-                        {format(new Date(reg.createdAt), 'MMM d, yyyy')}
-                      </td>
-                      <td className="px-4 py-4">
-                        {!isCancelled && (() => {
-                          const checkedIn = reg.attendees.filter((a) => a.checkedInAt).length;
-                          const total = reg.attendees.length;
-                          const allIn = total > 0 && checkedIn === total;
-                          return (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className={`h-8 px-2 text-xs rounded-lg ${allIn ? 'bg-green-100 text-green-700 border-green-200 hover:bg-green-200 hover:text-green-800 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900/40' : checkedIn > 0 ? 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 hover:text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-900/40' : ''}`}
-                              onClick={() => setCheckInRegId(reg.id)}
-                            >
-                              <ClipboardCheck className="w-3 h-3 mr-1" /> {checkedIn}/{total}
-                            </Button>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        {reg.ledger ? (
-                          <div className="flex flex-col">
-                            <span
-                              className={`font-bold tabular-nums ${
-                                isCancelled || reg.ledger.waived
-                                  ? 'text-muted-foreground'
-                                  : reg.ledger.balanceCents === 0
-                                    ? 'text-green-600 dark:text-green-400'
-                                    : 'text-red-600 dark:text-red-400'
-                              }`}
-                            >
-                              {money(reg.ledger.balanceCents)}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground tabular-nums">
-                              {money(reg.ledger.confirmedCents + reg.ledger.legacyCreditCents)} paid of {money(reg.ledger.chargeCents)}
-                            </span>
-                            {reg.ledger.creditCents > 0 && (
-                              <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">{money(reg.ledger.creditCents)} credit</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="font-bold tabular-nums">{money(Math.round((registrationTotal) * 100))}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {isCancelled ? (
-                          <div className="flex flex-col gap-1">
-                            <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-destructive/10 text-destructive w-fit">
-                              Cancelled
-                            </span>
-                            {reg.cancellationResolution && (
-                              <span className="text-[10px] text-muted-foreground max-w-[110px] leading-tight">
-                                {reg.cancellationResolution === 'refunded' ? 'Refunded' : 
-                                 reg.cancellationResolution === 'donated_to_fund' ? 'Fund donated' : ''}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-start gap-1.5">
-                            <LedgerStatusBadge status={reg.ledger?.status ?? (reg.paymentStatus === 'pending' ? 'unpaid' : reg.paymentStatus)} />
-                            <Button variant="outline" size="sm" className="h-7 px-2 text-xs rounded-lg" onClick={() => setMoneyRegId(reg.id)}>
-                              <Wallet className="w-3 h-3 mr-1" /> Payments
-                            </Button>
-                          </div>
-                        )}
-                        {(submissionsByRegistration.get(reg.id)?.length ?? 0) > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setSubmissionsRegId(reg.id)}
-                            className="mt-1.5 flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                          >
-                            <Receipt className="w-3.5 h-3.5" />
-                            {submissionsByRegistration.get(reg.id)!.length}{" "}
-                            {submissionsByRegistration.get(reg.id)!.length === 1 ? "payment note" : "payment notes"}
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {!isCancelled && (
-                          <div className="flex flex-wrap gap-2">
-                            {reunion?.code && (
-                              <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setLocation(eventCodePath(reunion.code, `/register/edit/${reg.id}`))}>
-                                <Pencil className="w-3 h-3 mr-1" /> Edit
-                              </Button>
-                            )}
-                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg" onClick={() => setTransferReg(reg)}>
-                              <Send className="w-3 h-3 mr-1" /> Transfer
-                            </Button>
-                            <Button variant="outline" size="sm" className="h-8 px-2 text-xs rounded-lg text-destructive border-transparent hover:border-destructive/30 hover:text-destructive hover:bg-destructive/10" onClick={() => setCancelReg(reg)}>
-                              <Ban className="w-3 h-3 mr-1" /> Cancel
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  )})
-                )}
-              </tbody>
-            </table>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <p className="text-xs text-muted-foreground" data-testid="text-view-summary">
+              {viewFields ? `Showing Registrant, ${viewFields.map((f) => FIELD_LABEL[f]).join(", ") || "menu only"}` : "Loading your view"}
+              {viewFields && matchPreset(viewFields) ? ` · ${PRESETS[matchPreset(viewFields)!].label} view` : viewFields ? " · Custom view" : ""}
+            </p>
+            <Button variant="outline" size="sm" className="rounded-full h-8" onClick={() => setCustomizeOpen(true)} disabled={!view.fields && !view.isError} data-testid="button-customize-view">
+              <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5" aria-hidden /> Customize view
+            </Button>
           </div>
+          {view.isError && (
+            <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" data-testid="text-view-load-error">
+              <span>Could not load your saved view. Showing the default layout for now.</span>
+              <Button size="sm" variant="outline" className="h-7 rounded-lg" onClick={() => view.refetch()}>Retry</Button>
+            </div>
+          )}
+          {view.resetInvalid && (
+            <div role="status" className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="text-view-reset-invalid">
+              Your saved view contained settings that are no longer supported, so the default view is shown. Customize and save to choose a new layout.
+            </div>
+          )}
+          {viewSaved && (
+            <div role="status" className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-800" data-testid="text-view-saved">
+              <span>View saved to your account.</span>
+              <button type="button" className="text-xs font-bold underline" onClick={() => setViewSaved(false)}>Dismiss</button>
+            </div>
+          )}
+          <RegistrationTable
+            rows={filteredRegistrations}
+            fields={tableFields}
+            fees={reunion?.fees ?? []}
+            isLoading={isLoading || (!view.fields && !view.isError)}
+            submissionCount={(id) => submissionsByRegistration.get(id)?.length ?? 0}
+            actions={rowActions}
+          />
         </div>
       </div>
 
@@ -741,6 +627,16 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
           </div>
         </div>
       )}
+
+      <CustomizeViewDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        current={viewFields ?? DEFAULT_FIELDS}
+        queryKey={view.queryKey}
+        needsRepair={view.resetInvalid}
+        onSaved={() => setViewSaved(true)}
+      />
+      <RegistrationDetailsSheet reg={detailsReg} kind={details?.kind ?? null} fees={reunion?.fees ?? []} onClose={() => setDetails(null)} />
 
       <Sheet open={moneyRegId !== null} onOpenChange={(o) => { if (!o) setMoneyRegId(null); }}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">

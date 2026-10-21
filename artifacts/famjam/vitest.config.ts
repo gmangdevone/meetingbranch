@@ -13,6 +13,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Keep concurrent workspace validation from exhausting jsdom/CPU resources.
+    maxWorkers: 2,
     environment: "jsdom",
     globals: false,
     setupFiles: ["./src/test/setup.ts"],

@@ -2,6 +2,11 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import express, { type Express } from "express";
 import request from "supertest";
 import { eq, inArray, sql } from "drizzle-orm";
+// Dinner integration checks must not call the real email provider.
+vi.mock("../lib/email", () => ({
+  sendRegistrationConfirmation: vi.fn().mockResolvedValue(undefined),
+  sendPaymentConfirmation: vi.fn().mockResolvedValue(undefined),
+}));
 
 // Per-attendee dinner opt-out against the REAL dev Postgres schema. Clerk mocked.
 const authState = vi.hoisted(() => ({ userId: null as string | null }));

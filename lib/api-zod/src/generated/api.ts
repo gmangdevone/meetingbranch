@@ -8,6 +8,26 @@
 import * as zod from 'zod';
 
 
+export const GetMyRegistrationViewResponse = zod.object({
+  "fields": zod.array(zod.enum(['date', 'branch', 'attendees', 'addons', 'checkin', 'balance', 'payment', 'edit', 'transfer'])),
+  "resetInvalid": zod.boolean().describe('True when malformed stored preferences were replaced by the default for this response; show an explanatory notice.')
+})
+
+
+export const updateMyRegistrationViewBodyFieldsMax = 30;
+
+
+
+export const UpdateMyRegistrationViewBody = zod.object({
+  "fields": zod.array(zod.enum(['date', 'branch', 'attendees', 'addons', 'checkin', 'balance', 'payment', 'edit', 'transfer'])).max(updateMyRegistrationViewBodyFieldsMax)
+})
+
+export const UpdateMyRegistrationViewResponse = zod.object({
+  "fields": zod.array(zod.enum(['date', 'branch', 'attendees', 'addons', 'checkin', 'balance', 'payment', 'edit', 'transfer'])),
+  "resetInvalid": zod.boolean().describe('True when malformed stored preferences were replaced by the default for this response; show an explanatory notice.')
+})
+
+
 export const GetChecklistConfigParams = zod.object({
   "reunionId": zod.coerce.number()
 })

@@ -95,6 +95,8 @@ import type {
   RegistrationInput,
   RegistrationLedgerResponse,
   RegistrationSummary,
+  RegistrationView,
+  RegistrationViewInput,
   Reunion,
   ReunionBranch,
   ReunionFee,
@@ -154,6 +156,142 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetMyRegistrationViewUrl = () => {
+
+
+
+
+  return `/api/me/registration-view`
+}
+
+export const getMyRegistrationView = async ( options?: RequestInit): Promise<RegistrationView> => {
+
+  return customFetch<RegistrationView>(getGetMyRegistrationViewUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyRegistrationViewQueryKey = () => {
+    return [
+    `/api/me/registration-view`
+    ] as const;
+    }
+
+
+export const getGetMyRegistrationViewQueryOptions = <TData = Awaited<ReturnType<typeof getMyRegistrationView>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyRegistrationView>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyRegistrationViewQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyRegistrationView>>> = ({ signal }) => getMyRegistrationView({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyRegistrationView>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyRegistrationViewQueryResult = NonNullable<Awaited<ReturnType<typeof getMyRegistrationView>>>
+export type GetMyRegistrationViewQueryError = ErrorType<void>
+
+
+
+export function useGetMyRegistrationView<TData = Awaited<ReturnType<typeof getMyRegistrationView>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyRegistrationView>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyRegistrationViewQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMyRegistrationViewUrl = () => {
+
+
+
+
+  return `/api/me/registration-view`
+}
+
+export const updateMyRegistrationView = async (registrationViewInput: RegistrationViewInput, options?: RequestInit): Promise<RegistrationView> => {
+
+  return customFetch<RegistrationView>(getUpdateMyRegistrationViewUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registrationViewInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateMyRegistrationViewMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyRegistrationView>>, TError,{data: BodyType<RegistrationViewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMyRegistrationView>>, TError,{data: BodyType<RegistrationViewInput>}, TContext> => {
+
+const mutationKey = ['updateMyRegistrationView'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMyRegistrationView>>, {data: BodyType<RegistrationViewInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateMyRegistrationView(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMyRegistrationViewMutationResult = NonNullable<Awaited<ReturnType<typeof updateMyRegistrationView>>>
+    export type UpdateMyRegistrationViewMutationBody = BodyType<RegistrationViewInput>
+    export type UpdateMyRegistrationViewMutationError = ErrorType<void>
+
+    export const useUpdateMyRegistrationView = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMyRegistrationView>>, TError,{data: BodyType<RegistrationViewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMyRegistrationView>>,
+        TError,
+        {data: BodyType<RegistrationViewInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateMyRegistrationViewMutationOptions(options));
+    }
 
 export const getGetChecklistConfigUrl = (reunionId: number,) => {
 
