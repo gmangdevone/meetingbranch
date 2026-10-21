@@ -199,13 +199,13 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
                 <h3 className="font-serif text-xl font-bold mb-4 text-secondary border-b pb-2">{d}</h3>
                 <div className="space-y-3">
                   {groupedSchedule![d].sort((a,b) => (a.sortOrder||0) - (b.sortOrder||0)).map(item => (
-                    <div key={item.id} className="bg-card border shadow-sm rounded-2xl p-4 flex items-center gap-4 group">
-                      <GripVertical className="w-5 h-5 text-muted-foreground/30 cursor-grab" />
-                      <div className="w-32 shrink-0 font-bold text-sm">
+                    <div key={item.id} className="bg-card border shadow-sm rounded-2xl p-4 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+                      <GripVertical className="hidden sm:block w-5 h-5 shrink-0 text-muted-foreground/30 cursor-grab" />
+                      <div className="w-full sm:w-32 shrink-0 font-bold text-sm">
                         {item.startTime} {item.endTime && <span className="block text-xs text-muted-foreground font-normal">to {item.endTime}</span>}
                       </div>
-                      <div className="flex-1">
-                        <div className="font-bold">{item.title}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold break-words">{item.title}</div>
                         {(item.location || item.description) && (
                           <div className="text-xs text-muted-foreground mt-1">
                             {item.location && <span className="mr-2">📍 {item.location}</span>}
@@ -213,11 +213,11 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
                           </div>
                         )}
                       </div>
-                      <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                        <Button aria-label={`Edit event ${item.title}`} size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(item)}>
+                      <div className="flex shrink-0 gap-1">
+                        <Button aria-label={`Edit event ${item.title}`} size="icon" variant="ghost" className="h-11 w-11" onClick={() => openEdit(item)}>
                           <Edit2 className="w-4 h-4" />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.id)}>
+                        <Button aria-label={`Delete event ${item.title}`} size="icon" variant="ghost" className="h-11 w-11 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>

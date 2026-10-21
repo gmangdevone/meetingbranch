@@ -25,6 +25,19 @@ vi.mock("@workspace/api-client-react", () => ({
 beforeEach(() => { state.rows = []; state.fail = false; state.invalidate.mockClear(); });
 afterEach(cleanup);
 
+it("exposes touch-sized edit and delete actions without hover", () => {
+  state.rows = [{ id: 1, title: "Picnic", day: "Saturday", startTime: "12:00" }];
+  render(<OrganizerSchedule params={{ reunionId: "1" }} />);
+  const edit = screen.getByRole("button", { name: "Edit event Picnic" });
+  const remove = screen.getByRole("button", { name: "Delete event Picnic" });
+  for (const button of [edit, remove]) {
+    expect(button.className).toContain("h-11 w-11");
+    expect(button.parentElement?.className).not.toContain("opacity-0");
+  }
+  fireEvent.click(edit);
+  expect((screen.getByLabelText("Event Title") as HTMLInputElement).value).toBe("Picnic");
+});
+
 it("creates schedule links, shows them on both pages, and edits/removes them after remount", () => {
   let view = render(<OrganizerSchedule params={{ reunionId: "1" }} />);
   fireEvent.click(screen.getByRole("button", { name: "Add Event" }));
