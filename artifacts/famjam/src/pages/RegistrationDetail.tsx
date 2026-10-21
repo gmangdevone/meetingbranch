@@ -292,16 +292,16 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
         <ElectedBranchFeesNote reunionId={reg.reunionId} hubPath={reg.reunionCode ? eventCodePath(reg.reunionCode) : "/dashboard"} />
 
         {!isPaid && !isCancelled && (
-          <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-3xl p-8 flex flex-col items-center text-center animate-in slide-in-from-bottom-4">
-            <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+          <div className="bg-blue-950 text-white border border-sky-300 rounded-3xl p-8 shadow-lg flex flex-col items-center text-center animate-in slide-in-from-bottom-4">
+            <div className="bg-sky-300/20 text-sky-200 w-16 h-16 rounded-full flex items-center justify-center mb-4">
               <CreditCard className="w-8 h-8" />
             </div>
-            <h3 className="font-bold text-xl mb-2 text-amber-900 dark:text-amber-500 break-words max-w-full">{regReunion?.paymentPendingHeading?.trim() || DEFAULT_PAYMENT_PENDING_HEADING}</h3>
-            <p className="text-amber-700 dark:text-amber-600/80 mb-6 max-w-md whitespace-pre-wrap break-words">
+            <h3 className="font-bold text-xl mb-3 text-white bg-sky-300/25 ring-1 ring-sky-300/60 rounded-lg px-4 py-2 break-words max-w-full">{regReunion?.paymentPendingHeading?.trim() || DEFAULT_PAYMENT_PENDING_HEADING}</h3>
+            <p className="text-white mb-6 max-w-md whitespace-pre-wrap break-words">
               {regReunion?.paymentPendingMessage?.trim() || DEFAULT_PAYMENT_PENDING_MESSAGE}
             </p>
             
-            <div id="payment-instructions" tabIndex={-1} className="scroll-mt-6 bg-white dark:bg-background border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 w-full text-left">
+            <div id="payment-instructions" tabIndex={-1} className="scroll-mt-6 bg-white dark:bg-background text-foreground border border-sky-200 rounded-xl p-4 w-full text-left">
               {fetchingReunion ? <p role="status">Loading payment instructions…</p> :
                 reunionError ? <div role="alert">
                   <p>Could not load payment instructions.</p>

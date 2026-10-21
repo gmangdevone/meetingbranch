@@ -329,9 +329,9 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                   <FormMessage />
                 </FormItem>
               )} />
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-                <p className="text-xs font-semibold mb-2">Preview</p>
-                <h4 className="font-bold break-words">{form.watch("paymentPendingHeading")?.trim() || DEFAULT_PAYMENT_PENDING_HEADING}</h4>
+              <div className="rounded-xl border border-sky-300 bg-blue-950 p-4 text-white shadow-lg">
+                <p className="text-xs font-semibold mb-2 text-sky-200">Preview</p>
+                <h4 className="font-bold break-words text-white bg-sky-300/25 ring-1 ring-sky-300/60 rounded-lg px-4 py-2">{form.watch("paymentPendingHeading")?.trim() || DEFAULT_PAYMENT_PENDING_HEADING}</h4>
                 <p className="mt-2 whitespace-pre-wrap break-words text-sm">{form.watch("paymentPendingMessage")?.trim() || DEFAULT_PAYMENT_PENDING_MESSAGE}</p>
               </div>
               <Button type="button" variant="outline" onClick={() => {
