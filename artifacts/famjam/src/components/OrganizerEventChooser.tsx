@@ -28,9 +28,10 @@ function formatRange(start: unknown, end: unknown): string {
 interface Props {
   events: EventMembership[];
   onSelect: (reunionId: number) => void;
+  purpose?: "manage" | "home";
 }
 
-export function OrganizerEventChooser({ events, onSelect }: Props) {
+export function OrganizerEventChooser({ events, onSelect, purpose = "manage" }: Props) {
   return (
     <section
       className="max-w-xl mx-auto py-12 px-4 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300"
@@ -38,12 +39,12 @@ export function OrganizerEventChooser({ events, onSelect }: Props) {
       data-testid="organizer-event-chooser"
     >
       <header className="flex flex-col gap-2">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--fj-berry)]">Organizer sign-in</p>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--fj-berry)]">{purpose === "home" ? "Event home" : "Organizer sign-in"}</p>
         <h1 id="organizer-chooser-title" className="font-serif text-3xl font-bold text-[var(--fj-ink)]">
-          Which reunion are you managing?
+          {purpose === "home" ? "Which event home would you like to open?" : "Which reunion are you managing?"}
         </h1>
         <p className="text-muted-foreground">
-          Pick one for this session. We'll open its Reports so you can get right to work.
+          {purpose === "home" ? "Choose an event to see its welcome information and registration." : "Pick one for this session. We'll open its Reports so you can get right to work."}
         </p>
       </header>
 
@@ -63,7 +64,7 @@ export function OrganizerEventChooser({ events, onSelect }: Props) {
               <button
                 type="button"
                 onClick={() => onSelect(ev.reunionId)}
-                aria-label={`Manage ${ev.name}, ${formatRange(ev.startDate, ev.endDate)}`}
+                aria-label={`${purpose === "home" ? "Open event home for" : "Manage"} ${ev.name}, ${formatRange(ev.startDate, ev.endDate)}`}
                 data-testid={`button-choose-event-${ev.reunionId}`}
                 className="group w-full min-h-[72px] flex items-center gap-4 text-left rounded-[var(--fj-r-card)] border bg-[var(--fj-surface)] px-5 py-4 shadow-[var(--fj-shadow-card)] transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[var(--fj-brand-bright)] hover:shadow-md active:translate-y-0"
               >

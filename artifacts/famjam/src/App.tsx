@@ -9,6 +9,7 @@ import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
 import { AccessGate } from "./components/AccessGate";
 import { PostLoginLanding } from "./components/PostLoginLanding";
+import { EventHomeLanding, CurrentEventHome } from "./components/EventHomeLanding";
 import { clearOrganizerChoice } from "./lib/organizerSession";
 import { ProfileProvider } from "./lib/profile";
 import { Home } from "./pages/Home";
@@ -254,6 +255,10 @@ function ClerkProviderWithRoutes() {
         <ProfileProvider>
         <Switch>
           <Route path="/" component={HomeRedirect} />
+          <Route path="/home" component={() => <ProtectedRoute component={EventHomeLanding} />} />
+          <Route path="/home/event/:reunionId">
+            {(params) => <ProtectedRoute component={() => <CurrentEventHome params={params} />} />}
+          </Route>
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
           

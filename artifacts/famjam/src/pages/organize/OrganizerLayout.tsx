@@ -4,6 +4,7 @@ import type { ReunionRole } from "@workspace/api-client-react";
 import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart, Vote, Briefcase, ClipboardList, Coins, Home } from "lucide-react";
 import { Skeleton } from "../../components/ui/skeleton";
 import { FULL_ACCESS_VIEWER, viewerHasRole, viewerHasAnyRole } from "../../lib/roles";
+import { eventCodePath } from "../../lib/eventCode";
 
 export function OrganizerLayout({
   reunionId,
@@ -52,6 +53,7 @@ export function OrganizerLayout({
   // Nav items carry the role gating them. Overview is always shown; Settings is
   // shown to Power Users and to owners/admins (who can also manage organizers).
   const allNavItems: { href: string; label: string; icon: any; role?: ReunionRole }[] = [
+    { href: eventCodePath(reunion.code), label: "View event home", icon: Home },
     { href: baseUrl, label: "Overview", icon: LayoutDashboard },
     { href: `${baseUrl}/registrations`, label: "Registrations", icon: Users, role: "registration" },
     { href: `${baseUrl}/reports`, label: "Reports", icon: FileText, role: "reports" },
@@ -63,7 +65,7 @@ export function OrganizerLayout({
     { href: `${baseUrl}/activities`, label: "Activities", icon: ClipboardList },
     { href: `${baseUrl}/sponsorship`, label: "Sponsorship", icon: Heart, role: "power_user" },
     { href: `${baseUrl}/vendors`, label: "Vendors", icon: Briefcase, role: "scout" },
-    ...(adminReunions ? [{ href: `${baseUrl}/home-page`, label: "Event Home Page", icon: Home }] : []),
+    ...(adminReunions ? [{ href: `${baseUrl}/home-page`, label: "Edit event home", icon: Home }] : []),
     { href: `${baseUrl}/settings`, label: "Settings", icon: Settings, role: "power_user" },
   ];
 
