@@ -57,6 +57,13 @@ import type {
   ErrorResponse,
   EventMembership,
   FeeInput,
+  GraduateApplicationInput,
+  GraduateConfig,
+  GraduateContent,
+  GraduateContentInput,
+  GraduateControlsInput,
+  GraduatePage,
+  GraduateSubmission,
   HealthStatus,
   HomeContent,
   ListDinnerHistory200Item,
@@ -156,6 +163,555 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetGraduatePageUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars`
+}
+
+export const getGraduatePage = async (reunionId: number, options?: RequestInit): Promise<GraduatePage> => {
+
+  return customFetch<GraduatePage>(getGetGraduatePageUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGraduatePageQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/graduate-dollars`
+    ] as const;
+    }
+
+
+export const getGetGraduatePageQueryOptions = <TData = Awaited<ReturnType<typeof getGraduatePage>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGraduatePage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGraduatePageQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGraduatePage>>> = ({ signal }) => getGraduatePage(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGraduatePage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGraduatePageQueryResult = NonNullable<Awaited<ReturnType<typeof getGraduatePage>>>
+export type GetGraduatePageQueryError = ErrorType<unknown>
+
+
+
+export function useGetGraduatePage<TData = Awaited<ReturnType<typeof getGraduatePage>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGraduatePage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGraduatePageQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetGraduateConfigUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/config`
+}
+
+export const getGraduateConfig = async (reunionId: number, options?: RequestInit): Promise<GraduateConfig> => {
+
+  return customFetch<GraduateConfig>(getGetGraduateConfigUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGraduateConfigQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/graduate-dollars/config`
+    ] as const;
+    }
+
+
+export const getGetGraduateConfigQueryOptions = <TData = Awaited<ReturnType<typeof getGraduateConfig>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGraduateConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGraduateConfigQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGraduateConfig>>> = ({ signal }) => getGraduateConfig(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGraduateConfig>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGraduateConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getGraduateConfig>>>
+export type GetGraduateConfigQueryError = ErrorType<unknown>
+
+
+
+export function useGetGraduateConfig<TData = Awaited<ReturnType<typeof getGraduateConfig>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGraduateConfig>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGraduateConfigQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveGraduateContentUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/config`
+}
+
+export const saveGraduateContent = async (reunionId: number,
+    graduateContentInput: GraduateContentInput, options?: RequestInit): Promise<GraduateContent> => {
+
+  return customFetch<GraduateContent>(getSaveGraduateContentUrl(reunionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(graduateContentInput)
+  }
+);}
+
+
+
+
+
+export const getSaveGraduateContentMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveGraduateContent>>, TError,{reunionId: number;data: BodyType<GraduateContentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveGraduateContent>>, TError,{reunionId: number;data: BodyType<GraduateContentInput>}, TContext> => {
+
+const mutationKey = ['saveGraduateContent'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveGraduateContent>>, {reunionId: number;data: BodyType<GraduateContentInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  saveGraduateContent(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveGraduateContentMutationResult = NonNullable<Awaited<ReturnType<typeof saveGraduateContent>>>
+    export type SaveGraduateContentMutationBody = BodyType<GraduateContentInput>
+    export type SaveGraduateContentMutationError = ErrorType<unknown>
+
+    export const useSaveGraduateContent = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveGraduateContent>>, TError,{reunionId: number;data: BodyType<GraduateContentInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveGraduateContent>>,
+        TError,
+        {reunionId: number;data: BodyType<GraduateContentInput>},
+        TContext
+      > => {
+      return useMutation(getSaveGraduateContentMutationOptions(options));
+    }
+
+export const getSaveGraduateControlsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/controls`
+}
+
+export const saveGraduateControls = async (reunionId: number,
+    graduateControlsInput: GraduateControlsInput, options?: RequestInit): Promise<GraduateControlsInput> => {
+
+  return customFetch<GraduateControlsInput>(getSaveGraduateControlsUrl(reunionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(graduateControlsInput)
+  }
+);}
+
+
+
+
+
+export const getSaveGraduateControlsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveGraduateControls>>, TError,{reunionId: number;data: BodyType<GraduateControlsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveGraduateControls>>, TError,{reunionId: number;data: BodyType<GraduateControlsInput>}, TContext> => {
+
+const mutationKey = ['saveGraduateControls'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveGraduateControls>>, {reunionId: number;data: BodyType<GraduateControlsInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  saveGraduateControls(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveGraduateControlsMutationResult = NonNullable<Awaited<ReturnType<typeof saveGraduateControls>>>
+    export type SaveGraduateControlsMutationBody = BodyType<GraduateControlsInput>
+    export type SaveGraduateControlsMutationError = ErrorType<unknown>
+
+    export const useSaveGraduateControls = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveGraduateControls>>, TError,{reunionId: number;data: BodyType<GraduateControlsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveGraduateControls>>,
+        TError,
+        {reunionId: number;data: BodyType<GraduateControlsInput>},
+        TContext
+      > => {
+      return useMutation(getSaveGraduateControlsMutationOptions(options));
+    }
+
+export const getSubmitGraduateApplicationUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/applications`
+}
+
+export const submitGraduateApplication = async (reunionId: number,
+    graduateApplicationInput: GraduateApplicationInput, options?: RequestInit): Promise<GraduateSubmission> => {
+
+  return customFetch<GraduateSubmission>(getSubmitGraduateApplicationUrl(reunionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(graduateApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitGraduateApplicationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitGraduateApplication>>, TError,{reunionId: number;data: BodyType<GraduateApplicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitGraduateApplication>>, TError,{reunionId: number;data: BodyType<GraduateApplicationInput>}, TContext> => {
+
+const mutationKey = ['submitGraduateApplication'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitGraduateApplication>>, {reunionId: number;data: BodyType<GraduateApplicationInput>}> = (props) => {
+          const {reunionId,data} = props ?? {};
+
+          return  submitGraduateApplication(reunionId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitGraduateApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitGraduateApplication>>>
+    export type SubmitGraduateApplicationMutationBody = BodyType<GraduateApplicationInput>
+    export type SubmitGraduateApplicationMutationError = ErrorType<unknown>
+
+    export const useSubmitGraduateApplication = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitGraduateApplication>>, TError,{reunionId: number;data: BodyType<GraduateApplicationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitGraduateApplication>>,
+        TError,
+        {reunionId: number;data: BodyType<GraduateApplicationInput>},
+        TContext
+      > => {
+      return useMutation(getSubmitGraduateApplicationMutationOptions(options));
+    }
+
+export const getListGraduateSubmissionsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/applications`
+}
+
+export const listGraduateSubmissions = async (reunionId: number, options?: RequestInit): Promise<GraduateSubmission[]> => {
+
+  return customFetch<GraduateSubmission[]>(getListGraduateSubmissionsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListGraduateSubmissionsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/graduate-dollars/applications`
+    ] as const;
+    }
+
+
+export const getListGraduateSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listGraduateSubmissions>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGraduateSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListGraduateSubmissionsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listGraduateSubmissions>>> = ({ signal }) => listGraduateSubmissions(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGraduateSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListGraduateSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listGraduateSubmissions>>>
+export type ListGraduateSubmissionsQueryError = ErrorType<unknown>
+
+
+
+export function useListGraduateSubmissions<TData = Awaited<ReturnType<typeof listGraduateSubmissions>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listGraduateSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListGraduateSubmissionsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetMyGraduateApplicationsUrl = (reunionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/mine`
+}
+
+export const getMyGraduateApplications = async (reunionId: number, options?: RequestInit): Promise<GraduateSubmission[]> => {
+
+  return customFetch<GraduateSubmission[]>(getGetMyGraduateApplicationsUrl(reunionId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyGraduateApplicationsQueryKey = (reunionId: number,) => {
+    return [
+    `/api/reunions/${reunionId}/graduate-dollars/mine`
+    ] as const;
+    }
+
+
+export const getGetMyGraduateApplicationsQueryOptions = <TData = Awaited<ReturnType<typeof getMyGraduateApplications>>, TError = ErrorType<unknown>>(reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyGraduateApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyGraduateApplicationsQueryKey(reunionId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyGraduateApplications>>> = ({ signal }) => getMyGraduateApplications(reunionId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reunionId !== null && reunionId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyGraduateApplications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyGraduateApplicationsQueryResult = NonNullable<Awaited<ReturnType<typeof getMyGraduateApplications>>>
+export type GetMyGraduateApplicationsQueryError = ErrorType<unknown>
+
+
+
+export function useGetMyGraduateApplications<TData = Awaited<ReturnType<typeof getMyGraduateApplications>>, TError = ErrorType<unknown>>(
+ reunionId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyGraduateApplications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyGraduateApplicationsQueryOptions(reunionId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getResendGraduateSubmissionUrl = (reunionId: number,
+    submissionId: number,) => {
+
+
+
+
+  return `/api/reunions/${reunionId}/graduate-dollars/applications/${submissionId}/resend`
+}
+
+export const resendGraduateSubmission = async (reunionId: number,
+    submissionId: number, options?: RequestInit): Promise<GraduateSubmission> => {
+
+  return customFetch<GraduateSubmission>(getResendGraduateSubmissionUrl(reunionId,submissionId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getResendGraduateSubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendGraduateSubmission>>, TError,{reunionId: number;submissionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resendGraduateSubmission>>, TError,{reunionId: number;submissionId: number}, TContext> => {
+
+const mutationKey = ['resendGraduateSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resendGraduateSubmission>>, {reunionId: number;submissionId: number}> = (props) => {
+          const {reunionId,submissionId} = props ?? {};
+
+          return  resendGraduateSubmission(reunionId,submissionId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResendGraduateSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof resendGraduateSubmission>>>
+
+    export type ResendGraduateSubmissionMutationError = ErrorType<unknown>
+
+    export const useResendGraduateSubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resendGraduateSubmission>>, TError,{reunionId: number;submissionId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resendGraduateSubmission>>,
+        TError,
+        {reunionId: number;submissionId: number},
+        TContext
+      > => {
+      return useMutation(getResendGraduateSubmissionMutationOptions(options));
+    }
 
 export const getGetMyRegistrationViewUrl = () => {
 

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetReunion, getGetReunionQueryKey, useAdminListReunions, getAdminListReunionsQueryKey } from "@workspace/api-client-react";
 import type { ReunionRole } from "@workspace/api-client-react";
-import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart, Vote, Briefcase, ClipboardList, Coins, Home } from "lucide-react";
+import { Users, LayoutDashboard, Settings, List, FileText, CalendarDays, Bell, Lock, Heart, Vote, Briefcase, ClipboardList, Coins, Home, GraduationCap } from "lucide-react";
 import { Skeleton } from "../../components/ui/skeleton";
 import { FULL_ACCESS_VIEWER, viewerHasRole, viewerHasAnyRole } from "../../lib/roles";
 import { eventCodePath } from "../../lib/eventCode";
@@ -10,6 +10,7 @@ export function OrganizerLayout({
   reunionId,
   children,
   requiredRole,
+  allowWithoutRoles,
 }: {
   reunionId: number;
   children: React.ReactNode;
@@ -19,6 +20,11 @@ export function OrganizerLayout({
    * co-organizers who haven't been granted anything).
    */
   requiredRole?: ReunionRole;
+  /**
+   * Lets organizers with no assigned areas reach a page whose own API decides
+   * access (e.g. Graduate Dollars review for the selected recipient).
+   */
+  allowWithoutRoles?: boolean;
 }) {
   const [location] = useLocation();
   const { data: adminReunions } = useAdminListReunions({ query: { queryKey: getAdminListReunionsQueryKey(), retry: false } });
@@ -64,6 +70,7 @@ export function OrganizerLayout({
     { href: `${baseUrl}/polls`, label: "Polls", icon: Vote },
     { href: `${baseUrl}/activities`, label: "Activities", icon: ClipboardList },
     { href: `${baseUrl}/sponsorship`, label: "Sponsorship", icon: Heart, role: "power_user" },
+    { href: `${baseUrl}/graduate-dollars`, label: "Graduate Dollars", icon: GraduationCap },
     { href: `${baseUrl}/vendors`, label: "Vendors", icon: Briefcase, role: "scout" },
     ...(adminReunions ? [{ href: `${baseUrl}/home-page`, label: "Edit event home", icon: Home }] : []),
     { href: `${baseUrl}/settings`, label: "Settings", icon: Settings, role: "power_user" },
@@ -82,7 +89,7 @@ export function OrganizerLayout({
   });
 
   const denied = requiredRole !== undefined && !viewerHasRole(viewer, requiredRole);
-  const noRolesYet = requiredRole === undefined && !viewerHasAnyRole(viewer);
+  const noRolesYet = requiredRole === undefined && !allowWithoutRoles && !viewerHasAnyRole(viewer);
 
   return (
     <div className="flex flex-col md:flex-row gap-8 pb-12">

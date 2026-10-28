@@ -38,6 +38,8 @@ import { OrganizerSponsorship } from "./pages/organize/OrganizerSponsorship";
 import { OrganizerPolls } from "./pages/organize/OrganizerPolls";
 import { OrganizerActivities } from "./pages/organize/OrganizerActivities";
 import { OrganizerVendors } from "./pages/organize/OrganizerVendors";
+import { OrganizerGraduateDollars } from "./pages/organize/OrganizerGraduateDollars";
+import { ReunionGraduateDollars } from "./pages/ReunionGraduateDollars";
 
 import { AdminArea } from "./pages/admin/AdminArea";
 import { PaymentRecipients } from "./pages/owner/PaymentRecipients";
@@ -289,6 +291,10 @@ function ClerkProviderWithRoutes() {
             {(params) => <ProtectedRoute component={() => <ReunionActivities params={params} />} />}
           </Route>
 
+          <Route path="/r/:code/graduate-dollars">
+            {(params) => <ProtectedRoute component={() => <ReunionGraduateDollars params={params} />} />}
+          </Route>
+
           <Route path="/registrations/:id">
             {(params) => <ProtectedRoute component={() => <RegistrationDetail params={params} />} />}
           </Route>
@@ -329,6 +335,9 @@ function ClerkProviderWithRoutes() {
           </Route>
           <Route path="/organize/:reunionId/vendors">
             {(params) => <ProtectedRoute component={() => <OrganizerVendors params={params} />} />}
+          </Route>
+          <Route path="/organize/:reunionId/graduate-dollars">
+            {(params) => <ProtectedRoute component={() => <OrganizerGraduateDollars params={params} />} />}
           </Route>
           <Route path="/organize/:reunionId/settings">
             {(params) => <ProtectedRoute component={() => <OrganizerSettings params={params} />} />}

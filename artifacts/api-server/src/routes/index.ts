@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import graduateRouter from "./graduate";
 import settingsRouter from "./settings";
 import reunionsRouter from "./reunions";
 import membershipsRouter from "./memberships";
@@ -25,6 +26,7 @@ const router: IRouter = Router();
 router.use("/reunions", requireAuth);
 
 router.use(healthRouter);
+router.use(graduateRouter);
 // Owner-only payment recipients: mounted early and independent of the admin
 // router's global requireAdmin (owner authority never derives from isAdmin).
 router.use(paymentRecipientsRouter);

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useGetReunionByCode, getGetReunionByCodeQueryKey, useGetReunionSummary, getGetReunionSummaryQueryKey, useCreateSponsorshipContribution, useGetMyContributions, getGetMyContributionsQueryKey, getGetSponsorshipFundQueryKey, useListMyRegistrations, getListMyRegistrationsQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { CalendarDays, ClipboardList, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown } from "lucide-react";
+import { CalendarDays, ClipboardList, DollarSign, MapPin, Users, Edit3, ArrowRight, Home, Heart, Vote, History, ChevronDown, GraduationCap } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
@@ -27,6 +27,7 @@ import { money } from "../components/payments/money";
 import { PlainText } from "../components/PlainText";
 import { HotelBlock } from "../components/HotelBlock";
 import { ChecklistHeroButton, ChecklistPanel, useChecklistController } from "../components/checklist/MemberChecklist";
+import { useGetGraduatePage, getGetGraduatePageQueryKey } from "@workspace/api-client-react";
 import { DEFAULT_WELCOME_HEADING, defaultWelcomeDescription } from "../lib/homeContent";
 
 /**
@@ -97,6 +98,9 @@ export function ReunionHub({ params }: { params: { code: string } }) {
   });
 
   const checklist = useChecklistController(reunion?.id);
+  const graduateQ = useGetGraduatePage(reunion?.id ?? 0, {
+    query: { enabled: !!reunion?.id, retry: false, queryKey: getGetGraduatePageQueryKey(reunion?.id ?? 0) },
+  });
   const { data: reunionSummary } = useGetReunionSummary(reunion?.id ?? 0, {
     query: {
       enabled: !!reunion?.id,
@@ -751,6 +755,19 @@ export function ReunionHub({ params }: { params: { code: string } }) {
               description="Things to do in the area while you are in town."
               linkLabel="See Things to Do"
             />
+            {graduateQ.data?.visible && (
+              <HubCard
+                href={eventCodePath(reunion.code, "/graduate-dollars")}
+                className="text-[#F4EFE3] [&_p]:text-[#F4EFE3]/85"
+                defaultClassName="bg-[#0F3B5C] border-[#0F3B5C] hover:bg-[#164A70]"
+                iconClassName="bg-[#D9A441] text-[#1E2A33]"
+                linkClassName="text-[#D9A441]"
+                icon={<GraduationCap className="w-6 h-6" />}
+                title="Graduate Dollars"
+                description={graduateQ.data.open ? "Scholarship support for relatives in school. Applications are open." : "Scholarship support for relatives pursuing education."}
+                linkLabel={graduateQ.data.open ? "Apply" : "Learn More"}
+              />
+            )}
           </div>
         </div>
 

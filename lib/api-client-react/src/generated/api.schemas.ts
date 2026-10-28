@@ -5,6 +5,237 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+export type GraduateBlockKind = typeof GraduateBlockKind[keyof typeof GraduateBlockKind];
+
+
+export const GraduateBlockKind = {
+  heading: 'heading',
+  text: 'text',
+  link: 'link',
+} as const;
+
+export type GraduateBlockFont = typeof GraduateBlockFont[keyof typeof GraduateBlockFont];
+
+
+export const GraduateBlockFont = {
+  sans: 'sans',
+  serif: 'serif',
+  mono: 'mono',
+} as const;
+
+export type GraduateBlockWeight = typeof GraduateBlockWeight[keyof typeof GraduateBlockWeight];
+
+
+export const GraduateBlockWeight = {
+  normal: 'normal',
+  bold: 'bold',
+} as const;
+
+export type GraduateBlockAlign = typeof GraduateBlockAlign[keyof typeof GraduateBlockAlign];
+
+
+export const GraduateBlockAlign = {
+  left: 'left',
+  center: 'center',
+  right: 'right',
+} as const;
+
+export type GraduateBlockWidth = typeof GraduateBlockWidth[keyof typeof GraduateBlockWidth];
+
+
+export const GraduateBlockWidth = {
+  full: 'full',
+  narrow: 'narrow',
+} as const;
+
+export type GraduateBlockSpacing = typeof GraduateBlockSpacing[keyof typeof GraduateBlockSpacing];
+
+
+export const GraduateBlockSpacing = {
+  compact: 'compact',
+  comfortable: 'comfortable',
+  spacious: 'spacious',
+} as const;
+
+export interface GraduateBlock {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  kind: GraduateBlockKind;
+  /** @maxLength 10000 */
+  text: string;
+  /** @maxLength 2000 */
+  url: string;
+  /** @pattern ^$|^#[0-9a-fA-F]{6}$ */
+  background: string;
+  /** @pattern ^$|^#[0-9a-fA-F]{6}$ */
+  foreground: string;
+  font: GraduateBlockFont;
+  /**
+     * @minimum 14
+     * @maximum 56
+     */
+  size: number;
+  weight: GraduateBlockWeight;
+  align: GraduateBlockAlign;
+  width: GraduateBlockWidth;
+  spacing: GraduateBlockSpacing;
+}
+
+export type GraduateQuestionKind = typeof GraduateQuestionKind[keyof typeof GraduateQuestionKind];
+
+
+export const GraduateQuestionKind = {
+  short: 'short',
+  long: 'long',
+  url: 'url',
+} as const;
+
+export interface GraduateQuestion {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  id: string;
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  label: string;
+  /** @maxLength 1000 */
+  help: string;
+  kind: GraduateQuestionKind;
+  required: boolean;
+}
+
+export interface GraduateContentInput {
+  /** @minimum 0 */
+  revision: number;
+  /** @pattern ^#[0-9a-fA-F]{6}$ */
+  background: string;
+  /** @pattern ^#[0-9a-fA-F]{6}$ */
+  foreground: string;
+  /** @pattern ^#[0-9a-fA-F]{6}$ */
+  accent: string;
+  /** @maxItems 40 */
+  blocks: GraduateBlock[];
+  /** @maxItems 30 */
+  questions: GraduateQuestion[];
+}
+
+export type GraduateContent = GraduateContentInput;
+
+export interface GraduateControlsInput {
+  visible: boolean;
+  open: boolean;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  recipientId: string | null;
+}
+
+export interface GraduateOrganizer {
+  id: string;
+  name: string;
+  email: string;
+  eligible: boolean;
+}
+
+export interface GraduateConfig {
+  content: GraduateContent;
+  controls: GraduateControlsInput;
+  canEdit: boolean;
+  canAdmin: boolean;
+  canReview: boolean;
+  recipientValid: boolean;
+  organizers: GraduateOrganizer[];
+}
+
+export interface GraduatePage {
+  visible: boolean;
+  open: boolean;
+  content?: GraduateContent;
+}
+
+export interface GraduateAnswer {
+  /** @maxLength 80 */
+  questionId: string;
+  /** @maxLength 10000 */
+  value: string;
+}
+
+export interface GraduateAnswerSnapshot {
+  questionId: string;
+  label: string;
+  value: string;
+}
+
+export interface GraduateProfileLink {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 2000
+     */
+  url: string;
+}
+
+export interface GraduateApplicationInput {
+  /** @pattern ^[0-9a-fA-F-]{36}$ */
+  requestId: string;
+  /** @minimum 0 */
+  revision: number;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /**
+     * @maxLength 254
+     * @pattern ^[^\s@]+@[^\s@]+\.[^\s@]+$
+     */
+  email: string;
+  /** @maxLength 254 */
+  zelle: string;
+  /** @maxLength 100 */
+  cashApp: string;
+  /** @maxItems 30 */
+  answers: GraduateAnswer[];
+  /** @maxItems 10 */
+  links: GraduateProfileLink[];
+}
+
+export type GraduateSubmissionEmailStatus = typeof GraduateSubmissionEmailStatus[keyof typeof GraduateSubmissionEmailStatus];
+
+
+export const GraduateSubmissionEmailStatus = {
+  pending: 'pending',
+  sending: 'sending',
+  accepted: 'accepted',
+  failed: 'failed',
+} as const;
+
+export interface GraduateSubmission {
+  id: number;
+  name: string;
+  email: string;
+  zelle: string;
+  cashApp: string;
+  answers: GraduateAnswerSnapshot[];
+  links: GraduateProfileLink[];
+  createdAt: string;
+  emailStatus: GraduateSubmissionEmailStatus;
+  emailAttempts: number;
+  /** @nullable */
+  emailError: string | null;
+}
+
 export type RegistrationViewField = typeof RegistrationViewField[keyof typeof RegistrationViewField];
 
 

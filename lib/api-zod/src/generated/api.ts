@@ -8,6 +8,468 @@
 import * as zod from 'zod';
 
 
+export const GetGraduatePageParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const getGraduatePageResponseContentOneRevisionMin = 0;
+
+export const getGraduatePageResponseContentOneBackgroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getGraduatePageResponseContentOneForegroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getGraduatePageResponseContentOneAccentRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getGraduatePageResponseContentOneBlocksItemIdMax = 80;
+
+export const getGraduatePageResponseContentOneBlocksItemTextMax = 10000;
+
+export const getGraduatePageResponseContentOneBlocksItemUrlMax = 2000;
+
+export const getGraduatePageResponseContentOneBlocksItemBackgroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const getGraduatePageResponseContentOneBlocksItemForegroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const getGraduatePageResponseContentOneBlocksItemSizeMin = 14;
+export const getGraduatePageResponseContentOneBlocksItemSizeMax = 56;
+
+export const getGraduatePageResponseContentOneBlocksMax = 40;
+
+export const getGraduatePageResponseContentOneQuestionsItemIdMax = 80;
+
+export const getGraduatePageResponseContentOneQuestionsItemLabelMax = 300;
+
+export const getGraduatePageResponseContentOneQuestionsItemHelpMax = 1000;
+
+export const getGraduatePageResponseContentOneQuestionsMax = 30;
+
+
+
+export const GetGraduatePageResponse = zod.object({
+  "visible": zod.boolean(),
+  "open": zod.boolean(),
+  "content": zod.object({
+  "revision": zod.number().min(getGraduatePageResponseContentOneRevisionMin),
+  "background": zod.string().regex(getGraduatePageResponseContentOneBackgroundRegExp),
+  "foreground": zod.string().regex(getGraduatePageResponseContentOneForegroundRegExp),
+  "accent": zod.string().regex(getGraduatePageResponseContentOneAccentRegExp),
+  "blocks": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGraduatePageResponseContentOneBlocksItemIdMax),
+  "kind": zod.enum(['heading', 'text', 'link']),
+  "text": zod.string().max(getGraduatePageResponseContentOneBlocksItemTextMax),
+  "url": zod.string().max(getGraduatePageResponseContentOneBlocksItemUrlMax),
+  "background": zod.string().regex(getGraduatePageResponseContentOneBlocksItemBackgroundRegExp),
+  "foreground": zod.string().regex(getGraduatePageResponseContentOneBlocksItemForegroundRegExp),
+  "font": zod.enum(['sans', 'serif', 'mono']),
+  "size": zod.number().min(getGraduatePageResponseContentOneBlocksItemSizeMin).max(getGraduatePageResponseContentOneBlocksItemSizeMax),
+  "weight": zod.enum(['normal', 'bold']),
+  "align": zod.enum(['left', 'center', 'right']),
+  "width": zod.enum(['full', 'narrow']),
+  "spacing": zod.enum(['compact', 'comfortable', 'spacious'])
+})).max(getGraduatePageResponseContentOneBlocksMax),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGraduatePageResponseContentOneQuestionsItemIdMax),
+  "label": zod.string().min(1).max(getGraduatePageResponseContentOneQuestionsItemLabelMax),
+  "help": zod.string().max(getGraduatePageResponseContentOneQuestionsItemHelpMax),
+  "kind": zod.enum(['short', 'long', 'url']),
+  "required": zod.boolean()
+})).max(getGraduatePageResponseContentOneQuestionsMax)
+}).optional()
+})
+
+
+export const GetGraduateConfigParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const getGraduateConfigResponseContentOneRevisionMin = 0;
+
+export const getGraduateConfigResponseContentOneBackgroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getGraduateConfigResponseContentOneForegroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getGraduateConfigResponseContentOneAccentRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const getGraduateConfigResponseContentOneBlocksItemIdMax = 80;
+
+export const getGraduateConfigResponseContentOneBlocksItemTextMax = 10000;
+
+export const getGraduateConfigResponseContentOneBlocksItemUrlMax = 2000;
+
+export const getGraduateConfigResponseContentOneBlocksItemBackgroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const getGraduateConfigResponseContentOneBlocksItemForegroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const getGraduateConfigResponseContentOneBlocksItemSizeMin = 14;
+export const getGraduateConfigResponseContentOneBlocksItemSizeMax = 56;
+
+export const getGraduateConfigResponseContentOneBlocksMax = 40;
+
+export const getGraduateConfigResponseContentOneQuestionsItemIdMax = 80;
+
+export const getGraduateConfigResponseContentOneQuestionsItemLabelMax = 300;
+
+export const getGraduateConfigResponseContentOneQuestionsItemHelpMax = 1000;
+
+export const getGraduateConfigResponseContentOneQuestionsMax = 30;
+
+export const getGraduateConfigResponseControlsRecipientIdMax = 200;
+
+
+
+export const GetGraduateConfigResponse = zod.object({
+  "content": zod.object({
+  "revision": zod.number().min(getGraduateConfigResponseContentOneRevisionMin),
+  "background": zod.string().regex(getGraduateConfigResponseContentOneBackgroundRegExp),
+  "foreground": zod.string().regex(getGraduateConfigResponseContentOneForegroundRegExp),
+  "accent": zod.string().regex(getGraduateConfigResponseContentOneAccentRegExp),
+  "blocks": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGraduateConfigResponseContentOneBlocksItemIdMax),
+  "kind": zod.enum(['heading', 'text', 'link']),
+  "text": zod.string().max(getGraduateConfigResponseContentOneBlocksItemTextMax),
+  "url": zod.string().max(getGraduateConfigResponseContentOneBlocksItemUrlMax),
+  "background": zod.string().regex(getGraduateConfigResponseContentOneBlocksItemBackgroundRegExp),
+  "foreground": zod.string().regex(getGraduateConfigResponseContentOneBlocksItemForegroundRegExp),
+  "font": zod.enum(['sans', 'serif', 'mono']),
+  "size": zod.number().min(getGraduateConfigResponseContentOneBlocksItemSizeMin).max(getGraduateConfigResponseContentOneBlocksItemSizeMax),
+  "weight": zod.enum(['normal', 'bold']),
+  "align": zod.enum(['left', 'center', 'right']),
+  "width": zod.enum(['full', 'narrow']),
+  "spacing": zod.enum(['compact', 'comfortable', 'spacious'])
+})).max(getGraduateConfigResponseContentOneBlocksMax),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(getGraduateConfigResponseContentOneQuestionsItemIdMax),
+  "label": zod.string().min(1).max(getGraduateConfigResponseContentOneQuestionsItemLabelMax),
+  "help": zod.string().max(getGraduateConfigResponseContentOneQuestionsItemHelpMax),
+  "kind": zod.enum(['short', 'long', 'url']),
+  "required": zod.boolean()
+})).max(getGraduateConfigResponseContentOneQuestionsMax)
+}),
+  "controls": zod.object({
+  "visible": zod.boolean(),
+  "open": zod.boolean(),
+  "recipientId": zod.string().max(getGraduateConfigResponseControlsRecipientIdMax).nullable()
+}),
+  "canEdit": zod.boolean(),
+  "canAdmin": zod.boolean(),
+  "canReview": zod.boolean(),
+  "recipientValid": zod.boolean(),
+  "organizers": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "eligible": zod.boolean()
+}))
+})
+
+
+export const SaveGraduateContentParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const saveGraduateContentBodyRevisionMin = 0;
+
+export const saveGraduateContentBodyBackgroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentBodyForegroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentBodyAccentRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentBodyBlocksItemIdMax = 80;
+
+export const saveGraduateContentBodyBlocksItemTextMax = 10000;
+
+export const saveGraduateContentBodyBlocksItemUrlMax = 2000;
+
+export const saveGraduateContentBodyBlocksItemBackgroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentBodyBlocksItemForegroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentBodyBlocksItemSizeMin = 14;
+export const saveGraduateContentBodyBlocksItemSizeMax = 56;
+
+export const saveGraduateContentBodyBlocksMax = 40;
+
+export const saveGraduateContentBodyQuestionsItemIdMax = 80;
+
+export const saveGraduateContentBodyQuestionsItemLabelMax = 300;
+
+export const saveGraduateContentBodyQuestionsItemHelpMax = 1000;
+
+export const saveGraduateContentBodyQuestionsMax = 30;
+
+
+
+export const SaveGraduateContentBody = zod.object({
+  "revision": zod.number().min(saveGraduateContentBodyRevisionMin),
+  "background": zod.string().regex(saveGraduateContentBodyBackgroundRegExp),
+  "foreground": zod.string().regex(saveGraduateContentBodyForegroundRegExp),
+  "accent": zod.string().regex(saveGraduateContentBodyAccentRegExp),
+  "blocks": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveGraduateContentBodyBlocksItemIdMax),
+  "kind": zod.enum(['heading', 'text', 'link']),
+  "text": zod.string().max(saveGraduateContentBodyBlocksItemTextMax),
+  "url": zod.string().max(saveGraduateContentBodyBlocksItemUrlMax),
+  "background": zod.string().regex(saveGraduateContentBodyBlocksItemBackgroundRegExp),
+  "foreground": zod.string().regex(saveGraduateContentBodyBlocksItemForegroundRegExp),
+  "font": zod.enum(['sans', 'serif', 'mono']),
+  "size": zod.number().min(saveGraduateContentBodyBlocksItemSizeMin).max(saveGraduateContentBodyBlocksItemSizeMax),
+  "weight": zod.enum(['normal', 'bold']),
+  "align": zod.enum(['left', 'center', 'right']),
+  "width": zod.enum(['full', 'narrow']),
+  "spacing": zod.enum(['compact', 'comfortable', 'spacious'])
+})).max(saveGraduateContentBodyBlocksMax),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveGraduateContentBodyQuestionsItemIdMax),
+  "label": zod.string().min(1).max(saveGraduateContentBodyQuestionsItemLabelMax),
+  "help": zod.string().max(saveGraduateContentBodyQuestionsItemHelpMax),
+  "kind": zod.enum(['short', 'long', 'url']),
+  "required": zod.boolean()
+})).max(saveGraduateContentBodyQuestionsMax)
+})
+
+export const saveGraduateContentResponseOneRevisionMin = 0;
+
+export const saveGraduateContentResponseOneBackgroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentResponseOneForegroundRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentResponseOneAccentRegExp = new RegExp('^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentResponseOneBlocksItemIdMax = 80;
+
+export const saveGraduateContentResponseOneBlocksItemTextMax = 10000;
+
+export const saveGraduateContentResponseOneBlocksItemUrlMax = 2000;
+
+export const saveGraduateContentResponseOneBlocksItemBackgroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentResponseOneBlocksItemForegroundRegExp = new RegExp('^$|^#[0-9a-fA-F]{6}$');
+export const saveGraduateContentResponseOneBlocksItemSizeMin = 14;
+export const saveGraduateContentResponseOneBlocksItemSizeMax = 56;
+
+export const saveGraduateContentResponseOneBlocksMax = 40;
+
+export const saveGraduateContentResponseOneQuestionsItemIdMax = 80;
+
+export const saveGraduateContentResponseOneQuestionsItemLabelMax = 300;
+
+export const saveGraduateContentResponseOneQuestionsItemHelpMax = 1000;
+
+export const saveGraduateContentResponseOneQuestionsMax = 30;
+
+
+
+export const SaveGraduateContentResponse = zod.object({
+  "revision": zod.number().min(saveGraduateContentResponseOneRevisionMin),
+  "background": zod.string().regex(saveGraduateContentResponseOneBackgroundRegExp),
+  "foreground": zod.string().regex(saveGraduateContentResponseOneForegroundRegExp),
+  "accent": zod.string().regex(saveGraduateContentResponseOneAccentRegExp),
+  "blocks": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveGraduateContentResponseOneBlocksItemIdMax),
+  "kind": zod.enum(['heading', 'text', 'link']),
+  "text": zod.string().max(saveGraduateContentResponseOneBlocksItemTextMax),
+  "url": zod.string().max(saveGraduateContentResponseOneBlocksItemUrlMax),
+  "background": zod.string().regex(saveGraduateContentResponseOneBlocksItemBackgroundRegExp),
+  "foreground": zod.string().regex(saveGraduateContentResponseOneBlocksItemForegroundRegExp),
+  "font": zod.enum(['sans', 'serif', 'mono']),
+  "size": zod.number().min(saveGraduateContentResponseOneBlocksItemSizeMin).max(saveGraduateContentResponseOneBlocksItemSizeMax),
+  "weight": zod.enum(['normal', 'bold']),
+  "align": zod.enum(['left', 'center', 'right']),
+  "width": zod.enum(['full', 'narrow']),
+  "spacing": zod.enum(['compact', 'comfortable', 'spacious'])
+})).max(saveGraduateContentResponseOneBlocksMax),
+  "questions": zod.array(zod.object({
+  "id": zod.string().min(1).max(saveGraduateContentResponseOneQuestionsItemIdMax),
+  "label": zod.string().min(1).max(saveGraduateContentResponseOneQuestionsItemLabelMax),
+  "help": zod.string().max(saveGraduateContentResponseOneQuestionsItemHelpMax),
+  "kind": zod.enum(['short', 'long', 'url']),
+  "required": zod.boolean()
+})).max(saveGraduateContentResponseOneQuestionsMax)
+})
+
+
+export const SaveGraduateControlsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const saveGraduateControlsBodyRecipientIdMax = 200;
+
+
+
+export const SaveGraduateControlsBody = zod.object({
+  "visible": zod.boolean(),
+  "open": zod.boolean(),
+  "recipientId": zod.string().max(saveGraduateControlsBodyRecipientIdMax).nullable()
+})
+
+export const saveGraduateControlsResponseRecipientIdMax = 200;
+
+
+
+export const SaveGraduateControlsResponse = zod.object({
+  "visible": zod.boolean(),
+  "open": zod.boolean(),
+  "recipientId": zod.string().max(saveGraduateControlsResponseRecipientIdMax).nullable()
+})
+
+
+export const SubmitGraduateApplicationParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const submitGraduateApplicationBodyRequestIdRegExp = new RegExp('^[0-9a-fA-F-]{36}$');
+export const submitGraduateApplicationBodyRevisionMin = 0;
+
+export const submitGraduateApplicationBodyNameMax = 200;
+
+export const submitGraduateApplicationBodyEmailMax = 254;
+
+
+export const submitGraduateApplicationBodyEmailRegExp = new RegExp('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+export const submitGraduateApplicationBodyZelleMax = 254;
+
+export const submitGraduateApplicationBodyCashAppMax = 100;
+
+export const submitGraduateApplicationBodyAnswersItemQuestionIdMax = 80;
+
+export const submitGraduateApplicationBodyAnswersItemValueMax = 10000;
+
+export const submitGraduateApplicationBodyAnswersMax = 30;
+
+export const submitGraduateApplicationBodyLinksItemLabelMax = 100;
+
+export const submitGraduateApplicationBodyLinksItemUrlMax = 2000;
+
+export const submitGraduateApplicationBodyLinksMax = 10;
+
+
+
+export const SubmitGraduateApplicationBody = zod.object({
+  "requestId": zod.string().regex(submitGraduateApplicationBodyRequestIdRegExp),
+  "revision": zod.number().min(submitGraduateApplicationBodyRevisionMin),
+  "name": zod.string().min(1).max(submitGraduateApplicationBodyNameMax),
+  "email": zod.string().max(submitGraduateApplicationBodyEmailMax).regex(submitGraduateApplicationBodyEmailRegExp),
+  "zelle": zod.string().max(submitGraduateApplicationBodyZelleMax),
+  "cashApp": zod.string().max(submitGraduateApplicationBodyCashAppMax),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string().max(submitGraduateApplicationBodyAnswersItemQuestionIdMax),
+  "value": zod.string().max(submitGraduateApplicationBodyAnswersItemValueMax)
+})).max(submitGraduateApplicationBodyAnswersMax),
+  "links": zod.array(zod.object({
+  "label": zod.string().min(1).max(submitGraduateApplicationBodyLinksItemLabelMax),
+  "url": zod.string().min(1).max(submitGraduateApplicationBodyLinksItemUrlMax)
+})).max(submitGraduateApplicationBodyLinksMax)
+})
+
+export const submitGraduateApplicationResponseLinksItemLabelMax = 100;
+
+export const submitGraduateApplicationResponseLinksItemUrlMax = 2000;
+
+
+
+export const SubmitGraduateApplicationResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "zelle": zod.string(),
+  "cashApp": zod.string(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string(),
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "links": zod.array(zod.object({
+  "label": zod.string().min(1).max(submitGraduateApplicationResponseLinksItemLabelMax),
+  "url": zod.string().min(1).max(submitGraduateApplicationResponseLinksItemUrlMax)
+})),
+  "createdAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'accepted', 'failed']),
+  "emailAttempts": zod.number(),
+  "emailError": zod.string().nullable()
+})
+
+
+export const ListGraduateSubmissionsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const listGraduateSubmissionsResponseLinksItemLabelMax = 100;
+
+export const listGraduateSubmissionsResponseLinksItemUrlMax = 2000;
+
+
+
+export const ListGraduateSubmissionsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "zelle": zod.string(),
+  "cashApp": zod.string(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string(),
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "links": zod.array(zod.object({
+  "label": zod.string().min(1).max(listGraduateSubmissionsResponseLinksItemLabelMax),
+  "url": zod.string().min(1).max(listGraduateSubmissionsResponseLinksItemUrlMax)
+})),
+  "createdAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'accepted', 'failed']),
+  "emailAttempts": zod.number(),
+  "emailError": zod.string().nullable()
+})
+export const ListGraduateSubmissionsResponse = zod.array(ListGraduateSubmissionsResponseItem)
+
+
+export const GetMyGraduateApplicationsParams = zod.object({
+  "reunionId": zod.coerce.number()
+})
+
+export const getMyGraduateApplicationsResponseLinksItemLabelMax = 100;
+
+export const getMyGraduateApplicationsResponseLinksItemUrlMax = 2000;
+
+
+
+export const GetMyGraduateApplicationsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "zelle": zod.string(),
+  "cashApp": zod.string(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string(),
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "links": zod.array(zod.object({
+  "label": zod.string().min(1).max(getMyGraduateApplicationsResponseLinksItemLabelMax),
+  "url": zod.string().min(1).max(getMyGraduateApplicationsResponseLinksItemUrlMax)
+})),
+  "createdAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'accepted', 'failed']),
+  "emailAttempts": zod.number(),
+  "emailError": zod.string().nullable()
+})
+export const GetMyGraduateApplicationsResponse = zod.array(GetMyGraduateApplicationsResponseItem)
+
+
+export const ResendGraduateSubmissionParams = zod.object({
+  "reunionId": zod.coerce.number(),
+  "submissionId": zod.coerce.number()
+})
+
+export const resendGraduateSubmissionResponseLinksItemLabelMax = 100;
+
+export const resendGraduateSubmissionResponseLinksItemUrlMax = 2000;
+
+
+
+export const ResendGraduateSubmissionResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "zelle": zod.string(),
+  "cashApp": zod.string(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.string(),
+  "label": zod.string(),
+  "value": zod.string()
+})),
+  "links": zod.array(zod.object({
+  "label": zod.string().min(1).max(resendGraduateSubmissionResponseLinksItemLabelMax),
+  "url": zod.string().min(1).max(resendGraduateSubmissionResponseLinksItemUrlMax)
+})),
+  "createdAt": zod.coerce.date(),
+  "emailStatus": zod.enum(['pending', 'sending', 'accepted', 'failed']),
+  "emailAttempts": zod.number(),
+  "emailError": zod.string().nullable()
+})
+
+
 export const GetMyRegistrationViewResponse = zod.object({
   "fields": zod.array(zod.enum(['date', 'branch', 'attendees', 'addons', 'checkin', 'balance', 'payment', 'edit', 'transfer'])),
   "resetInvalid": zod.boolean().describe('True when malformed stored preferences were replaced by the default for this response; show an explanatory notice.')

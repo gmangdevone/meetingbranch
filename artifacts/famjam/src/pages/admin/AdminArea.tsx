@@ -309,6 +309,9 @@ export function AdminArea() {
                           {format(new Date(r.reunion.startDate), 'MMM d')} - {format(new Date(r.reunion.endDate), 'MMM d, yyyy')}
                         </td>
                         <td className="px-4 py-3 text-right">
+                          <Button variant="ghost" size="sm" onClick={() => setLocation(`/organize/${r.reunion.id}/graduate-dollars`)} data-testid={`button-graduate-dollars-${r.reunion.id}`}>
+                            Graduate Dollars
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => setLocation(`/organize/${r.reunion.id}`)}>
                             Manage <ArrowRight className="w-4 h-4 ml-1" />
                           </Button>

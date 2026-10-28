@@ -24,6 +24,112 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /reunions/{reunionId}/graduate-dollars:
+    get:
+      operationId: getGraduatePage
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Published page or hidden indicator
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraduatePage" }
+  /reunions/{reunionId}/graduate-dollars/config:
+    get:
+      operationId: getGraduateConfig
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Authorized editor configuration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraduateConfig" }
+    put:
+      operationId: saveGraduateContent
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GraduateContentInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraduateContent" }
+  /reunions/{reunionId}/graduate-dollars/controls:
+    put:
+      operationId: saveGraduateControls
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GraduateControlsInput" }
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraduateControlsInput" }
+  /reunions/{reunionId}/graduate-dollars/applications:
+    post:
+      operationId: submitGraduateApplication
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GraduateApplicationInput" }
+      responses:
+        "201":
+          description: Saved regardless of email outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraduateSubmission" }
+    get:
+      operationId: listGraduateSubmissions
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Private organizer review
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/GraduateSubmission" }
+  /reunions/{reunionId}/graduate-dollars/mine:
+    get:
+      operationId: getMyGraduateApplications
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Only the signed-in candidate's submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/GraduateSubmission" }
+  /reunions/{reunionId}/graduate-dollars/applications/{submissionId}/resend:
+    post:
+      operationId: resendGraduateSubmission
+      parameters:
+        - { name: reunionId, in: path, required: true, schema: { type: integer } }
+        - { name: submissionId, in: path, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Latest email outcome
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GraduateSubmission" }
   /me/registration-view:
     get:
       operationId: getMyRegistrationView
@@ -3043,6 +3149,141 @@ components:
         type: integer
 
   schemas:
+    GraduateBlock:
+      type: object
+      required: [id, kind, text, url, background, foreground, font, size, weight, align, width, spacing]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 80 }
+        kind: { type: string, enum: [heading, text, link] }
+        text: { type: string, maxLength: 10000 }
+        url: { type: string, maxLength: 2000 }
+        background: { type: string, pattern: '^$|^#[0-9a-fA-F]{6}$' }
+        foreground: { type: string, pattern: '^$|^#[0-9a-fA-F]{6}$' }
+        font: { type: string, enum: [sans, serif, mono] }
+        size: { type: integer, minimum: 14, maximum: 56 }
+        weight: { type: string, enum: [normal, bold] }
+        align: { type: string, enum: [left, center, right] }
+        width: { type: string, enum: [full, narrow] }
+        spacing: { type: string, enum: [compact, comfortable, spacious] }
+    GraduateQuestion:
+      type: object
+      required: [id, label, help, kind, required]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 80 }
+        label: { type: string, minLength: 1, maxLength: 300 }
+        help: { type: string, maxLength: 1000 }
+        kind: { type: string, enum: [short, long, url] }
+        required: { type: boolean }
+    GraduateContentInput:
+      type: object
+      required: [revision, background, foreground, accent, blocks, questions]
+      properties:
+        revision: { type: integer, minimum: 0 }
+        background: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        foreground: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        accent: { type: string, pattern: '^#[0-9a-fA-F]{6}$' }
+        blocks:
+          type: array
+          maxItems: 40
+          items: { $ref: "#/components/schemas/GraduateBlock" }
+        questions:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/GraduateQuestion" }
+    GraduateContent:
+      allOf:
+        - { $ref: "#/components/schemas/GraduateContentInput" }
+    GraduateControlsInput:
+      type: object
+      required: [visible, open, recipientId]
+      properties:
+        visible: { type: boolean }
+        open: { type: boolean }
+        recipientId: { type: [string, "null"], maxLength: 200 }
+    GraduateOrganizer:
+      type: object
+      required: [id, name, email, eligible]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        eligible: { type: boolean }
+    GraduateConfig:
+      type: object
+      required: [content, controls, canEdit, canAdmin, canReview, recipientValid, organizers]
+      properties:
+        content: { $ref: "#/components/schemas/GraduateContent" }
+        controls: { $ref: "#/components/schemas/GraduateControlsInput" }
+        canEdit: { type: boolean }
+        canAdmin: { type: boolean }
+        canReview: { type: boolean }
+        recipientValid: { type: boolean }
+        organizers:
+          type: array
+          items: { $ref: "#/components/schemas/GraduateOrganizer" }
+    GraduatePage:
+      type: object
+      required: [visible, open]
+      properties:
+        visible: { type: boolean }
+        open: { type: boolean }
+        content: { $ref: "#/components/schemas/GraduateContent" }
+    GraduateAnswer:
+      type: object
+      required: [questionId, value]
+      properties:
+        questionId: { type: string, maxLength: 80 }
+        value: { type: string, maxLength: 10000 }
+    GraduateAnswerSnapshot:
+      type: object
+      required: [questionId, label, value]
+      properties:
+        questionId: { type: string }
+        label: { type: string }
+        value: { type: string }
+    GraduateProfileLink:
+      type: object
+      required: [label, url]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 100 }
+        url: { type: string, minLength: 1, maxLength: 2000 }
+    GraduateApplicationInput:
+      type: object
+      required: [requestId, revision, name, email, zelle, cashApp, answers, links]
+      properties:
+        requestId: { type: string, pattern: '^[0-9a-fA-F-]{36}$' }
+        revision: { type: integer, minimum: 0 }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        email: { type: string, pattern: '^[^\s@]+@[^\s@]+\.[^\s@]+$', maxLength: 254 }
+        zelle: { type: string, maxLength: 254 }
+        cashApp: { type: string, maxLength: 100 }
+        answers:
+          type: array
+          maxItems: 30
+          items: { $ref: "#/components/schemas/GraduateAnswer" }
+        links:
+          type: array
+          maxItems: 10
+          items: { $ref: "#/components/schemas/GraduateProfileLink" }
+    GraduateSubmission:
+      type: object
+      required: [id, name, email, zelle, cashApp, answers, links, createdAt, emailStatus, emailAttempts, emailError]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+        zelle: { type: string }
+        cashApp: { type: string }
+        answers:
+          type: array
+          items: { $ref: "#/components/schemas/GraduateAnswerSnapshot" }
+        links:
+          type: array
+          items: { $ref: "#/components/schemas/GraduateProfileLink" }
+        createdAt: { type: string, format: date-time }
+        emailStatus: { type: string, enum: [pending, sending, accepted, failed] }
+        emailAttempts: { type: integer }
+        emailError: { type: [string, "null"] }
     RegistrationViewField:
       type: string
       enum: [date, branch, attendees, addons, checkin, balance, payment, edit, transfer]
