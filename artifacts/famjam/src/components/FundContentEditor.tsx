@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGetReunion, useUpdateReunion, getGetReunionQueryKey, getGetReunionByCodeQueryKey, getAdminListReunionsQueryKey, type Reunion } from "@workspace/api-client-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import { useUnsavedChanges } from "../hooks/use-unsaved-changes";
 
 export function FundContentEditor({ reunionId }: { reunionId: number }) {
   const { data, isError } = useGetReunion(reunionId, { query: { queryKey: getGetReunionQueryKey(reunionId) } });
@@ -15,6 +16,10 @@ function FundForm({ reunion }: { reunion: Reunion }) {
   const [name, setName] = useState(reunion.fundName ?? "");
   const [description, setDescription] = useState(reunion.fundDescription ?? "");
   const [button, setButton] = useState(reunion.fundButtonLabel ?? "");
+  const [baseline, setBaseline] = useState(() => ({
+    name: reunion.fundName ?? "", description: reunion.fundDescription ?? "", button: reunion.fundButtonLabel ?? "",
+  }));
+  useUnsavedChanges(name !== baseline.name || description !== baseline.description || button !== baseline.button);
   const [feedback, setFeedback] = useState<{ error: boolean; text: string } | null>(null);
   const mutation = useUpdateReunion();
   const client = useQueryClient();
@@ -26,6 +31,7 @@ function FundForm({ reunion }: { reunion: Reunion }) {
         await mutation.mutateAsync({ reunionId: reunion.id, data: {
           fundName: name.trim() || null, fundDescription: description.trim() || null, fundButtonLabel: button.trim() || null,
         } });
+        setBaseline({ name, description, button });
         client.invalidateQueries({ queryKey: getGetReunionQueryKey(reunion.id) });
         client.invalidateQueries({ queryKey: getGetReunionByCodeQueryKey(reunion.code) });
         client.invalidateQueries({ queryKey: getAdminListReunionsQueryKey() });

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUnsavedChanges } from "../../hooks/use-unsaved-changes";
 import { useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import type { ActivityChoiceOptionInput } from "@workspace/api-client-react";
@@ -53,6 +54,8 @@ export function OrganizerActivities({ params }: { params: { reunionId: string } 
   const [items, setItems] = useState<ActivityChoiceOptionInput[]>([emptyActivity()]);
   const [formError, setFormError] = useState<string | null>(null);
   const [newItem, setNewItem] = useState<Record<number, ActivityChoiceOptionInput>>({});
+  useUnsavedChanges(Object.values(newItem).some(item =>
+    JSON.stringify(item) !== JSON.stringify(emptyActivity())));
   const [inlineError, setInlineError] = useState<Record<number, string>>({});
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);

@@ -26,6 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Crown, Trash2, UserPlus, Plus, Pencil, X, Check, ImageIcon, Upload, ArrowUp, ArrowDown, AlertTriangle } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { useUnsavedChanges } from "../../hooks/use-unsaved-changes";
 import { ChecklistEditor } from "../../components/checklist/ChecklistEditor";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -88,8 +89,12 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
     },
   });
 
+  useUnsavedChanges(form.formState.isDirty);
+  const initializedEvent = useRef<number | null>(null);
   useEffect(() => {
+    if (initializedEvent.current === reunionId) return;
     if (summary) {
+      initializedEvent.current = reunionId;
       setSavedCode(summary.reunion.code);
       form.reset({
         code: summary.reunion.code,
@@ -103,7 +108,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         paymentPendingMessage: summary.reunion.paymentPendingMessage ?? "",
       });
     }
-  }, [summary, form]);
+  }, [summary, form, reunionId]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const normalizedCode = normalizeEventCode(values.code);
@@ -124,6 +129,15 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       }
     }, {
       onSuccess: () => {
+        const current = form.getValues();
+        form.reset({ ...values, code: normalizedCode });
+        // Only acknowledge what was submitted. Edits typed while the request
+        // was pending remain visible and dirty against the new saved baseline.
+        for (const key of Object.keys(values) as (keyof typeof values)[]) {
+          if (current[key] !== values[key]) {
+            form.setValue(key, current[key], { shouldDirty: true });
+          }
+        }
         queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
         setSavedCode(normalizedCode);
         setSaveFeedback({
@@ -874,6 +888,8 @@ function FeesManager({ reunionId, fees, canManageDinner }: { reunionId: number; 
   const { toast } = useToast();
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [draft, setDraft] = useState<FeeFormState>(EMPTY_FEE);
+  const [draftBaseline, setDraftBaseline] = useState<FeeFormState>(EMPTY_FEE);
+  useUnsavedChanges(editingId !== null && JSON.stringify(draft) !== JSON.stringify(draftBaseline));
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = useCreateFee();
@@ -887,11 +903,14 @@ function FeesManager({ reunionId, fees, canManageDinner }: { reunionId: number; 
   const startAdd = () => {
     setError(null);
     setDraft(EMPTY_FEE);
+    setDraftBaseline(EMPTY_FEE);
     setEditingId("new");
   };
   const startEdit = (fee: ReunionFee) => {
     setError(null);
-    setDraft(feeToFormState(fee));
+    const initial = feeToFormState(fee);
+    setDraft(initial);
+    setDraftBaseline(initial);
     setEditingId(fee.id);
   };
   const cancel = () => {
@@ -1423,6 +1442,9 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRoles, setEditRoles] = useState<ReunionRole[]>([]);
+  const [rolesBaseline, setRolesBaseline] = useState<ReunionRole[]>([]);
+  useUnsavedChanges(email !== "" || newRoles.length > 0 || (editingId !== null &&
+    JSON.stringify([...editRoles].sort()) !== JSON.stringify([...rolesBaseline].sort())));
 
   const { data: organizers, isLoading } = useListReunionOrganizers(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getListReunionOrganizersQueryKey(reunionId) },
@@ -1467,6 +1489,7 @@ function CoOrganizers({ reunionId }: { reunionId: number }) {
     setError(null);
     setEditingId(member.userId);
     setEditRoles(member.roles ?? []);
+    setRolesBaseline(member.roles ?? []);
   };
 
   const onSaveRoles = (memberId: string) => {

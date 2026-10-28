@@ -15,6 +15,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { ImageLibraryDialog } from "./ImageLibraryDialog";
+import { useUnsavedChanges } from "../hooks/use-unsaved-changes";
 import {
   DEFAULT_WELCOME_HEADING,
   defaultWelcomeDescription,
@@ -77,6 +78,7 @@ export function HomeContentEditor({ reunions, fixedEvent = false }: { reunions: 
   }, [selected]);
 
   const dirty = !!draft && !!baseline && !draftsEqual(draft, baseline);
+  useUnsavedChanges(dirty);
 
   const switchEvent = (id: number) => {
     if (id === selectedId) return;

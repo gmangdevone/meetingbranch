@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from "../../hooks/use-unsaved-changes";
 import { useState } from "react";
 import { format } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
@@ -158,6 +159,7 @@ function BranchFeeRow({
   const [error, setError] = useState<string | null>(null);
   const cents = amount.trim() ? parseCents(amount) : 0;
   const dirty = enabled !== fee.enabled || label.trim() !== fee.label || cents !== fee.amountCents;
+  useUnsavedChanges(canConfigure && dirty);
   const amountChanged = cents != null && cents !== fee.amountCents && fee.election != null;
   const valid = label.trim().length > 0 && cents != null && (!enabled || cents > 0);
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { installUnsavedChangesProtection } from "../../lib/unsavedChanges";
 import type { ReunionViewerPermissions } from "@workspace/api-client-react";
 
 // OrganizerSettings pulls in a lot of API hooks. We only care about one piece of
@@ -94,6 +95,35 @@ function setSummary(viewer: ReunionViewerPermissions) {
 }
 
 describe("OrganizerSettings organizers section gating", () => {
+  it("retains edits made during a pending save and still blocks navigation", async () => {
+    hoisted.updateMutate.mockReset();
+    setSummary(makeViewer({ roles: ["power_user"] }));
+    history.replaceState(null, "", "/organize/1/settings");
+    const dispose = installUnsavedChangesProtection();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      render(<OrganizerSettings params={{ reunionId: "1" }} />);
+      fireEvent.change(screen.getByLabelText("Notice heading"), { target: { value: "Submitted" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+      await waitFor(() => expect(hoisted.updateMutate).toHaveBeenCalledTimes(1));
+      fireEvent.change(screen.getByLabelText("Notice heading"), { target: { value: "Still editing" } });
+      act(() => hoisted.updateMutate.mock.calls[0][1].onSuccess());
+      expect(screen.getByLabelText("Notice heading")).toHaveValue("Still editing");
+      act(() => history.pushState(null, "", "/dashboard"));
+      expect(location.pathname).toBe("/organize/1/settings");
+      expect(confirm).toHaveBeenCalledTimes(1);
+      // A second save acknowledges the remaining edits and clears the guard.
+      fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+      await waitFor(() => expect(hoisted.updateMutate).toHaveBeenCalledTimes(2));
+      act(() => hoisted.updateMutate.mock.calls[1][1].onSuccess());
+      act(() => history.pushState(null, "", "/dashboard"));
+      expect(location.pathname).toBe("/dashboard");
+      expect(confirm).toHaveBeenCalledTimes(1);
+    } finally {
+      dispose();
+      confirm.mockRestore();
+    }
+  });
   it("renders Settings for a power_user co-organizer but hides the Organizers section", () => {
     setSummary(makeViewer({ roles: ["power_user"] }));
 

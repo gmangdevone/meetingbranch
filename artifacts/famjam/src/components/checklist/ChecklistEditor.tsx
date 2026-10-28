@@ -17,6 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { useToast } from "../../hooks/use-toast";
+import { useUnsavedChanges } from "../../hooks/use-unsaved-changes";
 import {
   CHECKLIST_TEMPLATES, KIND_LABELS, draftError, draftToItems, errorMessage, newDraftKey, toDraft, type DraftItem,
 } from "../../lib/checklist";
@@ -52,6 +53,7 @@ export function ChecklistEditor({ reunionId }: { reunionId: number }) {
   }, [configQ.data, reunionId]);
 
   const dirty = useMemo(() => baseline !== "" && snapshot(enabled, drafts) !== baseline, [enabled, drafts, baseline]);
+  useUnsavedChanges(dirty);
   const visibleCount = drafts.filter((d) => d.visible).length;
   const missingTemplates = CHECKLIST_TEMPLATES.filter(
     (t) => !drafts.some((d) => d.title.trim().toLowerCase() === t.title.toLowerCase()),

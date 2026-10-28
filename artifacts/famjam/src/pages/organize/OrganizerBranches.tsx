@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
+import { useUnsavedChanges } from "../../hooks/use-unsaved-changes";
 
 export function OrganizerBranches({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -23,6 +24,8 @@ export function OrganizerBranches({ params }: { params: { reunionId: string } })
   const createMutation = useCreateBranch();
   const updateMutation = useUpdateBranch();
   const deleteMutation = useDeleteBranch();
+  useUnsavedChanges(newBranchName !== "" || (editingId !== null &&
+    editingName !== summary?.reunion.branches.find(b => b.id === editingId)?.name));
 
   const handleAdd = () => {
     if (!newBranchName.trim()) return;

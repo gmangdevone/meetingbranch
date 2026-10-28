@@ -13,6 +13,7 @@ import {
   Smartphone, Trash2, Type, AlertTriangle, CheckCircle2, ShieldCheck,
 } from "lucide-react";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { useUnsavedChanges as useUnsavedGuard } from "../../hooks/use-unsaved-changes";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -102,24 +103,6 @@ function StatusPill({ on, onLabel, offLabel }: { on: boolean; onLabel: string; o
 }
 
 /* ---------------- Content editor ---------------- */
-
-function useUnsavedGuard(dirty: boolean) {
-  useEffect(() => {
-    if (!dirty) return;
-    const onBefore = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
-    const onClick = (e: MouseEvent) => {
-      const a = (e.target as HTMLElement | null)?.closest?.("a[href]");
-      if (!a || a.getAttribute("target") === "_blank") return;
-      if (!window.confirm("You have unsaved Graduate Dollars changes. Leave without saving?")) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-    window.addEventListener("beforeunload", onBefore);
-    document.addEventListener("click", onClick, true);
-    return () => { window.removeEventListener("beforeunload", onBefore); document.removeEventListener("click", onClick, true); };
-  }, [dirty]);
-}
 
 function validateContent(c: GraduateContent): string[] {
   const errs: string[] = [];

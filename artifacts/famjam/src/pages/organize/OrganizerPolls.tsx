@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUnsavedChanges } from "../../hooks/use-unsaved-changes";
 import {
   useListManagePolls,
   getListManagePollsQueryKey,
@@ -66,6 +67,8 @@ export function OrganizerPolls({ params }: { params: { reunionId: string } }) {
 
   // Per-poll "add option" inputs
   const [newOptionByPoll, setNewOptionByPoll] = useState<Record<number, PollOptionDraft>>({});
+  useUnsavedChanges(Object.values(newOptionByPoll).some(option =>
+    JSON.stringify(option) !== JSON.stringify(emptyOptionDraft())));
   const [newOptionErrors, setNewOptionErrors] = useState<Record<number, OptionDraftErrors>>({});
   const [newOptionServerError, setNewOptionServerError] = useState<Record<number, string>>({});
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; question: string } | null>(null);
