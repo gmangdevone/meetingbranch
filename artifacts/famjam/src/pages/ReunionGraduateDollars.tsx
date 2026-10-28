@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +23,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ReunionGraduateDollars({ params }: { params: { code: string } }) {
   const code = params.code?.toUpperCase();
+  // Client-side navigation otherwise retains the event home's scroll position.
+  // Only reset on entry/event changes, never while filling out the application.
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [code]);
   const reunionQ = useGetReunionByCode(code, { query: { enabled: !!code, retry: false, queryKey: getGetReunionByCodeQueryKey(code) } });
   const reunion = reunionQ.data;
   const rid = reunion?.id ?? 0;
