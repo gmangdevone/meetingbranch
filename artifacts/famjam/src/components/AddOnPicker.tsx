@@ -25,6 +25,8 @@ export function AddOnPicker({
   saved = [],
   testIdPrefix,
   showErrors = false,
+  addOnly = false,
+  disabled = false,
 }: {
   fees: ReunionFee[];
   scope: AddOnScope;
@@ -33,10 +35,13 @@ export function AddOnPicker({
   saved?: AddOnPurchase[];
   testIdPrefix: string;
   showErrors?: boolean;
+  /** Add-only mode: every item is optional, already-purchased items are hidden (shown read-only elsewhere). */
+  addOnly?: boolean;
+  disabled?: boolean;
 }) {
-  const offered = offeredAddOns(fees, scope);
+  const offered = offeredAddOns(fees, scope).filter((f) => !addOnly || !saved.some((p) => p.feeId === f.id));
   // Saved items no longer offered (retired / removed) stay visible and kept as-is.
-  const legacy = saved.filter((p) => p.feeId in picks && !offered.some((f) => f.id === p.feeId));
+  const legacy = addOnly ? [] : saved.filter((p) => p.feeId in picks && !offered.some((f) => f.id === p.feeId));
   if (offered.length === 0 && legacy.length === 0) return null;
 
   const setChoice = (fee: ReunionFee, groupId: string, valueId: string) =>
@@ -54,7 +59,7 @@ export function AddOnPicker({
     <div className="space-y-2" data-testid={`${testIdPrefix}-addons`}>
       {offered.map((fee) => {
         const on = fee.id in picks;
-        const required = !fee.isOptional;
+        const required = !addOnly && !fee.isOptional;
         const choices = picks[fee.id] ?? {};
         const preview = previewPurchase(fee, fee.id, choices, saved);
         const priorSaved = saved.some((p) => p.feeId === fee.id);
@@ -75,6 +80,7 @@ export function AddOnPicker({
                 <Switch
                   checked={on}
                   onCheckedChange={(v) => toggle(fee, v)}
+                  disabled={disabled}
                   data-testid={`${testIdPrefix}-toggle-addon-${fee.id}`}
                   aria-label={`Include ${fee.label}`}
                 />
@@ -118,6 +124,7 @@ export function AddOnPicker({
                                 aria-checked={sel}
                                 key={v.id}
                                 onClick={() => setChoice(fee, g.id, v.id)}
+                                disabled={disabled}
                                 data-testid={`${testIdPrefix}-choice-${fee.id}-${g.id}-${v.id}`}
                                 className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition-all active:scale-95 ${
                                   sel ? "border-primary bg-primary text-primary-foreground shadow-sm" : "border-border bg-background hover:border-primary/50"

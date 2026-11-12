@@ -41,6 +41,7 @@ export interface ReunionUpdateInput {
   endDate?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
+  allowPostRegistrationAddOns?: boolean;
   /**
      * @maxLength 160
      * @nullable

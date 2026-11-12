@@ -24,6 +24,48 @@ tags:
     description: Object storage upload and serving endpoints.
 
 paths:
+  /registrations/{id}/add-items/quote:
+    post:
+      operationId: quoteRegistrationItems
+      tags: [registrations]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegistrationItemsInput" }
+      responses:
+        "200":
+          description: Current authoritative purchase preview; no changes saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationItemsQuote" }
+        "400": { description: Invalid selection }
+        "403": { description: Not permitted }
+        "404": { description: Not found }
+        "409": { description: Registration or selection changed }
+  /registrations/{id}/add-items:
+    post:
+      operationId: addRegistrationItems
+      tags: [registrations]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RegistrationItemsCommit" }
+      responses:
+        "200":
+          description: Added items, or replay of an already saved request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RegistrationItemsQuote" }
+        "400": { description: Invalid selection }
+        "403": { description: Not permitted }
+        "404": { description: Not found }
+        "409": { description: Refresh the quote and confirm again }
   /reunions/{reunionId}/graduate-dollars:
     get:
       operationId: getGraduatePage
@@ -3149,6 +3191,64 @@ components:
         type: integer
 
   schemas:
+    RegistrationItemSelection:
+      type: object
+      required: [attendeeId, feeId, choices]
+      properties:
+        attendeeId:
+          type: [integer, "null"]
+          description: Existing attendee ID, or null for a household item
+        feeId: { type: integer }
+        choices:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/AddOnChoice"
+    RegistrationItemsInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: "#/components/schemas/RegistrationItemSelection" }
+    RegistrationItemsCommit:
+      type: object
+      required: [items, quoteToken, requestId]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: "#/components/schemas/RegistrationItemSelection" }
+        quoteToken: { type: string, pattern: '^[a-f0-9]{64}$' }
+        requestId: { type: string, minLength: 16, maxLength: 100, pattern: '^[A-Za-z0-9_-]+$' }
+    RegistrationItemsLine:
+      type: object
+      required: [attendeeId, recipient, purchase]
+      properties:
+        attendeeId: { type: [integer, "null"] }
+        recipient: { type: string }
+        purchase: { $ref: "#/components/schemas/AddOnPurchase" }
+    RegistrationItemsQuote:
+      type: object
+      required: [registrationId, quoteToken, lines, addedCostCents, currentChargeCents, totalChargeCents, confirmedCents, legacyCreditCents, sponsoredCents, balanceCents, creditCents, waived]
+      properties:
+        registrationId: { type: integer }
+        quoteToken: { type: string }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/RegistrationItemsLine" }
+        addedCostCents: { type: integer }
+        currentChargeCents: { type: integer }
+        totalChargeCents: { type: integer }
+        confirmedCents: { type: integer }
+        legacyCreditCents: { type: integer }
+        sponsoredCents: { type: integer }
+        balanceCents: { type: integer }
+        creditCents: { type: integer }
+        waived: { type: boolean }
     GraduateBlock:
       type: object
       required: [id, kind, text, url, background, foreground, font, size, weight, align, width, spacing]
@@ -4404,6 +4504,9 @@ components:
         allowRegistrantEdits:
           type: boolean
           description: "When true, registrants may edit their own active registrations."
+        allowPostRegistrationAddOns:
+          type: [boolean, "null"]
+          description: "Independent member add-only permission. Null inherits the existing edit permission until explicitly configured."
         fundName:
           type: [string, "null"]
         fundDescription:
@@ -4851,6 +4954,8 @@ components:
         registrationsOpen:
           type: boolean
         allowRegistrantEdits:
+          type: boolean
+        allowPostRegistrationAddOns:
           type: boolean
         paymentPendingHeading:
           type: [string, "null"]
@@ -5422,6 +5527,9 @@ components:
         canManageDinner:
           type: boolean
           description: Whether the current viewer may override dinner requirements when editing.
+        canAddItems:
+          type: boolean
+          description: Whether the current viewer can add merchandise to this registration
         ledger:
           $ref: "#/components/schemas/RegistrationLedger"
         id:

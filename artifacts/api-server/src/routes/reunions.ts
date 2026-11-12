@@ -489,6 +489,12 @@ router.put(
     ...(endDate === undefined ? {} : { endDate }),
     ...(registrationsOpen === undefined ? {} : { registrationsOpen }),
     ...(allowRegistrantEdits === undefined ? {} : { allowRegistrantEdits }),
+    // Freeze the inherited value before changing the general edit switch.
+    ...(body.data.allowPostRegistrationAddOns !== undefined
+      ? { allowPostRegistrationAddOns: body.data.allowPostRegistrationAddOns }
+      : allowRegistrantEdits !== undefined
+        ? { allowPostRegistrationAddOns: sql`coalesce(${reunionsTable.allowPostRegistrationAddOns}, ${reunionsTable.allowRegistrantEdits})` }
+        : {}),
     // heroImageUrl (legacy single) and heroImageUrls (slideshow) are kept in
     // sync in both directions: updating one derives the other, and when both
     // are sent the slideshow list wins.

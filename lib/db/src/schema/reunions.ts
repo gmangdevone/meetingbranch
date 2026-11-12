@@ -20,6 +20,7 @@ export const reunionsTable = pgTable(
     registrationsOpen: boolean("registrations_open").notNull().default(true),
     collectShirtSizes: boolean("collect_shirt_sizes").notNull().default(false),
     allowRegistrantEdits: boolean("allow_registrant_edits").notNull().default(false),
+    allowPostRegistrationAddOns: boolean("allow_post_registration_add_ons"),
     heroImageUrl: text("hero_image_url"),
     welcomeHeading: text("welcome_heading"),
     welcomeDescription: text("welcome_description"),

@@ -30,7 +30,10 @@ import {
   CreatePaymentSubmissionParams,
   CreatePaymentSubmissionBody,
   CreatePaymentSubmissionResponse,
+  QuoteRegistrationItemsBody, QuoteRegistrationItemsParams, QuoteRegistrationItemsResponse,
+  AddRegistrationItemsBody, AddRegistrationItemsParams, AddRegistrationItemsResponse,
 } from "@workspace/api-zod";
+import { registrationItems } from "../lib/registrationItems";
 import { requireAuth } from "../middlewares/requireAuth";
 import { ensureLedgerInitialized, rows, isValidCents, isValidIsoDate, parseDollarsToCents, loadLedgers, lockReunionRow, syncLedgerStatus, LedgerError, fmtCents } from "../lib/ledger";
 import { sendRegistrationConfirmation } from "../lib/email";
@@ -250,7 +253,38 @@ router.get("/registrations/:id", requireAuth, async (req, res): Promise<void> =>
     return;
   }
 
-  res.json(GetRegistrationResponse.parse({ ...full, canManageDinner: await canManageRegistrations(userId, full.reunionId) }));
+  const manager = await canManageRegistrations(userId, full.reunionId);
+  const [event] = await db.select().from(reunionsTable).where(eq(reunionsTable.id, full.reunionId));
+  res.json(GetRegistrationResponse.parse({
+    ...full, canManageDinner: manager,
+    canAddItems: full.status === "active" && (manager || (event.allowPostRegistrationAddOns ?? event.allowRegistrantEdits)),
+  }));
+});
+
+router.post("/registrations/:id/add-items/quote", requireAuth, async (req, res): Promise<void> => {
+  const params = QuoteRegistrationItemsParams.safeParse(req.params);
+  const body = QuoteRegistrationItemsBody.safeParse(req.body);
+  if (!params.success || !body.success) { res.status(400).json({ error: "Choose valid items and recipients." }); return; }
+  try {
+    const result = await registrationItems(params.data.id, (req as any).userId, body.data, canManageRegistrations);
+    res.json(QuoteRegistrationItemsResponse.parse(result));
+  } catch (error) {
+    if (error instanceof LedgerError) { res.status(error.status).json({ error: error.message }); return; }
+    throw error;
+  }
+});
+
+router.post("/registrations/:id/add-items", requireAuth, async (req, res): Promise<void> => {
+  const params = AddRegistrationItemsParams.safeParse(req.params);
+  const body = AddRegistrationItemsBody.safeParse(req.body);
+  if (!params.success || !body.success) { res.status(400).json({ error: "Review your items before confirming." }); return; }
+  try {
+    const result = await registrationItems(params.data.id, (req as any).userId, body.data, canManageRegistrations, true);
+    res.json(AddRegistrationItemsResponse.parse(result));
+  } catch (error) {
+    if (error instanceof LedgerError) { res.status(error.status).json({ error: error.message }); return; }
+    throw error;
+  }
 });
 
 // Can this user manage registrations for the reunion? (owner, platform

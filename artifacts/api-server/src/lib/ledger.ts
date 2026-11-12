@@ -127,14 +127,14 @@ export async function loadLedgers(ex: Exec, registrationIds: number[]): Promise<
     const regFees = fees
       .filter((f) => f.reunion_id === reg.reunion_id)
       .map((f) => ({ id: f.id, label: f.label, amount: f.amount, chargeType: f.charge_type, isOptional: f.is_optional, ageTiers: f.age_tiers, isDinner: f.is_dinner, isShirt: f.is_shirt, isAddOn: f.is_add_on, dinnerMode: f.dinner_mode }));
-    const chargeCents =
+    const chargeCents = Math.round(
       computeTotal(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         regFees as any,
         attendees.filter((a) => a.registration_id === reg.id).map((a) => ({ age: a.age, includeDinner: a.include_dinner, includeShirt: a.include_shirt, dinnerFeeIds: a.dinner_fee_ids, addOns: a.add_ons })),
         selected.filter((s) => s.registration_id === reg.id).map((s) => s.fee_id),
         reg.add_ons ?? [],
-      ) * 100;
+      ) * 100);
     const sponsoredCents = Number(sponsored.find((s) => s.registration_id === reg.id)?.cents ?? 0);
     const initialized = !!reg.ledger_initialized_at;
     let confirmedCents = 0;

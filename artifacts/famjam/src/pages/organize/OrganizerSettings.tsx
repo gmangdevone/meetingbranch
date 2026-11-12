@@ -7,6 +7,7 @@ import {
   useUpdateReunion,
   useRequestUploadUrl,
   getGetReunionQueryKey,
+  getGetReunionByCodeQueryKey,
   useListReunionOrganizers,
   useAddReunionOrganizer,
   useRemoveReunionOrganizer,
@@ -54,6 +55,7 @@ const formSchema = z.object({
   checkPayee: z.string().optional(),
   registrationsOpen: z.boolean().default(true),
   allowRegistrantEdits: z.boolean().default(false),
+  allowPostRegistrationAddOns: z.boolean().default(false),
   paymentPendingHeading: z.string().max(160).default(""),
   paymentPendingMessage: z.string().max(5000).default(""),
 });
@@ -84,6 +86,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
       checkPayee: "",
       registrationsOpen: true,
       allowRegistrantEdits: false,
+      allowPostRegistrationAddOns: false,
       paymentPendingHeading: "",
       paymentPendingMessage: "",
     },
@@ -104,6 +107,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         checkPayee: summary.reunion.checkPayee || "",
         registrationsOpen: summary.reunion.registrationsOpen,
         allowRegistrantEdits: summary.reunion.allowRegistrantEdits ?? false,
+        allowPostRegistrationAddOns: summary.reunion.allowPostRegistrationAddOns ?? summary.reunion.allowRegistrantEdits ?? false,
         paymentPendingHeading: summary.reunion.paymentPendingHeading ?? "",
         paymentPendingMessage: summary.reunion.paymentPendingMessage ?? "",
       });
@@ -124,6 +128,7 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
         checkPayee: values.checkPayee?.trim() || null,
         registrationsOpen: values.registrationsOpen,
         allowRegistrantEdits: values.allowRegistrantEdits,
+        allowPostRegistrationAddOns: values.allowPostRegistrationAddOns,
         paymentPendingHeading: values.paymentPendingHeading.trim() || null,
         paymentPendingMessage: values.paymentPendingMessage.trim() || null,
       }
@@ -139,6 +144,12 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
           }
         }
         queryClient.invalidateQueries({ queryKey: getGetReunionQueryKey(reunionId) });
+        queryClient.invalidateQueries({ queryKey: getGetReunionByCodeQueryKey(normalizedCode) });
+        // Member add-item permission (canAddItems) is computed on each registration.
+        queryClient.invalidateQueries({
+          predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("/api/registrations"),
+        });
+        if (savedCode && savedCode !== normalizedCode) queryClient.invalidateQueries({ queryKey: getGetReunionByCodeQueryKey(savedCode) });
         setSavedCode(normalizedCode);
         setSaveFeedback({
           kind: "success",
@@ -298,6 +309,29 @@ export function OrganizerSettings({ params }: { params: { reunionId: string } })
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="allowPostRegistrationAddOns"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="font-bold text-base">Allow Registrants to Add Items</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        {field.value
+                          ? "Registrants can add merchandise to their registration after signing up, without editing attendees."
+                          : "Registrants can't add merchandise after registering. Organizers can still add items for them."}
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        data-testid="switch-allow-post-registration-addons"
                       />
                     </FormControl>
                   </FormItem>

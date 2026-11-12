@@ -92,6 +92,11 @@ function resolveList(fees: ReunionFee[], input: AddOnSelection[] | undefined | n
   }
   return purchases;
 }
+
+/** Price only an explicitly requested new item, never retroactively add mandatory items. */
+export function resolveAdditionalPurchase(fee: ReunionFee, selection: AddOnSelection, scope: "flat" | "per_person") {
+  return resolveList([{ ...fee, isOptional: true }], [selection], [], scope)[0];
+}
 export function resolveAddOns<T extends Person>(
   fees: ReunionFee[], attendees: T[], household: AddOnSelection[] | undefined,
   previous?: { attendees: (Person & { addOns: AddOnPurchase[] })[]; addOns: AddOnPurchase[] },

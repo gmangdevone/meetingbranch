@@ -38,6 +38,11 @@ export interface Reunion {
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
+  /**
+     * Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.
+     * @nullable
+     */
+  allowPostRegistrationAddOns?: boolean | null;
   /** @nullable */
   fundName?: string | null;
   /** @nullable */

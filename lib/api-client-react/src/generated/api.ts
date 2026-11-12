@@ -100,6 +100,9 @@ import type {
   ReceiptReversalInput,
   Registration,
   RegistrationInput,
+  RegistrationItemsCommit,
+  RegistrationItemsInput,
+  RegistrationItemsQuote,
   RegistrationLedgerResponse,
   RegistrationSummary,
   RegistrationView,
@@ -163,6 +166,138 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getQuoteRegistrationItemsUrl = (id: number,) => {
+
+
+
+
+  return `/api/registrations/${id}/add-items/quote`
+}
+
+export const quoteRegistrationItems = async (id: number,
+    registrationItemsInput: RegistrationItemsInput, options?: RequestInit): Promise<RegistrationItemsQuote> => {
+
+  return customFetch<RegistrationItemsQuote>(getQuoteRegistrationItemsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registrationItemsInput)
+  }
+);}
+
+
+
+
+
+export const getQuoteRegistrationItemsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteRegistrationItems>>, TError,{id: number;data: BodyType<RegistrationItemsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof quoteRegistrationItems>>, TError,{id: number;data: BodyType<RegistrationItemsInput>}, TContext> => {
+
+const mutationKey = ['quoteRegistrationItems'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof quoteRegistrationItems>>, {id: number;data: BodyType<RegistrationItemsInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  quoteRegistrationItems(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QuoteRegistrationItemsMutationResult = NonNullable<Awaited<ReturnType<typeof quoteRegistrationItems>>>
+    export type QuoteRegistrationItemsMutationBody = BodyType<RegistrationItemsInput>
+    export type QuoteRegistrationItemsMutationError = ErrorType<void>
+
+    export const useQuoteRegistrationItems = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteRegistrationItems>>, TError,{id: number;data: BodyType<RegistrationItemsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof quoteRegistrationItems>>,
+        TError,
+        {id: number;data: BodyType<RegistrationItemsInput>},
+        TContext
+      > => {
+      return useMutation(getQuoteRegistrationItemsMutationOptions(options));
+    }
+
+export const getAddRegistrationItemsUrl = (id: number,) => {
+
+
+
+
+  return `/api/registrations/${id}/add-items`
+}
+
+export const addRegistrationItems = async (id: number,
+    registrationItemsCommit: RegistrationItemsCommit, options?: RequestInit): Promise<RegistrationItemsQuote> => {
+
+  return customFetch<RegistrationItemsQuote>(getAddRegistrationItemsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registrationItemsCommit)
+  }
+);}
+
+
+
+
+
+export const getAddRegistrationItemsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addRegistrationItems>>, TError,{id: number;data: BodyType<RegistrationItemsCommit>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addRegistrationItems>>, TError,{id: number;data: BodyType<RegistrationItemsCommit>}, TContext> => {
+
+const mutationKey = ['addRegistrationItems'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addRegistrationItems>>, {id: number;data: BodyType<RegistrationItemsCommit>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addRegistrationItems(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddRegistrationItemsMutationResult = NonNullable<Awaited<ReturnType<typeof addRegistrationItems>>>
+    export type AddRegistrationItemsMutationBody = BodyType<RegistrationItemsCommit>
+    export type AddRegistrationItemsMutationError = ErrorType<void>
+
+    export const useAddRegistrationItems = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addRegistrationItems>>, TError,{id: number;data: BodyType<RegistrationItemsCommit>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addRegistrationItems>>,
+        TError,
+        {id: number;data: BodyType<RegistrationItemsCommit>},
+        TContext
+      > => {
+      return useMutation(getAddRegistrationItemsMutationOptions(options));
+    }
 
 export const getGetGraduatePageUrl = (reunionId: number,) => {
 

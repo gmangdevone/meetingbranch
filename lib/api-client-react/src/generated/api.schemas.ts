@@ -5,6 +5,77 @@
  * Meeting Branch – multi-reunion family gathering platform API
  * OpenAPI spec version: 0.1.0
  */
+export interface AddOnChoice {
+  groupId: string;
+  valueId: string;
+  groupLabel?: string;
+  valueLabel?: string;
+}
+
+export interface RegistrationItemSelection {
+  /**
+     * Existing attendee ID, or null for a household item
+     * @nullable
+     */
+  attendeeId: number | null;
+  feeId: number;
+  /** @maxItems 20 */
+  choices: AddOnChoice[];
+}
+
+export interface RegistrationItemsInput {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  items: RegistrationItemSelection[];
+}
+
+export interface RegistrationItemsCommit {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
+  items: RegistrationItemSelection[];
+  /** @pattern ^[a-f0-9]{64}$ */
+  quoteToken: string;
+  /**
+     * @minLength 16
+     * @maxLength 100
+     * @pattern ^[A-Za-z0-9_-]+$
+     */
+  requestId: string;
+}
+
+export interface AddOnPurchase {
+  feeId: number;
+  label: string;
+  unitPriceCents: number;
+  choices: AddOnChoice[];
+}
+
+export interface RegistrationItemsLine {
+  /** @nullable */
+  attendeeId: number | null;
+  recipient: string;
+  purchase: AddOnPurchase;
+}
+
+export interface RegistrationItemsQuote {
+  registrationId: number;
+  quoteToken: string;
+  lines: RegistrationItemsLine[];
+  addedCostCents: number;
+  currentChargeCents: number;
+  totalChargeCents: number;
+  confirmedCents: number;
+  legacyCreditCents: number;
+  sponsoredCents: number;
+  balanceCents: number;
+  creditCents: number;
+  waived: boolean;
+}
+
 export type GraduateBlockKind = typeof GraduateBlockKind[keyof typeof GraduateBlockKind];
 
 
@@ -685,13 +756,6 @@ export const CancelRegistrationInputResolution = {
 export interface CancelRegistrationInput {
   /** Required when the registration is paid: refund outside the app, or donate the paid amount to the sponsorship fund. Ignored when nothing was paid. */
   resolution?: CancelRegistrationInputResolution;
-}
-
-export interface AddOnChoice {
-  groupId: string;
-  valueId: string;
-  groupLabel?: string;
-  valueLabel?: string;
 }
 
 export interface AddOnSelection {
@@ -1536,6 +1600,11 @@ export interface Reunion {
   registrationsOpen: boolean;
   /** When true, registrants may edit their own active registrations. */
   allowRegistrantEdits?: boolean;
+  /**
+     * Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.
+     * @nullable
+     */
+  allowPostRegistrationAddOns?: boolean | null;
   /** @nullable */
   fundName?: string | null;
   /** @nullable */
@@ -1608,13 +1677,6 @@ export interface Reunion {
   createdAt: string;
   branches: ReunionBranch[];
   fees: ReunionFee[];
-}
-
-export interface AddOnPurchase {
-  feeId: number;
-  label: string;
-  unitPriceCents: number;
-  choices: AddOnChoice[];
 }
 
 export type FeeInputDinnerMode = typeof FeeInputDinnerMode[keyof typeof FeeInputDinnerMode];
@@ -1803,6 +1865,7 @@ export interface ReunionUpdateInput {
   endDate?: string;
   registrationsOpen?: boolean;
   allowRegistrantEdits?: boolean;
+  allowPostRegistrationAddOns?: boolean;
   /**
      * @maxLength 160
      * @nullable
@@ -2215,6 +2278,8 @@ export interface Registration {
   addOns?: AddOnPurchase[] | null;
   /** Whether the current viewer may override dinner requirements when editing. */
   canManageDinner?: boolean;
+  /** Whether the current viewer can add merchandise to this registration */
+  canAddItems?: boolean;
   ledger?: RegistrationLedger;
   id: number;
   reunionId: number;

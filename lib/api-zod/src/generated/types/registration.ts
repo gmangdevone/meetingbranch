@@ -17,6 +17,8 @@ export interface Registration {
   addOns?: AddOnPurchase[] | null;
   /** Whether the current viewer may override dinner requirements when editing. */
   canManageDinner?: boolean;
+  /** Whether the current viewer can add merchandise to this registration */
+  canAddItems?: boolean;
   ledger?: RegistrationLedger;
   id: number;
   reunionId: number;

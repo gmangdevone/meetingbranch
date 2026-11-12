@@ -90,6 +90,8 @@ vi.mock("@workspace/api-client-react", () => {
     useUpdateBranch: noopMutation,
     useDeleteBranch: noopMutation,
     // Settings
+    useQuoteRegistrationItems: noopMutation,
+    useAddRegistrationItems: noopMutation,
     useUpdateReunion: noopMutation,
     useGetChecklistConfig: () => ({ data: { enabled: false, items: [] }, isLoading: false, isError: false }),
     getGetChecklistConfigQueryKey: (id: number) => ["checklistConfig", id],

@@ -37,6 +37,7 @@ vi.mock("@workspace/api-client-react", () => {
     isError: false,
   }),
   getGetReunionQueryKey: (id: number) => ["getReunion", id],
+  getGetReunionByCodeQueryKey: (code: string) => ["/api/reunions/by-code", code],
   useUpdateReunion: () => ({ mutate: hoisted.updateMutate, isPending: false }),
   useRequestUploadUrl: noopMutation,
   useCreateReunionImage: noopMutation,

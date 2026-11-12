@@ -8,6 +8,120 @@
 import * as zod from 'zod';
 
 
+export const QuoteRegistrationItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const quoteRegistrationItemsBodyItemsItemChoicesMax = 20;
+
+export const quoteRegistrationItemsBodyItemsMax = 100;
+
+
+
+export const QuoteRegistrationItemsBody = zod.object({
+  "items": zod.array(zod.object({
+  "attendeeId": zod.number().nullable().describe('Existing attendee ID, or null for a household item'),
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(quoteRegistrationItemsBodyItemsItemChoicesMax)
+})).min(1).max(quoteRegistrationItemsBodyItemsMax)
+})
+
+export const QuoteRegistrationItemsResponse = zod.object({
+  "registrationId": zod.number(),
+  "quoteToken": zod.string(),
+  "lines": zod.array(zod.object({
+  "attendeeId": zod.number().nullable(),
+  "recipient": zod.string(),
+  "purchase": zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})
+})),
+  "addedCostCents": zod.number(),
+  "currentChargeCents": zod.number(),
+  "totalChargeCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "waived": zod.boolean()
+})
+
+
+export const AddRegistrationItemsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const addRegistrationItemsBodyItemsItemChoicesMax = 20;
+
+export const addRegistrationItemsBodyItemsMax = 100;
+
+export const addRegistrationItemsBodyQuoteTokenRegExp = new RegExp('^[a-f0-9]{64}$');
+export const addRegistrationItemsBodyRequestIdMin = 16;
+export const addRegistrationItemsBodyRequestIdMax = 100;
+
+
+export const addRegistrationItemsBodyRequestIdRegExp = new RegExp('^[A-Za-z0-9_-]+$');
+
+
+export const AddRegistrationItemsBody = zod.object({
+  "items": zod.array(zod.object({
+  "attendeeId": zod.number().nullable().describe('Existing attendee ID, or null for a household item'),
+  "feeId": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+})).max(addRegistrationItemsBodyItemsItemChoicesMax)
+})).min(1).max(addRegistrationItemsBodyItemsMax),
+  "quoteToken": zod.string().regex(addRegistrationItemsBodyQuoteTokenRegExp),
+  "requestId": zod.string().min(addRegistrationItemsBodyRequestIdMin).max(addRegistrationItemsBodyRequestIdMax).regex(addRegistrationItemsBodyRequestIdRegExp)
+})
+
+export const AddRegistrationItemsResponse = zod.object({
+  "registrationId": zod.number(),
+  "quoteToken": zod.string(),
+  "lines": zod.array(zod.object({
+  "attendeeId": zod.number().nullable(),
+  "recipient": zod.string(),
+  "purchase": zod.object({
+  "feeId": zod.number(),
+  "label": zod.string(),
+  "unitPriceCents": zod.number(),
+  "choices": zod.array(zod.object({
+  "groupId": zod.string(),
+  "valueId": zod.string(),
+  "groupLabel": zod.string().optional(),
+  "valueLabel": zod.string().optional()
+}))
+})
+})),
+  "addedCostCents": zod.number(),
+  "currentChargeCents": zod.number(),
+  "totalChargeCents": zod.number(),
+  "confirmedCents": zod.number(),
+  "legacyCreditCents": zod.number(),
+  "sponsoredCents": zod.number(),
+  "balanceCents": zod.number(),
+  "creditCents": zod.number(),
+  "waived": zod.boolean()
+})
+
+
 export const GetGraduatePageParams = zod.object({
   "reunionId": zod.coerce.number()
 })
@@ -1118,6 +1232,7 @@ export const CreateReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "allowPostRegistrationAddOns": zod.boolean().nullish().describe('Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.'),
   "fundName": zod.string().nullish(),
   "fundDescription": zod.string().nullish(),
   "fundButtonLabel": zod.string().nullish(),
@@ -1246,6 +1361,7 @@ export const ListMyReunionsResponseItem = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "allowPostRegistrationAddOns": zod.boolean().nullish().describe('Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.'),
   "fundName": zod.string().nullish(),
   "fundDescription": zod.string().nullish(),
   "fundButtonLabel": zod.string().nullish(),
@@ -1413,6 +1529,7 @@ export const GetReunionByCodeResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "allowPostRegistrationAddOns": zod.boolean().nullish().describe('Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.'),
   "fundName": zod.string().nullish(),
   "fundDescription": zod.string().nullish(),
   "fundButtonLabel": zod.string().nullish(),
@@ -1545,6 +1662,7 @@ export const GetReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "allowPostRegistrationAddOns": zod.boolean().nullish().describe('Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.'),
   "fundName": zod.string().nullish(),
   "fundDescription": zod.string().nullish(),
   "fundButtonLabel": zod.string().nullish(),
@@ -1663,6 +1781,7 @@ export const UpdateReunionBody = zod.object({
   "endDate": zod.string().min(1).optional(),
   "registrationsOpen": zod.boolean().optional(),
   "allowRegistrantEdits": zod.boolean().optional(),
+  "allowPostRegistrationAddOns": zod.boolean().optional(),
   "paymentPendingHeading": zod.string().max(updateReunionBodyPaymentPendingHeadingMax).nullish(),
   "paymentPendingMessage": zod.string().max(updateReunionBodyPaymentPendingMessageMax).nullish(),
   "heroImageUrl": zod.string().nullish().describe('Object path of a custom hub hero background image. Set null to restore the default.'),
@@ -1732,6 +1851,7 @@ export const UpdateReunionResponse = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "allowPostRegistrationAddOns": zod.boolean().nullish().describe('Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.'),
   "fundName": zod.string().nullish(),
   "fundDescription": zod.string().nullish(),
   "fundButtonLabel": zod.string().nullish(),
@@ -4302,6 +4422,7 @@ export const CreateRegistrationResponse = zod.object({
 }))
 })).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
+  "canAddItems": zod.boolean().optional().describe('Whether the current viewer can add merchandise to this registration'),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -4376,6 +4497,7 @@ export const ListMyRegistrationsResponseItem = zod.object({
 }))
 })).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
+  "canAddItems": zod.boolean().optional().describe('Whether the current viewer can add merchandise to this registration'),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -4455,6 +4577,7 @@ export const GetRegistrationResponse = zod.object({
 }))
 })).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
+  "canAddItems": zod.boolean().optional().describe('Whether the current viewer can add merchandise to this registration'),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -4578,6 +4701,7 @@ export const UpdateRegistrationResponse = zod.object({
 }))
 })).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
+  "canAddItems": zod.boolean().optional().describe('Whether the current viewer can add merchandise to this registration'),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -4668,6 +4792,7 @@ export const TransferRegistrationResponse = zod.object({
 }))
 })).nullish(),
   "canManageDinner": zod.boolean().optional().describe('Whether the current viewer may override dinner requirements when editing.'),
+  "canAddItems": zod.boolean().optional().describe('Whether the current viewer can add merchandise to this registration'),
   "ledger": zod.object({
   "registrationId": zod.number(),
   "chargeCents": zod.number(),
@@ -5207,6 +5332,7 @@ export const AdminListReunionsResponseItem = zod.object({
 }).describe('Server-resolved receiving destination. All destination fields are null unless status is approved and the stored values pass validation.'),
   "registrationsOpen": zod.boolean(),
   "allowRegistrantEdits": zod.boolean().optional().describe('When true, registrants may edit their own active registrations.'),
+  "allowPostRegistrationAddOns": zod.boolean().nullish().describe('Independent member add-only permission. Null inherits the existing edit permission until explicitly configured.'),
   "fundName": zod.string().nullish(),
   "fundDescription": zod.string().nullish(),
   "fundButtonLabel": zod.string().nullish(),

@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import type { AdminRegistration, ReunionFee } from "@workspace/api-client-react";
 import {
-  Ban, ClipboardCheck, Info, MoreHorizontal, Pencil, Receipt, Send, Users, Package, Wallet, GitBranch,
+  Ban, ClipboardCheck, Info, MoreHorizontal, Pencil, Receipt, Send, Users, Package, Wallet, GitBranch, PackagePlus,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Skeleton } from "../ui/skeleton";
@@ -24,6 +24,7 @@ export interface RegistrationActions {
   /** Null when editing isn't available (no event code). */
   onEdit: ((id: number) => void) | null;
   onTransfer: (id: number) => void;
+  onAddItems: (id: number) => void;
   onCancel: (id: number) => void;
   onDetails: (id: number, kind: DetailKind) => void;
 }
@@ -290,6 +291,11 @@ function RegistrationRowMenu({ reg, name, notes, actions }: { reg: AdminRegistra
         {!isCancelled && actions.onEdit && (
           <DropdownMenuItem className={item} onSelect={() => actions.onEdit!(reg.id)} data-testid={`menu-edit-${reg.id}`}>
             <Pencil className="w-4 h-4" aria-hidden /> Edit
+          </DropdownMenuItem>
+        )}
+        {!isCancelled && (
+          <DropdownMenuItem className={item} onSelect={() => actions.onAddItems(reg.id)} data-testid={`menu-add-items-${reg.id}`}>
+            <PackagePlus className="w-4 h-4" aria-hidden /> Add items
           </DropdownMenuItem>
         )}
         {!isCancelled && (

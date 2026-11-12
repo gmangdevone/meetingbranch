@@ -84,7 +84,8 @@ function reg(id: number, name: string, status: "active" | "cancelled" = "active"
 function actions(): RegistrationActions {
   return {
     onCheckIn: vi.fn(), onPayments: vi.fn(), onSubmissions: vi.fn(), onEdit: vi.fn(),
-    onTransfer: vi.fn(), onCancel: vi.fn(), onDetails: vi.fn(),
+    onTransfer: vi.fn(),
+    onAddItems: vi.fn(), onCancel: vi.fn(), onDetails: vi.fn(),
   };
 }
 function headers() {

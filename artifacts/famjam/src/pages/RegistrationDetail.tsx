@@ -1,9 +1,10 @@
 import { AddOnPurchaseList } from "../components/AddOnPicker";
+import { AddItemsDialog } from "../components/AddItemsDialog";
 import { useLocation } from "wouter";
 import { DEFAULT_PAYMENT_PENDING_HEADING, DEFAULT_PAYMENT_PENDING_MESSAGE } from "../lib/paymentPendingNotice";
 import { useGetRegistration, getGetRegistrationQueryKey, useTransferRegistration, getListMyRegistrationsQueryKey, useGetReunionByCode, getGetReunionByCodeQueryKey } from "@workspace/api-client-react";
 import { format } from "date-fns";
-import { ArrowLeft, Users, CreditCard, ExternalLink, CalendarDays, Send, AlertTriangle, Pencil } from "lucide-react";
+import { ArrowLeft, Users, CreditCard, ExternalLink, CalendarDays, Send, AlertTriangle, Pencil, PackagePlus } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../components/ui/dialog";
@@ -27,9 +28,10 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
   const [targetEmail, setTargetEmail] = useState("");
   const [targetRegistrationId, setTargetRegistrationId] = useState("");
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [addItemsOpen, setAddItemsOpen] = useState(false);
 
   const { data: reg, isLoading, isError } = useGetRegistration(id, {
-    query: { enabled: !isNaN(id), retry: false, queryKey: getGetRegistrationQueryKey(id) }
+    query: { enabled: !isNaN(id), retry: false, refetchOnMount: "always", queryKey: getGetRegistrationQueryKey(id) }
   });
 
   const transferMutation = useTransferRegistration();
@@ -205,6 +207,18 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
               )}
 
               {!isCancelled && (
+                <Button
+                  onClick={() => setAddItemsOpen(true)}
+                  variant="outline"
+                  className="rounded-xl w-full sm:w-auto"
+                  disabled={reg.canAddItems === false}
+                  data-testid="button-add-items"
+                >
+                  <PackagePlus className="w-4 h-4 mr-2" /> Add items
+                </Button>
+              )}
+
+              {!isCancelled && (
                 <Dialog open={isTransferDialogOpen} onOpenChange={setIsTransferDialogOpen}>
                   <DialogTrigger asChild>
                     <Button variant="ghost" className="rounded-xl w-full sm:w-auto text-primary hover:text-primary hover:bg-primary/10">
@@ -280,6 +294,20 @@ export function RegistrationDetail({ params }: { params: { id: string } }) {
             </div>
           </div>
         </div>
+
+        {!isCancelled && reg.canAddItems === false && (
+          <p className="-mt-3 px-2 text-sm text-muted-foreground" data-testid="text-add-items-disabled">
+            Adding items after registering is turned off for this event. An organizer can add items for you.
+          </p>
+        )}
+
+        <AddItemsDialog
+          registrationId={reg.id}
+          open={addItemsOpen}
+          onOpenChange={setAddItemsOpen}
+          paymentHref={`/registrations/${reg.id}`}
+          onPaymentLink={() => setTimeout(() => document.getElementById("payment-instructions")?.focus(), 300)}
+        />
 
         <section className="bg-card border shadow-md rounded-3xl p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">

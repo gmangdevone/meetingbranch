@@ -16,3 +16,4 @@ export * from "./images";
 export * from "./paymentRecipients";
 export * from "./branchFeeElections";
 export * from "./ledger";
+export * from "./registrationItemRequests";

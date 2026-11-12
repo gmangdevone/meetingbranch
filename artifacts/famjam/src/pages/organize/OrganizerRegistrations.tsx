@@ -37,6 +37,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Checkbox } from "../../components/ui/checkbox";
 import { useToast } from "../../hooks/use-toast";
 import { OrganizerLayout } from "./OrganizerLayout";
+import { AddItemsDialog } from "../../components/AddItemsDialog";
 import { eventCodePath } from "../../lib/eventCode";
 import { format } from "date-fns";
 import { computeTotal, isConfiguredDinner, isDinnerFee, isAddOnFee } from "../../lib/fees";
@@ -393,6 +394,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
   const [viewSaved, setViewSaved] = useState(false);
   const [details, setDetails] = useState<{ id: number; kind: DetailKind } | null>(null);
   const detailsReg = useMemo(() => registrations?.find((r) => r.id === details?.id) ?? null, [registrations, details?.id]);
+  const [addItemsRegId, setAddItemsRegId] = useState<number | null>(null);
   const byId = (id: number) => registrations?.find((r) => r.id === id) ?? null;
   const rowActions: RegistrationActions = {
     onCheckIn: (id) => setCheckInRegId(id),
@@ -400,6 +402,7 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
     onSubmissions: (id) => setSubmissionsRegId(id),
     onEdit: reunion?.code ? (id) => setLocation(eventCodePath(reunion.code, `/register/edit/${id}`)) : null,
     onTransfer: (id) => setTransferReg(byId(id)),
+    onAddItems: (id) => setAddItemsRegId(id),
     onCancel: (id) => setCancelReg(byId(id)),
     onDetails: (id, kind) => setDetails({ id, kind }),
   };
@@ -531,6 +534,12 @@ export function OrganizerRegistrations({ params }: { params: { reunionId: string
             isLoading={isLoading || (!view.fields && !view.isError)}
             submissionCount={(id) => submissionsByRegistration.get(id)?.length ?? 0}
             actions={rowActions}
+          />
+          <AddItemsDialog
+            registrationId={addItemsRegId}
+            open={addItemsRegId !== null}
+            onOpenChange={(o) => { if (!o) setAddItemsRegId(null); }}
+            paymentHref={addItemsRegId !== null ? `/registrations/${addItemsRegId}` : undefined}
           />
         </div>
       </div>
