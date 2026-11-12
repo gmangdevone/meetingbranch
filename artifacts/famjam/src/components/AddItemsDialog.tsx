@@ -128,6 +128,25 @@ export function AddItemsDialog({
   const [draft, setDraft] = useState<Draft>({});
   const [quote, setQuote] = useState<RegistrationItemsQuote | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [confirmationAttempts, setConfirmationAttempts] = useState(0);
+  const scrollArea = useRef<HTMLDivElement>(null);
+  const confirmationArea = useRef<HTMLDivElement>(null);
+  const confirmationInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    setConfirmationAttempts(0);
+  }, [quote, open, registrationId]);
+  useEffect(() => {
+    if (!confirmationAttempts || !open || !quote) return;
+    const container = scrollArea.current;
+    const target = confirmationArea.current;
+    if (container && target) {
+      container.scrollTo({
+        top: container.scrollTop + target.getBoundingClientRect().top - container.getBoundingClientRect().top - 12,
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      });
+      confirmationInput.current?.focus({ preventScroll: true });
+    }
+  }, [confirmationAttempts, open, quote]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
@@ -252,7 +271,11 @@ export function AddItemsDialog({
   };
 
   const save = async () => {
-    if (!reg || !quote || !confirmed) return;
+    if (!reg || !quote || pending) return;
+    if (!confirmed) {
+      setConfirmationAttempts((attempts) => attempts + 1);
+      return;
+    }
     setError(null);
     setNotice(null);
     try {
@@ -304,7 +327,7 @@ export function AddItemsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-4 space-y-5">
+        <div ref={scrollArea} data-testid="add-items-scroll-area" className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-4 space-y-5">
           {loading && !snap && (
             <div className="space-y-3" data-testid="status-add-items-loading">
               <Skeleton className="h-16 rounded-2xl" />
@@ -401,17 +424,30 @@ export function AddItemsDialog({
                   <h3 className="font-serif text-lg font-bold">Review before saving</h3>
                   <QuoteLines quote={quote} />
                   <QuoteTotals quote={quote} />
+                  <div ref={confirmationArea}>
                   <label className="flex items-start gap-2 text-sm cursor-pointer">
                     <input
+                      ref={confirmationInput}
                       type="checkbox"
                       className="mt-1 h-4 w-4 accent-[var(--fj-brand)]"
                       checked={confirmed}
                       disabled={pending || ambiguous}
-                      onChange={(e) => setConfirmed(e.target.checked)}
+                      aria-invalid={confirmationAttempts > 0 || undefined}
+                      aria-describedby={confirmationAttempts > 0 ? "add-items-confirmation-error" : undefined}
+                      onChange={(e) => {
+                        setConfirmed(e.target.checked);
+                        setConfirmationAttempts(0);
+                      }}
                       data-testid="checkbox-add-items-confirm"
                     />
                     <span>I confirm adding these items for {centsLabel(quote.addedCostCents)}. I understand saving does not pay for them.</span>
                   </label>
+                  {confirmationAttempts > 0 && (
+                    <p id="add-items-confirmation-error" role="alert" className="mt-2 text-sm font-semibold text-red-700">
+                      Please check the confirmation box before saving your items.
+                    </p>
+                  )}
+                  </div>
                 </div>
               )}
             </>
@@ -441,7 +477,7 @@ export function AddItemsDialog({
           </Button>
           {!saved && reg && reg.status === "active" && reg.canAddItems !== false && anyAvailable && (
             quote ? (
-              <Button className="rounded-xl" onClick={save} disabled={!confirmed || pending} data-testid="button-add-items-save">
+              <Button className="rounded-xl" onClick={save} disabled={pending} data-testid="button-add-items-save">
                 {addMutation.isPending ? "Saving..." : ambiguous ? "Retry save" : `Save items (${centsLabel(quote.addedCostCents)})`}
               </Button>
             ) : (
