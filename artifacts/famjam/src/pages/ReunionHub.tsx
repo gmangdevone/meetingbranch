@@ -439,7 +439,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                         const flatFees = applicableFees.filter((f) => f.chargeType === "flat");
                         return (
                           <div key={reg.id} className="pb-4 border-b">
-                            <div className="flex items-center justify-between gap-3 mb-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                               <span className="text-muted-foreground text-sm">
                                 {reg.branchName} registration ({reg.attendeeCount}{" "}
                                 {reg.attendeeCount === 1 ? "attendee" : "attendees"})
@@ -455,6 +455,18 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                               >
                                 {reg.paymentStatus}
                               </span>
+                              {reunion.allowRegistrantEdits && (
+                                <Button asChild variant="outline" size="sm" className="rounded-xl w-full sm:w-auto">
+                                  <Link
+                                    href={eventCodePath(reunion.code, `/register/edit/${reg.id}`)}
+                                    data-testid={`button-edit-registration-${reg.id}`}
+                                    aria-label={`Edit Registration for ${reg.branchName}`}
+                                  >
+                                    <Edit3 className="mr-2 h-4 w-4" aria-hidden />
+                                    Edit Registration
+                                  </Link>
+                                </Button>
+                              )}
                             </div>
                             <div className="flex flex-col gap-3">
                               {reg.attendees.map((attendee, i) => (
