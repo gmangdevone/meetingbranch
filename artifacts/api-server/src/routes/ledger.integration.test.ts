@@ -60,7 +60,7 @@ const one = (registrationId: number, amountCents: number, extra: Record<string, 
 
 describe.skipIf(!hasDb)("partial payment ledger (real DB)", () => {
   beforeAll(async () => {
-    await db.insert(usersTable).values([ORG, NOROLE, MEMBER, OTHER].map((id) => ({ id, email: "", isAdmin: false })));
+    await db.insert(usersTable).values([ORG, NOROLE, MEMBER, OTHER].map((id) => ({ id, email: "", firstName: "Ledger", lastName: "Tester", isAdmin: false })));
     const [r] = await db
       .insert(reunionsTable)
       .values({ code: `LG${RUN.slice(-7)}*`, name: "Ledger Reunion", startDate: "2027-07-01", endDate: "2027-07-03", paymentHandle: "", organizerId: ORG })

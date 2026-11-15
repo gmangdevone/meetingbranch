@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { OrganizerSchedule } from "./OrganizerSchedule";
 import { ReunionSchedule } from "../ReunionSchedule";
+import { requestUploadUrl } from "@workspace/api-client-react";
 
 const state = vi.hoisted(() => ({ rows: [] as any[], fail: false, invalidate: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: state.invalidate }) }));
@@ -23,8 +24,14 @@ vi.mock("@workspace/api-client-react", () => ({
   } }),
   useDeleteScheduleItem: () => ({ mutate: vi.fn() }),
 }));
-beforeEach(() => { state.rows = []; state.fail = false; state.invalidate.mockClear(); });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  state.rows = []; state.fail = false; state.invalidate.mockClear();
+  vi.mocked(requestUploadUrl).mockClear();
+  vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 1600, height: 1200, close: vi.fn() })));
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({ drawImage: vi.fn() } as unknown as CanvasRenderingContext2D);
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback, type) => callback(new Blob(["ok"], { type })));
+});
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 it("uploads, saves, displays, replaces and removes an event photo", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
@@ -36,6 +43,9 @@ it("uploads, saves, displays, replaces and removes an event photo", async () => 
   });
   expect(screen.getByText("Save Event")).toBeDisabled();
   await waitFor(() => expect(screen.getByAltText("Selected event photo")).toBeInTheDocument());
+  expect(requestUploadUrl).toHaveBeenLastCalledWith({ name: "picnic.webp", size: 2, contentType: "image/webp" });
+  expect(vi.mocked(fetch).mock.calls[0][1]).toMatchObject({ headers: { "Content-Type": "image/webp" }, body: expect.any(File) });
+  expect(screen.getByRole("status")).toHaveTextContent("Original: 5 B → Upload: 2 B");
   fireEvent.click(screen.getByText("Save Event"));
   expect(state.rows[0].photoPath).toBe("/objects/uploads/test-photo");
   view.unmount();
@@ -75,6 +85,38 @@ it("preserves the previous photo after failed uploads and rejects unsupported fi
   expect(screen.getByAltText("Selected event photo")).toHaveAttribute("src", "/api/storage/objects/uploads/old-photo");
   fireEvent.click(screen.getByText("Save Event"));
   expect(state.rows[0].photoPath).toBe("/objects/uploads/old-photo");
+});
+
+it("blocks saving and closing while optimizing and preserves the old photo on decode failure", async () => {
+  let rejectDecode!: (error: Error) => void;
+  vi.mocked(createImageBitmap).mockImplementation(() => new Promise((_, reject) => { rejectDecode = reject; }));
+  state.rows = [{ id: 1, title: "Picnic", day: "Saturday", startTime: "12:00", photoPath: "/objects/uploads/old-photo" }];
+  render(<OrganizerSchedule params={{ reunionId: "1" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit event Picnic" }));
+  fireEvent.change(screen.getByLabelText("Event photo (optional)"), {
+    target: { files: [new File(["photo"], "picnic.jpg", { type: "image/jpeg" })] },
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("Optimizing");
+  expect(screen.getByText("Save Event")).toBeDisabled();
+  expect(screen.getByText("Cancel")).toBeDisabled();
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  expect(requestUploadUrl).not.toHaveBeenCalled();
+  rejectDecode(new Error("bad image"));
+  await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Could not optimize"));
+  expect(screen.getByText("Save Event")).not.toBeDisabled();
+  expect(screen.getByAltText("Selected event photo")).toHaveAttribute("src", "/api/storage/objects/uploads/old-photo");
+});
+
+it("uploads GIF bytes unchanged and explains animation preservation", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
+  render(<OrganizerSchedule params={{ reunionId: "1" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Add Event" }));
+  const gif = new File(["GIF89a"], "animated.gif", { type: "image/gif" });
+  fireEvent.change(screen.getByLabelText("Event photo (optional)"), { target: { files: [gif] } });
+  await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Photo uploaded"));
+  expect(screen.getByRole("status")).toHaveTextContent("GIF kept unchanged to preserve animation");
+  expect(vi.mocked(fetch).mock.calls[0][1]?.body).toBe(gif);
 });
 
 it("exposes touch-sized edit and delete actions without hover", () => {
