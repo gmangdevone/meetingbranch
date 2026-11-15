@@ -2,7 +2,8 @@ import { useState } from "react";
 import { OrganizerLayout } from "./OrganizerLayout";
 import { useGetSponsorshipFund, getGetSponsorshipFundQueryKey, useListReunionRegistrations, getListReunionRegistrationsQueryKey, useCreateSponsorshipAllocation, useUpdateContributionPayment } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Heart, Info, Plus, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { Heart, Info, Plus, ArrowDownRight, ArrowUpRight, Download } from "lucide-react";
+import { downloadContributionReport } from "../../lib/contributionReport";
 import { Button } from "../../components/ui/button";
 import { Skeleton } from "../../components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "../../components/ui/dialog";
@@ -24,7 +25,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
     query: { enabled: Number.isFinite(reunionId), queryKey: getGetReunionQueryKey(reunionId) }
   });
   
-  const { data: fund, isLoading } = useGetSponsorshipFund(reunionId, {
+  const { data: fund, isLoading, refetch: refreshFund } = useGetSponsorshipFund(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getGetSponsorshipFundQueryKey(reunionId) }
   });
   
@@ -56,6 +57,23 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
   const [sponsorName, setSponsorName] = useState("");
   const [note, setNote] = useState("");
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setDownloadError(null);
+    try {
+      // Recheck permission and fetch current payment statuses before exporting.
+      const result = await refreshFund();
+      if (result.isError || !result.data) throw new Error("Unable to load contributions.");
+      downloadContributionReport(result.data.contributions, reunionId);
+    } catch {
+      setDownloadError("Could not download the contribution report. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleAllocate = () => {
     const numAmount = parseInt(amount, 10);
@@ -257,9 +275,17 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
 
               {/* Contributions Ledger */}
               <div className="bg-card border shadow-sm rounded-3xl p-6 flex flex-col h-[500px]">
-                <h2 className="font-serif text-2xl font-bold mb-4 flex items-center">
+                <h2 className="font-serif text-2xl font-bold mb-3 flex items-center">
                   <ArrowDownRight className="w-5 h-5 mr-2 text-green-500" /> Contributions Received
                 </h2>
+                <div className="mb-4">
+                  <Button variant="outline" className="rounded-full" onClick={handleDownload} disabled={isDownloading || contributionPaymentMutation.isPending}>
+                    <Download className="w-4 h-4 mr-2" />
+                    {isDownloading ? "Downloading…" : "Download Contributions CSV"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">Includes all contributions: paid, pending, and waived.</p>
+                  {downloadError && <p role="alert" className="text-sm text-destructive mt-2">{downloadError}</p>}
+                </div>
                 <div className="flex-1 overflow-y-auto pr-2 space-y-3">
                   {fund.contributions.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground">No contributions received yet.</div>
