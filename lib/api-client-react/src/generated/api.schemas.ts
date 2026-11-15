@@ -2513,6 +2513,11 @@ export interface ScheduleItem {
   title: string;
   /** @nullable */
   description?: string | null;
+  /**
+     * Optional uploaded photo object path.
+     * @nullable
+     */
+  photoPath?: string | null;
   /** @nullable */
   location?: string | null;
   sortOrder?: number;
@@ -2527,6 +2532,12 @@ export interface ScheduleItemInput {
   /** @minLength 1 */
   title: string;
   description?: string;
+  /**
+     * Uploaded photo path; null removes the photo, omission preserves it.
+     * @nullable
+     * @pattern ^/objects/uploads/[A-Za-z0-9_-]+$
+     */
+  photoPath?: string | null;
   location?: string;
   sortOrder?: number;
 }

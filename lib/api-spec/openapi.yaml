@@ -5911,6 +5911,9 @@ components:
           type: string
         description:
           type: ["string", "null"]
+        photoPath:
+          type: ["string", "null"]
+          description: Optional uploaded photo object path.
         location:
           type: ["string", "null"]
         sortOrder:
@@ -5933,6 +5936,10 @@ components:
           minLength: 1
         description:
           type: string
+        photoPath:
+          type: ["string", "null"]
+          pattern: '^/objects/uploads/[A-Za-z0-9_-]+$'
+          description: Uploaded photo path; null removes the photo, omission preserves it.
         location:
           type: string
         sortOrder:

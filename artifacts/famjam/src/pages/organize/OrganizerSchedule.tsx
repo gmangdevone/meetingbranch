@@ -12,6 +12,7 @@ import type { ScheduleItem } from "@workspace/api-client-react";
 import { AnnouncementEditor } from "../../components/AnnouncementEditor";
 import { AnnouncementBody } from "../../components/AnnouncementBody";
 import { announcementLinks, safeAnnouncementUrl } from "../../lib/announcementLinks";
+import { SchedulePhotoEditor, ScheduleThumbnail } from "../../components/SchedulePhoto";
 
 export function OrganizerSchedule({ params }: { params: { reunionId: string } }) {
   const reunionId = parseInt(params.reunionId, 10);
@@ -30,6 +31,8 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   const [sortOrder, setSortOrder] = useState(0);
   const [saveError, setSaveError] = useState("");
   const [linkEditing, setLinkEditing] = useState(false);
+  const [photoPath, setPhotoPath] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const { data: schedule, isLoading } = useListReunionSchedule(reunionId, {
     query: { enabled: !isNaN(reunionId), queryKey: getListReunionScheduleQueryKey(reunionId) }
@@ -38,9 +41,10 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   const createMutation = useCreateScheduleItem();
   const updateMutation = useUpdateScheduleItem();
   const deleteMutation = useDeleteScheduleItem();
-  const saving = createMutation.isPending || updateMutation.isPending;
+  const saving = createMutation.isPending || updateMutation.isPending || photoUploading;
 
   const resetForm = () => {
+    setPhotoPath(null);
     setSaveError("");
     setLinkEditing(false);
     setDay(schedule && schedule.length > 0 ? schedule[0].day : "Friday");
@@ -59,6 +63,7 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
   };
 
   const openEdit = (s: ScheduleItem) => {
+    setPhotoPath(s.photoPath ?? null);
     setSaveError("");
     setLinkEditing(false);
     setDay(s.day);
@@ -91,6 +96,7 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
       title, 
       location: locationStr || undefined, 
       description: description || undefined,
+      photoPath,
       sortOrder 
     };
 
@@ -175,6 +181,7 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
               <div className="space-y-2">
                 <AnnouncementEditor label="Description (Optional)" placeholder="Bring your own chairs" value={description} onChange={setDescription} disabled={saving} onLinkEditing={setLinkEditing} />
               </div>
+              <SchedulePhotoEditor value={photoPath} onChange={setPhotoPath} busy={saving} onUploading={setPhotoUploading} />
             </fieldset>
             {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
             <DialogFooter>
@@ -205,6 +212,7 @@ export function OrganizerSchedule({ params }: { params: { reunionId: string } })
                         {item.startTime} {item.endTime && <span className="block text-xs text-muted-foreground font-normal">to {item.endTime}</span>}
                       </div>
                       <div className="flex-1 min-w-0">
+                        <div className="mb-2"><ScheduleThumbnail path={item.photoPath} title={item.title} /></div>
                         <div className="font-bold break-words">{item.title}</div>
                         {(item.location || item.description) && (
                           <div className="text-xs text-muted-foreground mt-1">

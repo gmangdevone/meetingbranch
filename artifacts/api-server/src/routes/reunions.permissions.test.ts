@@ -107,7 +107,7 @@ vi.mock("@workspace/db", () => {
     registration_fees: ["id", "registrationId", "feeId"],
     attendees: ["id", "registrationId"],
     announcements: ["id", "reunionId", "title", "body", "pinned", "createdAt"],
-    schedule_items: ["id", "reunionId", "day", "sortOrder"],
+    schedule_items: ["id", "reunionId", "day", "sortOrder", "photoPath"],
     app_settings: ["id"],
     payment_recipients: ["reunionId", "status", "cashAppTag", "paymentHandle", "paymentUrl", "version", "updatedBy", "updatedAt"],
     payment_submissions: [
@@ -1021,6 +1021,30 @@ describe("sponsorship fund works end-to-end for authorized organizers", () => {
 // POST /reunions/:reunionId/sponsorship/contributions
 // Any signed-in member (even a non-organizer) can chip in to the fund.
 // ──────────────────────────────────────────────────────────────────────────────
+describe("schedule photos", () => {
+  beforeEach(() => { seed(["schedule"]); authAs(CO); });
+
+  it("saves, lists, preserves, replaces, and removes uploaded photos", async () => {
+    const data = { day: "Saturday", startTime: "12:00", title: "Picnic", photoPath: "/objects/uploads/photo-one" };
+    const created = await app().post(`/api/reunions/${REUNION_ID}/schedule`).send(data);
+    expect(created.status).toBe(201);
+    expect(created.body.photoPath).toBe(data.photoPath);
+    const url = `/api/reunions/${REUNION_ID}/schedule/${created.body.id}`;
+    const list = await app().get(`/api/reunions/${REUNION_ID}/schedule`);
+    expect(list.body[0].photoPath).toBe(data.photoPath);
+    const { photoPath, ...withoutPhoto } = data;
+    expect((await app().put(url).send(withoutPhoto)).body.photoPath).toBe(photoPath);
+    expect((await app().put(url).send({ ...data, photoPath: "/objects/uploads/photo-two" })).body.photoPath).toBe("/objects/uploads/photo-two");
+    expect((await app().put(url).send({ ...data, photoPath: null })).body.photoPath).toBeNull();
+  });
+
+  it.each(["javascript:alert(1)", "https://example.com/photo.jpg", "/objects/uploads/../secret"])("rejects invalid photo path %s", async photoPath => {
+    const result = await app().post(`/api/reunions/${REUNION_ID}/schedule`)
+      .send({ day: "Saturday", startTime: "12:00", title: "Picnic", photoPath });
+    expect(result.status).toBe(400);
+  });
+});
+
 describe("member contribution to sponsorship fund", () => {
   beforeEach(() => {
     state.auth = null;

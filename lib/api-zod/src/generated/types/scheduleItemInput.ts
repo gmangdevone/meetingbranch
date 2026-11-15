@@ -15,6 +15,12 @@ export interface ScheduleItemInput {
   /** @minLength 1 */
   title: string;
   description?: string;
+  /**
+     * Uploaded photo path; null removes the photo, omission preserves it.
+     * @nullable
+     * @pattern ^/objects/uploads/[A-Za-z0-9_-]+$
+     */
+  photoPath?: string | null;
   location?: string;
   sortOrder?: number;
 }

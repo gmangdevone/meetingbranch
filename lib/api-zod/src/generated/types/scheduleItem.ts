@@ -18,6 +18,11 @@ export interface ScheduleItem {
   title: string;
   /** @nullable */
   description?: string | null;
+  /**
+     * Optional uploaded photo object path.
+     * @nullable
+     */
+  photoPath?: string | null;
   /** @nullable */
   location?: string | null;
   sortOrder?: number;

@@ -2084,6 +2084,7 @@ export const ListReunionScheduleResponseItem = zod.object({
   "endTime": zod.string().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
+  "photoPath": zod.string().nullish().describe('Optional uploaded photo object path.'),
   "location": zod.string().nullish(),
   "sortOrder": zod.number().optional()
 })
@@ -2100,6 +2101,7 @@ export const CreateScheduleItemParams = zod.object({
 
 
 
+export const createScheduleItemBodyPhotoPathRegExp = new RegExp('^/objects/uploads/[A-Za-z0-9_-]+$');
 export const createScheduleItemBodySortOrderDefault = 0;
 
 export const CreateScheduleItemBody = zod.object({
@@ -2108,6 +2110,7 @@ export const CreateScheduleItemBody = zod.object({
   "endTime": zod.string().optional(),
   "title": zod.string().min(1),
   "description": zod.string().optional(),
+  "photoPath": zod.string().regex(createScheduleItemBodyPhotoPathRegExp).nullish().describe('Uploaded photo path; null removes the photo, omission preserves it.'),
   "location": zod.string().optional(),
   "sortOrder": zod.number().default(createScheduleItemBodySortOrderDefault)
 })
@@ -2120,6 +2123,7 @@ export const CreateScheduleItemResponse = zod.object({
   "endTime": zod.string().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
+  "photoPath": zod.string().nullish().describe('Optional uploaded photo object path.'),
   "location": zod.string().nullish(),
   "sortOrder": zod.number().optional()
 })
@@ -2136,6 +2140,7 @@ export const UpdateScheduleItemParams = zod.object({
 
 
 
+export const updateScheduleItemBodyPhotoPathRegExp = new RegExp('^/objects/uploads/[A-Za-z0-9_-]+$');
 export const updateScheduleItemBodySortOrderDefault = 0;
 
 export const UpdateScheduleItemBody = zod.object({
@@ -2144,6 +2149,7 @@ export const UpdateScheduleItemBody = zod.object({
   "endTime": zod.string().optional(),
   "title": zod.string().min(1),
   "description": zod.string().optional(),
+  "photoPath": zod.string().regex(updateScheduleItemBodyPhotoPathRegExp).nullish().describe('Uploaded photo path; null removes the photo, omission preserves it.'),
   "location": zod.string().optional(),
   "sortOrder": zod.number().default(updateScheduleItemBodySortOrderDefault)
 })
@@ -2156,6 +2162,7 @@ export const UpdateScheduleItemResponse = zod.object({
   "endTime": zod.string().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
+  "photoPath": zod.string().nullish().describe('Optional uploaded photo object path.'),
   "location": zod.string().nullish(),
   "sortOrder": zod.number().optional()
 })

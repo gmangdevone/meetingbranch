@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { OrganizerSchedule } from "./OrganizerSchedule";
 import { ReunionSchedule } from "../ReunionSchedule";
@@ -9,6 +9,7 @@ vi.mock("./OrganizerLayout", () => ({ OrganizerLayout: ({ children }: any) => ch
 vi.mock("wouter", () => ({ useLocation: () => ["/", vi.fn()] }));
 vi.mock("../../hooks/use-toast", () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock("@workspace/api-client-react", () => ({
+  requestUploadUrl: vi.fn(async () => ({ uploadURL: "https://upload.example.test/photo", objectPath: "/objects/uploads/test-photo" })),
   getListReunionScheduleQueryKey: () => ["schedule"],
   getGetReunionByCodeQueryKey: () => ["reunion"],
   useGetReunionByCode: () => ({ data: { id: 1, code: "TEST", name: "Test reunion" } }),
@@ -23,7 +24,58 @@ vi.mock("@workspace/api-client-react", () => ({
   useDeleteScheduleItem: () => ({ mutate: vi.fn() }),
 }));
 beforeEach(() => { state.rows = []; state.fail = false; state.invalidate.mockClear(); });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+it("uploads, saves, displays, replaces and removes an event photo", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
+  let view = render(<OrganizerSchedule params={{ reunionId: "1" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Add Event" }));
+  fireEvent.change(screen.getByLabelText("Event Title"), { target: { value: "Picnic" } });
+  fireEvent.change(screen.getByLabelText("Event photo (optional)"), {
+    target: { files: [new File(["photo"], "picnic.jpg", { type: "image/jpeg" })] },
+  });
+  expect(screen.getByText("Save Event")).toBeDisabled();
+  await waitFor(() => expect(screen.getByAltText("Selected event photo")).toBeInTheDocument());
+  fireEvent.click(screen.getByText("Save Event"));
+  expect(state.rows[0].photoPath).toBe("/objects/uploads/test-photo");
+  view.unmount();
+  view = render(<ReunionSchedule params={{ code: "TEST" }} />);
+  expect(screen.getByAltText("Picnic photo")).toHaveAttribute("src", "/api/storage/objects/uploads/test-photo");
+  view.unmount();
+  state.rows[0].photoPath = "/objects/uploads/old-photo";
+  view = render(<OrganizerSchedule params={{ reunionId: "1" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit event Picnic" }));
+  expect(screen.getByAltText("Selected event photo")).toHaveAttribute("src", "/api/storage/objects/uploads/old-photo");
+  fireEvent.change(screen.getByLabelText("Event photo (optional)"), {
+    target: { files: [new File(["replacement"], "picnic.png", { type: "image/png" })] },
+  });
+  await waitFor(() => expect(screen.getByAltText("Selected event photo")).toHaveAttribute("src", "/api/storage/objects/uploads/test-photo"));
+  fireEvent.click(screen.getByText("Save Event"));
+  expect(state.rows[0].photoPath).toBe("/objects/uploads/test-photo");
+  fireEvent.click(screen.getByRole("button", { name: "Edit event Picnic" }));
+  fireEvent.click(screen.getByText("Remove photo"));
+  fireEvent.click(screen.getByText("Save Event"));
+  expect(state.rows[0].photoPath).toBeNull();
+  view.unmount();
+  render(<ReunionSchedule params={{ code: "TEST" }} />);
+  expect(screen.queryByAltText("Picnic photo")).not.toBeInTheDocument();
+});
+
+it("preserves the previous photo after failed uploads and rejects unsupported files", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
+  state.rows = [{ id: 1, title: "Picnic", day: "Saturday", startTime: "12:00", photoPath: "/objects/uploads/old-photo" }];
+  render(<OrganizerSchedule params={{ reunionId: "1" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit event Picnic" }));
+  const input = screen.getByLabelText("Event photo (optional)");
+  fireEvent.change(input, { target: { files: [new File(["pdf"], "file.pdf", { type: "application/pdf" })] } });
+  expect(screen.getByRole("alert")).toHaveTextContent("Choose a JPG");
+  expect(fetch).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { files: [new File(["photo"], "photo.jpg", { type: "image/jpeg" })] } });
+  await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Could not upload"));
+  expect(screen.getByAltText("Selected event photo")).toHaveAttribute("src", "/api/storage/objects/uploads/old-photo");
+  fireEvent.click(screen.getByText("Save Event"));
+  expect(state.rows[0].photoPath).toBe("/objects/uploads/old-photo");
+});
 
 it("exposes touch-sized edit and delete actions without hover", () => {
   state.rows = [{ id: 1, title: "Picnic", day: "Saturday", startTime: "12:00" }];

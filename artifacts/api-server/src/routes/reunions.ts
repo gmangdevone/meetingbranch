@@ -1003,6 +1003,7 @@ router.post("/reunions/:reunionId/schedule", ...manage, requireReunionPermission
       title: body.data.title,
       description: body.data.description ?? null,
       location: body.data.location ?? null,
+      photoPath: body.data.photoPath ?? null,
       sortOrder: body.data.sortOrder ?? 0,
     })
     .returning();
@@ -1025,6 +1026,7 @@ router.put("/reunions/:reunionId/schedule/:scheduleId", ...manage, requireReunio
       title: body.data.title,
       description: body.data.description ?? null,
       location: body.data.location ?? null,
+      ...(body.data.photoPath === undefined ? {} : { photoPath: body.data.photoPath }),
       sortOrder: body.data.sortOrder ?? 0,
     })
     .where(
