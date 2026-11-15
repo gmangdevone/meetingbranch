@@ -673,7 +673,7 @@ export function ReunionRegister({ params }: { params: { code: string; editId?: s
                   </div>
                   <div>
                     <h2 className="font-serif text-2xl font-bold break-words">{reunion.fundName || "Sponsorship Fund"}</h2>
-                    <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">{reunion.fundDescription || "Help cover costs for family members who need a little assistance."}{"\n"}(Anonymous)</p>
+                    <p className="text-muted-foreground text-sm whitespace-pre-wrap break-words">{reunion.fundDescription || "Help cover costs for family members who need a little assistance."}{"\n"}Your contribution will be recorded under your name.</p>
                   </div>
                 </div>
                 <FormField

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { resolveContributorName } from "../lib/contributorName";
 import { eq, desc, asc, sql } from "drizzle-orm";
 import {
   db,
@@ -136,6 +137,12 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
   // JIT-provision user row with authoritative Clerk profile data
   const { email: clerkEmail, firstName: clerkFirstName } =
     await upsertUserFromClerk(userId, req.log);
+  const contributorName = sponsorshipContribution && sponsorshipContribution > 0
+    ? await resolveContributorName(userId) : null;
+  if (sponsorshipContribution && sponsorshipContribution > 0 && !contributorName) {
+    res.status(400).json({ error: "Add your name to your profile before contributing to the fund." });
+    return;
+  }
 
   let registration;
   try {
@@ -183,6 +190,7 @@ router.post("/registrations", requireAuth, async (req, res): Promise<void> => {
       reunionId,
       registrationId: registration.id,
       contributorUserId: userId,
+      contributorName,
       amount: sponsorshipContribution,
       source: "registration",
     });

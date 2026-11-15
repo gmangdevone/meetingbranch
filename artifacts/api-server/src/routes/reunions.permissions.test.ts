@@ -991,7 +991,13 @@ describe("sponsorship fund works end-to-end for authorized organizers", () => {
     expect(state.rows.sponsorship_allocations).toHaveLength(0);
   });
 
-  it("allows a direct sponsorship without touching the fund balance", async () => {
+  it.each([
+    ["Uncle Y", "Uncle Y"],
+    ["  Uncle Y  ", "Uncle Y"],
+    [undefined, "C O"],
+    ["", "C O"],
+    ["   ", "C O"],
+  ])("saves direct sponsorship name %s as %s without touching the fund balance", async (sponsorName, expectedName) => {
     seedSponsorship(["power_user"]);
     authAs(CO);
     const res = await app()
@@ -1000,13 +1006,13 @@ describe("sponsorship fund works end-to-end for authorized organizers", () => {
         registrationId: REG_ID,
         amount: 500,
         fundedFrom: "direct",
-        sponsorName: "Uncle Y",
+        sponsorName,
       });
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({ balance: 100, totalAllocated: 0 });
     expect(res.body.allocations[0]).toMatchObject({
       fundedFrom: "direct",
-      sponsorName: "Uncle Y",
+      sponsorName: expectedName,
     });
   });
 });
@@ -1019,6 +1025,18 @@ describe("member contribution to sponsorship fund", () => {
   beforeEach(() => {
     state.auth = null;
     seed([]);
+  });
+
+  it("rejects an unnamed contribution when the profile has no name", async () => {
+    authAs(OUTSIDER);
+    const user = state.rows.users.find((user: any) => user.id === OUTSIDER)!;
+    user.firstName = "";
+    user.lastName = null;
+    const res = await app()
+      .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
+      .send({ amount: 25, contributorName: " " });
+    expect(res.status).toBe(400);
+    expect(state.rows.sponsorship_contributions).toHaveLength(0);
   });
 
   it("returns 201 with the created row when a signed-in non-organizer chips in", async () => {
@@ -1044,17 +1062,19 @@ describe("member contribution to sponsorship fund", () => {
     });
   });
 
-  it("accepts a contribution without a contributorName (anonymous chip-in)", async () => {
+  it.each([undefined, null, "", "   "])("defaults a blank display name (%s) to the contributor's profile name", async (contributorName) => {
     authAs(OUTSIDER);
     const res = await app()
       .post(`/api/reunions/${REUNION_ID}/sponsorship/contributions`)
-      .send({ amount: 25 });
+      .send({ amount: 25, contributorName });
     expect(res.status).toBe(201);
     expect(res.body).toMatchObject({
       amount: 25,
       source: "direct",
+      contributorName: "X Y",
     });
     expect(state.rows.sponsorship_contributions).toHaveLength(1);
+    expect(state.rows.sponsorship_contributions[0].contributorName).toBe("X Y");
   });
 
   it("returns 404 when the reunion does not exist", async () => {

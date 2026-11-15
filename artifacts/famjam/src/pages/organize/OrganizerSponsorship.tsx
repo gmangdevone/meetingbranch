@@ -170,6 +170,7 @@ export function OrganizerSponsorship({ params }: { params: { reunionId: string }
                   <div className="space-y-2">
                     <Label>Sponsor Name (Optional)</Label>
                     <Input placeholder="e.g. Aunt Mary" value={sponsorName} onChange={(e) => setSponsorName(e.target.value)} className="rounded-xl" />
+                    <p className="text-xs text-muted-foreground">Leave blank to use your name. If recording someone else's sponsorship, enter their name.</p>
                   </div>
                 )}
                 

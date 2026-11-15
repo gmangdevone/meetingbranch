@@ -838,7 +838,7 @@ export function ReunionHub({ params }: { params: { code: string } }) {
                               onChange={(e) => setContributorName(e.target.value)}
                               className="rounded-xl"
                             />
-                            <p className="text-xs text-muted-foreground">Leave blank to remain anonymous.</p>
+                            <p className="text-xs text-muted-foreground">Leave blank to use your name.</p>
                           </div>
                           {createContribution.isError && (
                             <p className="text-sm text-destructive font-medium">{(createContribution.error as any)?.error || "Failed to submit contribution."}</p>

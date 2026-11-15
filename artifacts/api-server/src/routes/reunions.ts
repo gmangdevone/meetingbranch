@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { resolveContributorName } from "../lib/contributorName";
 import { eq, desc, asc, sql, and, inArray, isNull } from "drizzle-orm";
 import {
   db,
@@ -1965,10 +1966,13 @@ router.post(
         }
         const resolution = paidCents > 0 ? body.data.resolution! : "no_payment";
         if (resolution === "donated_to_fund") {
+          const contributorName = await resolveContributorName(reg.userId);
+          if (!contributorName) throw new LedgerError(400, "Add the registrant's name to their profile before donating to the fund.");
           await tx.insert(sponsorshipContributionsTable).values({
             reunionId: reg.reunionId,
             registrationId: reg.id,
             contributorUserId: reg.userId,
+            contributorName,
             amount: Math.floor(paidCents / 100),
             amountCents: paidCents,
             source: "cancellation",
@@ -2168,6 +2172,13 @@ router.post(
       return;
     }
     const { registrationId, amount, fundedFrom, sponsorName, note } = body.data;
+    const resolvedSponsorName = fundedFrom === "direct"
+      ? await resolveContributorName(req.userId!, sponsorName)
+      : null;
+    if (fundedFrom === "direct" && !resolvedSponsorName) {
+      res.status(400).json({ error: "Enter a sponsor name or add your name to your profile." });
+      return;
+    }
 
     const [reg] = await db
       .select()
@@ -2210,7 +2221,7 @@ router.post(
           registrationId,
           amount,
           fundedFrom,
-          sponsorName: sponsorName ?? null,
+          sponsorName: resolvedSponsorName,
           note: note ?? null,
           createdBy: req.userId!,
         });
@@ -2290,12 +2301,17 @@ router.post(
       res.status(404).json({ error: "Reunion not found" });
       return;
     }
+    const contributorName = await resolveContributorName(req.userId!, body.data.contributorName);
+    if (!contributorName) {
+      res.status(400).json({ error: "Enter a display name or add your name to your profile." });
+      return;
+    }
     const [created] = await db
       .insert(sponsorshipContributionsTable)
       .values({
         reunionId,
         contributorUserId: (req as any).userId as string,
-        contributorName: body.data.contributorName ?? null,
+        contributorName,
         amount: body.data.amount,
         source: "direct",
       })
